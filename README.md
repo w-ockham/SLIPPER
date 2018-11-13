@@ -1,1 +1,1 @@
-# SOTAwatchSpot
+# SOTAspotJA

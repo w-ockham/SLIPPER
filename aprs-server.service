@@ -1,0 +1,10 @@
+[Unit]
+Desctiption = SOTA Twitter Bot Server
+
+[Service]
+ExecStart = /home/ubuntu/pi/SOTAspotJA/watchAlerts.py
+Restart = always
+Type = simple
+
+[Install]
+WantedBy = multi-user.target
