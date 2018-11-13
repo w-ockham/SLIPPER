@@ -88,7 +88,7 @@ def lookup_summit(op,lat,lng):
         mag = 10.0
     else:
         if len(KEYS['TEST_USER']) == 0:
-               mag = 1.0
+               mag = 5.0
         else:
             return(-1,"")
         
@@ -178,8 +178,8 @@ def parse_alerts(url):
         elif state == 'new' and "\"70px\">&nbsp" in line:
             m = re.search('&nbsp;([\d:]+)</td>$',line)
             alert_time = int(parse(ald + " " +m.group(1)).strftime("%s"))
-            alert_start = alert_time - 3600
-            alert_end= alert_time  + 10800
+            alert_start = alert_time - 3600*4
+            alert_end= alert_time  + 3600*5
             state = 'operator'
         elif state == 'operator' and "<strong>" in line:
             m = re.search('<strong>(.+)</strong>',line)
@@ -196,7 +196,7 @@ def parse_alerts(url):
         elif state == 'summit' and "<strong>" in line:
             m = re.search('<strong>(.+)</strong>',line)
             alert_summit = m.group(1)
-            if "JA" in alert_summit:
+            if re.search(KEYS['Alerts'],alert_summit):
                 cur.execute('SELECT * from summits where code=?',(alert_summit,))
                 for (_,_,_,pt,alt,name,desc,_,_) in cur.fetchall():
                     alert_sinfo = name + ", " +str(alt)+"m, "+str(pt)+" pt, " + desc
@@ -254,18 +254,19 @@ def update_alerts():
     conn2.commit()
 
     for d in res:
-        q = 'insert into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
-        cur.execute(q,(d['time'],d['start'],d['end'],
-                       d['operator'],d['callsign'],
-                       d['summit'],d['summit_info'],d['freq'],
-                       d['comment'],d['poster']))
-        if now >= d['start'] and now <= d['end']:
-            if not d['operator'] in operators:
-                operators.append(d['operator'])
-                q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,dist,az,level,summit,message,type) values (?,?,?,?,?,?,?,?,?,?,?,?)'
-                cur2.execute(q,(d['start'],d['end'],d['operator'],
-                                -1,'','',-1,0,-1,
-                                d['summit'],d['summit_info'],'SW2'))
+        if re.search(KEYS['Alerts'],d['summit']):
+            q = 'insert into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
+            cur.execute(q,(d['time'],d['start'],d['end'],
+                           d['operator'],d['callsign'],
+                           d['summit'],d['summit_info'],d['freq'],
+                           d['comment'],d['poster']))
+            if now >= d['start'] and now <= d['end']:
+                if not d['operator'] in operators:
+                    operators.append(d['operator'])
+                    q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,dist,az,level,summit,message,type) values (?,?,?,?,?,?,?,?,?,?,?,?)'
+                    cur2.execute(q,(d['start'],d['end'],d['operator'],
+                                    -1,'','',-1,0,-1,
+                                    d['summit'],d['summit_info'],'SW2'))
 
     for user in KEYS['TEST_USER']:
         d = {'time':now,'start':now-3600,'end':now+10800,
