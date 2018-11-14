@@ -139,7 +139,7 @@ def lookup_summit(op,lat,lng):
                 mesg = "Welcome to " + code +". "+ name + " " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
             elif state == 1 or state == 2:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg = "Approacing " + code + "," + str(dist) +"m("+str(az)+"deg) to go."
+                mesg = "Approaching " + code + "," + str(dist) +"m("+str(az)+"deg) to go."
             elif state == 5:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Departing " + code + "," + str(dist) +"m("+str(az)+"deg) from summit."
