@@ -100,7 +100,8 @@ def lookup_summit(op,lat,lng):
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
     state = -1
-    for (_,_,_,_,_,_,_,_,state,_,_,_) in cur_beacon.fetchall():
+    now = ""
+    for (_,_,_,_,_,_,_,_,state,name,mesg,mode) in cur_beacon.fetchall():
         latu,latl = lat + deltalat*mag, lat - deltalat*mag
         lngu,lngl = lng + deltalng*mag, lng - deltalng*mag
         result = []
@@ -111,7 +112,7 @@ def lookup_summit(op,lat,lng):
             result.append((code,int(dist),int(az),pt,alt,name,desc))
         result.sort(key=lambda x:x[1])
         result = result[0:3]
-
+        now = datetime.now(localtz).strftime("%H:%M")
         if len(result) > 0:
             (_,dist,_,_,_,_,_) = result[0]
             if dist <=100.0:
@@ -124,23 +125,32 @@ def lookup_summit(op,lat,lng):
                     state = 1
                 elif state ==1:
                     state = 2
+                elif state == 4:
+                    state = 5
             else:
                 if state <= 0:
                     state = 0
+                elif state == 5:
+                    state = 6
 
-            now = datetime.now(localtz).strftime("%H:%M")
+
             if state == 3 or state == 4:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Welcome to " + code +". "+ name + " " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
             elif state == 1 or state == 2:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg = "Approacing " + code + " " + str(dist) +"m("+str(az)+"deg) to go."
-            elif state == 0:
+                mesg = "Approacing " + code + "," + str(dist) +"m("+str(az)+"deg) to go."
+            elif state == 5:
+                (code,dist,az,pt,alt,name,desc) = result[0]
+                mesg = "Departing " + code + "," + str(dist) +"m("+str(az)+"deg) from summit."
+            elif state == 0 or state == 6:
                 mesg = now + " "
                 for (code,dist,az,pt,alt,name,desc) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m("+str(az)+") "
         else:
             mesg = "No Summits."
+            dist = 0
+            az = 0
             
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?, dist = ?, az = ?,level = ?,summit = ?,message = ?, type = ? where operator = ?'
         cur_beacon.execute(q,(now,lat,lng,dist,az,state,name,mesg,'APRS',op,))
@@ -171,13 +181,22 @@ def parse_alerts(url):
     for line in response.text.splitlines():
         if state == 'new' and "class=\"alertDate\">" in line:
             m = re.search('class=\"alertDate\">(.+)</span>',line)
-            ald = m.group(1)
+            if m:
+                ald = m.group(1)
+            else:
+                ald = ""
         elif state == 'new' and "<strong>Summit:</strong>" in line:
-            m = re.search('Summit:</strong>\W(.+)\'',line)
-            alert_sinfo = m.group(1)
+            m = re.search('Summit:</strong>(.+)\'',line)
+            if m:
+                alert_sinfo = m.group(1).strip()
+            else:
+                alert_sinfo = ""
         elif state == 'new' and "\"70px\">&nbsp" in line:
             m = re.search('&nbsp;([\d:]+)</td>$',line)
-            alert_time = int(parse(ald + " " +m.group(1)).strftime("%s"))
+            if m:
+                alert_time = int(parse(ald + " " +m.group(1)).strftime("%s"))
+            else:
+                alert_time = 0
             alert_start = alert_time - 3600*4
             alert_end= alert_time  + 3600*5
             state = 'operator'
@@ -195,7 +214,10 @@ def parse_alerts(url):
             state = 'summit'
         elif state == 'summit' and "<strong>" in line:
             m = re.search('<strong>(.+)</strong>',line)
-            alert_summit = m.group(1)
+            if m:
+                alert_summit = m.group(1)
+            else:
+                alert_summit = ""
             if re.search(KEYS['Alerts'],alert_summit):
                 cur.execute('SELECT * from summits where code=?',(alert_summit,))
                 for (_,_,_,pt,alt,name,desc,_,_) in cur.fetchall():
@@ -271,7 +293,7 @@ def update_alerts():
     for user in KEYS['TEST_USER']:
         d = {'time':now,'start':now-3600,'end':now+10800,
              'operator':user,'callsign':user,'summit':'JA/KN-999',
-             'summit_info':'Nowhere','freq':'14-cw',
+             'summit_info':'No position beacon available.','freq':'14-cw',
              'comment':'TEST','poster':'(Posted By JL1NIE)'}
         if not d['operator'] in operators:
             operators.append(d['operator'])
@@ -320,14 +342,14 @@ def get_new_msgno():
     global _count
 
     _thlock.acquire()
-    _count = _count - 1
-    if _count == 99:
-        _count = 999
+    _count = _count + 1
+    if _count == 1000:
+        _count = 1
     _senderpool.add(_count)
     _thlock.release()
     return _count
 
-def ack_received(msgno):
+def ack_received(mlist):
     global _thlock
     global _ackpool
     global _senderpool
@@ -337,11 +359,12 @@ def ack_received(msgno):
         print _senderpool
         print _ackpool
 
-    if msgno in _ackpool:
-        _thlock.acquire()
-        _ackpool.discard(msgno)
-        _thlock.release()
-        return True
+    for msgno in mlist:
+        if msgno in _ackpool:
+            _thlock.acquire()
+            _ackpool.discard(msgno)
+            _thlock.release()
+            return True
     return False
 
 def push_msgno(msgno):
@@ -357,15 +380,16 @@ def push_msgno(msgno):
         return True
     return False
 
-def discard_ack(msgno):
+def discard_ack(mlist):
     global _thlock
     global _ackpool
     global _senderpool
     global _count
-
-    _thlock.acquire()
-    _ackpool.discard(msgno)
-    _senderpool.discard(msgno)
+    
+    _thlock.acquire()    
+    for msgno in mlist:
+        _ackpool.discard(msgno)
+        _senderpool.discard(msgno)
     _thlock.release()
     
 def aprs_worker():
@@ -376,9 +400,9 @@ def aprs_worker():
     global _count
     
     _thlock = Lock()
-    _ackpool = {0}
-    _senderpool = {0}
-    _count = 999
+    _ackpool = {-1}
+    _senderpool = {-1}
+    _count = 0
     aprs_beacon = aprslib.IS(aprs_user, host=aprs_host,
                              passwd=aprs_password, port=aprs_port)
     aprs_beacon.connect(blocking=True)
@@ -407,17 +431,19 @@ def send_message(aprs, callfrom, message):
         aprs.sendall(header+message)
 
 def send_message_worker(aprs, callfrom, message):
-    msgno = get_new_msgno()
-    message = message + '{' + str(msgno)
-    for i in range(10):
+    mlist = []
+    for i in range(4):
+        msgno = get_new_msgno()
+        mlist.append(msgno)
+        m = message + '{' + str(msgno)
         if debug:
-            print "Sending("+ str(i) + "):" + message
+            print "Sending("+ str(i) + "):" + m
         else:
-            aprs.sendall(message)
+            aprs.sendall(m)
         sleep(30)
-        if ack_received(msgno):
+        if ack_received(mlist):
             break
-    discard_ack(msgno)
+    discard_ack(mlist)
         
 def send_message_with_ack(aprs, callfrom, message):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
@@ -471,13 +497,13 @@ def callback(packet):
                 res = lookup_from_op(callfrom)
             else:
                 res = readlast3(last3)
-            send_message_with_ack(aprs_beacon,callfrom,res)
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
 
 def setup_db():
     conn_beacon = sqlite3.connect(beacon_db)
     cur_beacon = conn_beacon.cursor()
 
-    q ='create table if not exists beacons (start int,end int,operator text,lastseen int,lat text,lng text,dist int,az int,level int,summit text,message text,type text)'
+    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen int,lat text,lng text,dist int,az int,level int,summit text,message text,type text)'
     cur_beacon.execute(q)
     q ='delete from beacons'
     cur_beacon.execute(q)
