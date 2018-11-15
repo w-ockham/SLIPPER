@@ -72,12 +72,37 @@ def tweet_with_media(api, fname, txt):
 def lookup_from_op(op):
     conn_beacon = sqlite3.connect(beacon_db)
     cur_beacon = conn_beacon.cursor()
+    conn_alert = sqlite3.connect(alert_db)
+    cur_alert = conn_alert.cursor()
+    
     op = op[0:op.rfind('-')].strip()
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
-    for (_,_,_,_,_,_,_,_,l,_,mesg,_) in cur_beacon.fetchall():
-        return mesg
-    return "No Entries."
+    r = cur_beacon.fetchall()
+    if r:
+        for (start,end,op,_,_,_,_,_,state,name,m,mode) in r:
+            if state == -2:
+                tm = datetime.fromtimestamp(int(start)).strftime("%H:%M")
+                mesg = "Upcoming Activation: " + tm + " " + name
+                break
+            else:
+                mesg = m
+    else:
+        q = 'select * from alerts where operator = ?'
+        cur_alert.execute(q,(op,))
+        r = cur_alert.fetchall()
+        if r:
+            mesg = "Upcoming Activations: "
+            for (time,_,_,_,_,summit,_,_,_,_) in r:
+                tm = datetime.fromtimestamp(int(time)).strftime("%m/%d %H:%M")
+                mesg = mesg + tm + " " + summit + " "
+                break
+        else:
+            mesg = "No Upcoming Activations."
+
+    conn_beacon.close()
+    conn_alert.close()
+    return mesg
 
 def lookup_summit(op,lat,lng):
     op = op[0:op.rfind('-')].strip()
@@ -133,7 +158,6 @@ def lookup_summit(op,lat,lng):
                 elif state == 5:
                     state = 6
 
-
             if state == 3 or state == 4:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Welcome to " + code +". "+ name + " " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
@@ -148,7 +172,8 @@ def lookup_summit(op,lat,lng):
                 for (code,dist,az,pt,alt,name,desc) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m("+str(az)+") "
         else:
-            mesg = "No Summits."
+            mesg = "No Summits within 15km square from {0:.6f},{1:.6f}.".format(lat,lng)
+            state = -1
             dist = 0
             az = 0
             
@@ -197,8 +222,8 @@ def parse_alerts(url):
                 alert_time = int(parse(ald + " " +m.group(1)).strftime("%s"))
             else:
                 alert_time = 0
-            alert_start = alert_time - 3600*4
-            alert_end= alert_time  + 3600*5
+            alert_start = alert_time + 3600 * KEYS['WINDOW_FROM']
+            alert_end= alert_time  + 3600 * KEYS['WINDOW_TO']
             state = 'operator'
         elif state == 'operator' and "<strong>" in line:
             m = re.search('<strong>(.+)</strong>',line)
@@ -275,6 +300,13 @@ def update_alerts():
     cur2.execute(q,(now,))
     conn2.commit()
 
+    for user in KEYS['TEST_USER']:
+        d = {'time':now,'start':now-100,'end':now+10800,
+             'operator':user,'callsign':user,'summit':'JA/TT-TEST',
+             'summit_info':'Fujisan Kengamine.','freq':'433-fm',
+             'comment':'Alert Test','poster':'(Posted By JL1NIE)'}
+        res.append(d)
+        
     for d in res:
         if re.search(KEYS['Alerts'],d['summit']):
             q = 'insert into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
@@ -287,21 +319,9 @@ def update_alerts():
                     operators.append(d['operator'])
                     q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,dist,az,level,summit,message,type) values (?,?,?,?,?,?,?,?,?,?,?,?)'
                     cur2.execute(q,(d['start'],d['end'],d['operator'],
-                                    -1,'','',-1,0,-1,
+                                    -1,'','',-1,0,-2,
                                     d['summit'],d['summit_info'],'SW2'))
 
-    for user in KEYS['TEST_USER']:
-        d = {'time':now,'start':now-3600,'end':now+10800,
-             'operator':user,'callsign':user,'summit':'JA/KN-999',
-             'summit_info':'No position beacon available.','freq':'14-cw',
-             'comment':'TEST','poster':'(Posted By JL1NIE)'}
-        if not d['operator'] in operators:
-            operators.append(d['operator'])
-            q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,dist,az,level,summit,message,type) values (?,?,?,?,?,?,?,?,?,?,?,?)'
-            cur2.execute(q,(d['start'],d['end'],d['operator'],
-                            -1,'','',-1,0,-1,
-                            d['summit'],d['summit_info'],'SW2'))
-        
     conn.commit()
     conn2.commit()
     conn.close()
@@ -316,8 +336,8 @@ def tweet_alerts():
     today = datetime.now(localtz).strftime("%d %B %Y")
     conn = sqlite3.connect(alert_db)
     cur = conn.cursor()
-    start = int(datetime.utcnow().strftime("%s")) - 3600 * 4
-    end = int(datetime.utcnow().strftime("%s")) + 3600 * 16
+    start = int(datetime.utcnow().strftime("%s")) + 3600 * KEYS['ALERT_FROM']
+    end = int(datetime.utcnow().strftime("%s")) + 3600 * KEYS['ALERT_TO']
     q = 'select * from alerts where time >= ? and time <= ? and summit like ?'
     cur.execute(q,(start,end,'JA%',))
     rows = cur.fetchall()

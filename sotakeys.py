@@ -1,7 +1,7 @@
 KEYS = {
     'Consumerkey':'',
     'Consumersecret':'',
-    'Accesstoken':'',
+    'Accesstoken':''
     'Accesstokensecret':'',
 
     'Consumerkey2':'',
@@ -33,7 +33,11 @@ KEYS = {
     'APRS_HOST':'japan.aprs2.net',
     'APRS_PORT':14580,
     'TWEET_AT':"08:00",
-    'UPDATE_EVERY':30,
+    'ALERT_FROM':-4,
+    'ALERT_TO':16,
+    'UPDATE_EVERY':20,
+    'WINDOW_FROM':-4,
+    'WINDOW_TO':5,
     'TEST_USER':[],
     'EXCLUDE_USER':[]
 }
