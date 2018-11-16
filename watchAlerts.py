@@ -83,7 +83,7 @@ def lookup_from_op(op):
         for (start,end,op,_,_,_,_,_,state,name,m,mode) in r:
             if state == -2:
                 tm = datetime.fromtimestamp(int(start)).strftime("%H:%M")
-                mesg = "Upcoming Activation: " + tm + " " + name
+                mesg = "No beacon available. Upcoming Activation: " + tm + " " + name
                 break
             else:
                 mesg = m
@@ -92,7 +92,7 @@ def lookup_from_op(op):
         cur_alert.execute(q,(op,))
         r = cur_alert.fetchall()
         if r:
-            mesg = "Upcoming Activations: "
+            mesg = "Out of Notification time window. Upcoming Activations: "
             for (time,_,_,_,_,summit,_,_,_,_) in r:
                 tm = datetime.fromtimestamp(int(time)).strftime("%m/%d %H:%M")
                 mesg = mesg + tm + " " + summit + " "
