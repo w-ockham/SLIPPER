@@ -444,7 +444,8 @@ def aprs_worker():
     aprs_beacon.consumer(callback, immortal=True, raw=True)
 
 def send_ack_worker(aprs, msgno):
-    for i in range(2):
+    sleep(2)
+    for i in range(3):
         if debug:
             print "SendingAck("+ str(i) + "):" + msgno
         else:
