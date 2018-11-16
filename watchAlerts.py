@@ -113,7 +113,7 @@ def lookup_summit(op,lat,lng):
         mag = 10.0
     else:
         if len(KEYS['TEST_USER']) == 0:
-               mag = 5.0
+               mag = 10.0
         else:
             return(-1,"")
         
@@ -172,7 +172,7 @@ def lookup_summit(op,lat,lng):
                 for (code,dist,az,pt,alt,name,desc) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m("+str(az)+") "
         else:
-            mesg = "No Summits within 15km square from {0:.6f},{1:.6f}.".format(lat,lng)
+            mesg = now + " No Summits within 30km square from {0:.6f},{1:.6f}.".format(lat,lng)
             state = -1
             dist = 0
             az = 0
@@ -202,32 +202,37 @@ def parse_alerts(url):
     state = 'new'
     conn = sqlite3.connect(summit_db)
     cur = conn.cursor()
-    
+    parse_error = False
     for line in response.text.splitlines():
         if state == 'new' and "class=\"alertDate\">" in line:
             m = re.search('class=\"alertDate\">(.+)</span>',line)
             if m:
                 ald = m.group(1)
             else:
-                ald = ""
+                parse_error = True
         elif state == 'new' and "<strong>Summit:</strong>" in line:
             m = re.search('Summit:</strong>(.+)\'',line)
             if m:
                 alert_sinfo = m.group(1).strip()
             else:
-                alert_sinfo = ""
+                parse_error = True
         elif state == 'new' and "\"70px\">&nbsp" in line:
             m = re.search('&nbsp;([\d:]+)</td>$',line)
             if m:
                 alert_time = int(parse(ald + " " +m.group(1)).strftime("%s"))
             else:
+                parse_error = True
                 alert_time = 0
             alert_start = alert_time + 3600 * KEYS['WINDOW_FROM']
             alert_end= alert_time  + 3600 * KEYS['WINDOW_TO']
             state = 'operator'
         elif state == 'operator' and "<strong>" in line:
             m = re.search('<strong>(.+)</strong>',line)
-            alert_callsign = m.group(1)
+            if m:
+                alert_callsign = m.group(1)
+            else:
+                alert_callsign = ""
+                parse_error = True
             m = re.match('(\w+)/(\w+)',alert_callsign)
             if m:
                 if len(m.group(1)) > len(m.group(2)):
@@ -242,40 +247,46 @@ def parse_alerts(url):
             if m:
                 alert_summit = m.group(1)
             else:
-                alert_summit = ""
-            if re.search(KEYS['Alerts'],alert_summit):
-                cur.execute('SELECT * from summits where code=?',(alert_summit,))
-                for (_,_,_,pt,alt,name,desc,_,_) in cur.fetchall():
-                    alert_sinfo = name + ", " +str(alt)+"m, "+str(pt)+" pt, " + desc
+                parse_error = True
             state = 'freq'
         elif state == 'freq' and "<strong>" in line:
             m = re.search('<strong>(.+)</strong>',line)
-            alert_freq = m.group(1)
+            if m:
+                alert_freq = m.group(1)
+            else:
+                parse_error = True
             state = 'comment'
         elif state == 'comment' and "class=\"comment\">" in line:
             m = re.search('class=\"comment\">(.*)</span>',line)
-            alert_comment = m.group(1)
+            if m:
+                alert_comment = m.group(1)
+            else:
+                parse_error = True
             state = 'poster'
         elif state == 'poster' and "class=\"poster\">" in line:
             m = re.search('class=\"poster\">(.*)</span>',line)
-            alert_poster = m.group(1)
-   
-            patplus = re.compile('S\+(\d+)',re.IGNORECASE)
-            patminus = re.compile('S-(\d+)',re.IGNORECASE)
-            for p in  patplus.findall(alert_comment):
-                alert_end = alert_time + int(p)*3600
-            for p in patminus.findall(alert_comment):
-                alert_start = alert_time - int(p)*3600
-            result.append({'time':alert_time,
-                           'start':alert_start,
-                           'end':alert_end,
-                           'operator':alert_operator,
-                           'callsign':alert_callsign,
-                           'summit':alert_summit,
-                           'summit_info':alert_sinfo,
-                           'freq':alert_freq,
-                           'comment':alert_comment,
-                          'poster':alert_poster})
+            if m:
+                alert_poster = m.group(1)
+            else:
+                parse_error = True
+            if not parse_error:
+                patplus = re.compile('S\+(\d+)',re.IGNORECASE)
+                patminus = re.compile('S-(\d+)',re.IGNORECASE)
+                for p in  patplus.findall(alert_comment):
+                    alert_end = alert_time + int(p)*3600
+                for p in patminus.findall(alert_comment):
+                    alert_start = alert_time - int(p)*3600
+                result.append({'time':alert_time,
+                               'start':alert_start,
+                               'end':alert_end,
+                               'operator':alert_operator,
+                               'callsign':alert_callsign,
+                               'summit':alert_summit,
+                               'summit_info':alert_sinfo,
+                               'freq':alert_freq,
+                               'comment':alert_comment,
+                               'poster':alert_poster})
+            parse_error = False    
             state = 'new'
     conn.close()
     return result
@@ -319,7 +330,7 @@ def update_alerts():
                     operators.append(d['operator'])
                     q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,dist,az,level,summit,message,type) values (?,?,?,?,?,?,?,?,?,?,?,?)'
                     cur2.execute(q,(d['start'],d['end'],d['operator'],
-                                    -1,'','',-1,0,-2,
+                                    '','','',-1,0,-2,
                                     d['summit'],d['summit_info'],'SW2'))
 
     conn.commit()
@@ -342,17 +353,21 @@ def tweet_alerts():
     cur.execute(q,(start,end,'JA%',))
     rows = cur.fetchall()
 
-    if len(rows) == 0:
-        tweet(tweet_api,"SOTAwatch alerts:\nNo activations are currently scheduled on " + today)
-    elif len(rows) == 1:
-        tweet(tweet_api,"SOTAwatch alerts:\nAn activation is currently scheduled on " + today)
+    num = len(rows) - len(KEYS['TEST_USER'])
+    mesg = "SOTAwatch alerts:\n"
+    if num == 0:
+        mesg = mesg + "No activations are currently scheduled on "
+    elif num == 1:
+        mesg = mesg + "An activation is currently scheduled on "
     else:
-        tweet(tweet_api,"SOTAwatch alerts:\n"+str(len(rows))+" activations are currently scheduled on " + today)
-        
+        mesg = str(num)+" activations are currently scheduled on "
+    tweet(tweet_api,mesg+today)
+    
     for (tm,_,_,_,call,summit,info,freq,comment,poster) in rows:
         tm = datetime.fromtimestamp(int(tm)).strftime("%H:%M")
         mesg = tm + " " + call + " on\n" + summit + " " + freq + "\n" + info + "\n" + comment + " " + poster
-        tweet(tweet_api,mesg)
+        if summit != 'JA/TT-TEST':
+            tweet(tweet_api,mesg)
     conn.close()
 
 def get_new_msgno():
@@ -523,7 +538,7 @@ def setup_db():
     conn_beacon = sqlite3.connect(beacon_db)
     cur_beacon = conn_beacon.cursor()
 
-    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen int,lat text,lng text,dist int,az int,level int,summit text,message text,type text)'
+    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen text,lat text,lng text,dist int,az int,level int,summit text,message text,type text)'
     cur_beacon.execute(q)
     q ='delete from beacons'
     cur_beacon.execute(q)
