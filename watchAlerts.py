@@ -83,7 +83,7 @@ def lookup_from_op(op):
         for (start,end,op,_,_,_,_,_,state,name,m,mode) in r:
             if state == -2:
                 tm = datetime.fromtimestamp(int(start)).strftime("%H:%M")
-                mesg = "No beacon available. Upcoming Activation: " + tm + " " + name
+                mesg = "No beacons received. Upcoming Activation: " + tm + " " + name
                 break
             else:
                 mesg = m
