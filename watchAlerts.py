@@ -492,8 +492,9 @@ def send_message_with_ack(aprs, callfrom, message):
 
 def send_long_message_worker(aprs, callfrom, message):
     for m in message.splitlines():
-        send_message_with_ack(aprs, callfrom, m)
         sleep(2)
+        send_message_with_ack(aprs, callfrom, m)
+
 
 def send_long_message_with_ack(aprs, callfrom, message):
     th = Thread(name="LongMessageWorker",target=send_long_message_worker,args=(aprs, callfrom, message))
