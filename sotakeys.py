@@ -1,13 +1,18 @@
 KEYS = {
     'Consumerkey':'',
     'Consumersecret':'',
-    'Accesstoken':''
+    'Accesstoken':'',
     'Accesstokensecret':'',
 
     'Consumerkey2':'',
     'Consumersecret2':'',
     'Accesstoken2':'',
     'Accesstokensecret2':'',
+
+    'ConsumerkeySOTAwatch':'',
+    'ConsumersecretSOTAwatch':'',
+    'AccesstokenSOTAwatch':'',
+    'AccesstokensecretSOTAwatch':'',
 
     'JAFFConsumerkey':'',
     'JAFFConsumersecret':'',
@@ -16,6 +21,7 @@ KEYS = {
 
     'Areas':r'^JA.*',
     'Alerts':r'JA\d*/\w\w\-',
+    'JASummits':r'JA\d*/\w\w\-',
     'Alertafter':('Asia/Tokyo',6),
     'LOCALTIME':True,
     'MapURL':'https://maps.google.co.jp/maps?q={place}&ll={locate}&t=h&z=12',
@@ -38,6 +44,7 @@ KEYS = {
     'UPDATE_EVERY':20,
     'WINDOW_FROM':-4,
     'WINDOW_TO':5,
+    'MAGNIFY':10.0,
     'TEST_USER':[],
     'EXCLUDE_USER':[]
 }
