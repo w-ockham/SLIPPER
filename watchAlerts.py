@@ -580,6 +580,10 @@ def check_dupe_mesg(op,tw):
 def do_command(callfrom,mesg):
     for com in mesg.split(","):
         com.strip()
+        if com in 'HELP' or com in 'help' or com in '?':
+            res = 'DX,JA,LOC,LTON,LTOFF,M=<message>,HELP,?'
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+            break
         if com in 'DX' or com in 'dx':
             res = readlast3(last3dx)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
