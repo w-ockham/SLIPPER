@@ -395,8 +395,8 @@ def tweet_alerts():
         mesg = mesg + "An activation is currently scheduled on "
     else:
         mesg = str(num)+" activations are currently scheduled on "
-    mesg = mesg + " (Posted by SLIPPER ver1.0)"
-    tweet(tweet_api,mesg+today)
+    mesg = mesg + today + " (Posted by SLIPPER ver1.0)"
+    tweet(tweet_api,mesg)
     
     for (tm,_,_,_,call,summit,info,freq,comment,poster) in rows:
         tm = datetime.fromtimestamp(int(tm)).strftime("%H:%M")
@@ -544,6 +544,18 @@ def send_summit_message(callfrom, lat ,lng):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg)
     del mesg
 
+def on_service(op):
+    op = op[0:op.rfind('-')].strip()
+    conn_beacon = sqlite3.connect(beacon_db)
+    cur_beacon = conn_beacon.cursor()
+    q = 'select * from beacons where operator = ?'
+    cur_beacon.execute(q,(op,))
+    result = False
+    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,tlon,lasttweet,mode) in cur_beacon.fetchall():
+        result = True
+    conn_beacon.close
+    return result
+
 def set_tweet_location(op,tlon):
     op = op[0:op.rfind('-')].strip()
     conn_beacon = sqlite3.connect(beacon_db)
@@ -590,27 +602,31 @@ def do_command(callfrom,mesg):
         elif com in 'JA' or com in 'ja':
             res = readlast3(last3)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'LOC' or com in 'loc':
-            res = lookup_from_op(callfrom)
-            send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'LTON' or com in 'lton':
-            set_tweet_location(callfrom,1)
-            send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet ON')
-        elif com in 'LTOFF' or com in 'ltoff':
-            set_tweet_location(callfrom,0)
-            send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet OFF')
-        else:
-            m = re.search('M=(.+)',mesg,re.IGNORECASE)
-            if m:
-                tm = m.group(1)
-                tm.strip()
-                if check_dupe_mesg(callfrom,tm):
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Dupe: '+tm)
-                else:
-                    tweet(tweet_api,callfrom + " " + tm)
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Posted: '+tm)
+        elif on_service(callfrom):
+            if com in 'LOC' or com in 'loc':
+                res = lookup_from_op(callfrom)
+                send_long_message_with_ack(aprs_beacon,callfrom,res)
+            elif com in 'LTON' or com in 'lton':
+                set_tweet_location(callfrom,1)
+                send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet ON')
+            elif com in 'LTOFF' or com in 'ltoff':
+                set_tweet_location(callfrom,0)
+                send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet OFF')
             else:
-                send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
+                m = re.search('M=(.+)',mesg,re.IGNORECASE)
+                if m:
+                    tm = m.group(1)
+                    tm.strip()
+                    if check_dupe_mesg(callfrom,tm):
+                        send_long_message_with_ack(aprs_beacon,callfrom,'Dupe: '+tm)
+                    else:
+                        tweet(tweet_api,callfrom + " " + tm)
+                        send_long_message_with_ack(aprs_beacon,callfrom,'Posted: '+tm)
+                else:
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
+                break
+        else:
+            send_long_message_with_ack(aprs_beacon,callfrom,'Command unavailable: '+com)
             break
     del mesg
         
