@@ -535,7 +535,7 @@ def send_summit_message(callfrom, lat ,lng):
     if not foreign:
         if state == 3: # On Summit
             if tlon == 1:
-                tweet(tweet_api,callfrom + " " + mesg)
+                tweet(tweet_api,callfrom + " " + mesg.split('\n')[0])
             mesg = mesg + "\n" + readlast3(last3)
             send_long_message_with_ack(aprs_beacon,callfrom,mesg)
         elif state == 1:# Approaching Summit
@@ -589,12 +589,12 @@ def do_command(callfrom,mesg):
         elif com in 'LOC' or com in 'loc':
             res = lookup_from_op(callfrom)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'TLON' or com in 'tlon':
+        elif com in 'LTON' or com in 'lton':
             set_tweet_location(callfrom,1)
-            send_long_message_with_ack(aprs_beacon,callfrom,'Set tweet location ON')
-        elif com in 'TLOFF' or com in 'tloff':
+            send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet ON')
+        elif com in 'LTOFF' or com in 'ltoff':
             set_tweet_location(callfrom,0)
-            send_long_message_with_ack(aprs_beacon,callfrom,'Set tweet location OFF')
+            send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet OFF')
         else:
             m = re.search('M=(.+)',mesg,re.IGNORECASE)
             if m:
@@ -603,10 +603,10 @@ def do_command(callfrom,mesg):
                 if check_dupe_mesg(callfrom,tm):
                     send_long_message_with_ack(aprs_beacon,callfrom,'Dupe: '+tm)
                 else:
-                    tweet(tweet_api,callfrom + ": " + tm)
+                    tweet(tweet_api,callfrom + " " + tm)
                     send_long_message_with_ack(aprs_beacon,callfrom,'Posted: '+tm)
             else:
-                send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command:'+mesg)
+                send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
             break
     del mesg
         
