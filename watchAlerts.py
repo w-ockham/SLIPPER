@@ -82,7 +82,7 @@ def lookup_from_op(op):
     cur_beacon.execute(q,(op,))
     r = cur_beacon.fetchall()
     if r:
-        for (start,end,op,_,_,_,_,_,_,_,state,name,m,mode) in r:
+        for (start,end,op,_,_,_,_,_,_,_,state,name,m,tlon,lasttweet,mode) in r:
             if state == -2:
                 tm = datetime.fromtimestamp(int(start)).strftime("%H:%M")
                 mesg = "No beacons received. Upcoming Activation: " + tm + " " + name
@@ -120,7 +120,7 @@ def lookup_summit(op,lat,lng):
     cur_beacon.execute(q,(op,))
     state = -1
     now = ""
-    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,mode) in cur_beacon.fetchall():
+    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,tlon,lasttweet,mode) in cur_beacon.fetchall():
         latu,latl = lat + deltalat*mag, lat - deltalat*mag
         lngu,lngl = lng + deltalng*mag, lng - deltalng*mag
         result = []
@@ -187,17 +187,18 @@ def lookup_summit(op,lat,lng):
             print >> sys.stderr, 'update beacon.db %s' % e
             foreign = False
             state = -1
+            tlon = 0
             mesg = "Oops!"
 
         conn_beacon.close()
         conn_summit.close()
 
-        return (foreign, state,mesg)
+        return (foreign, state, tlon, mesg)
     
     conn_beacon.close()
     conn_summit.close()
 
-    return (False,-1,"Oops!")
+    return (False,-1, 0, "Oops!")
 
 def parse_summit(code):
     url = "https://www.sota.org.uk/Summit/" + code
@@ -355,7 +356,7 @@ def update_alerts():
             if not d['operator'] in operators:
                 operators.append(d['operator'])
                 (lat_dest,lng_dest) = parse_summit(d['summit'])
-                q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
                 cur2.execute(q,(d['start'],d['end'],d['operator'],
                                 '', #lastseen
                                 '', # lat
@@ -363,7 +364,9 @@ def update_alerts():
                                 str(lat_dest), # lat_dest
                                 str(lng_dest), # lng_dest
                                 -1,0,-2,
-                                d['summit'],d['summit_info'],'SW2'))
+                                d['summit'],d['summit_info'],
+                                0,'',
+                                'SW2'))
     conn.commit()
     conn2.commit()
     conn.close()
@@ -527,21 +530,86 @@ def send_long_message_with_ack(aprs, callfrom, message):
     for m in message.splitlines():
         send_message_with_ack(aprs, callfrom, m)
 
-#def send_long_message_with_ack(aprs, callfrom, message):
-#    th = Thread(name="LongMessageWorker",target=send_long_message_worker,args=(aprs, callfrom, message))
-#    th.start()
-    
 def send_summit_message(callfrom, lat ,lng):
-    foreign,state,mesg = lookup_summit(callfrom,lat,lng)
-    if state == 3: # On Summit
-        mesg = mesg + "\n" + readlast3(last3)
-        if not foreign:
+    foreign,state,tlon,mesg = lookup_summit(callfrom,lat,lng)
+    if not foreign:
+        if state == 3: # On Summit
+            if tlon == 1:
+                tweet(tweet_api,callfrom + " " + mesg)
+            mesg = mesg + "\n" + readlast3(last3)
             send_long_message_with_ack(aprs_beacon,callfrom,mesg)
-    elif state == 1:# Approaching Summit
-        if not foreign:
+        elif state == 1:# Approaching Summit
+            if tlon == 1:
+                tweet(tweet_api,callfrom + " " + mesg)
             send_long_message_with_ack(aprs_beacon,callfrom,mesg)
     del mesg
+
+def set_tweet_location(op,tlon):
+    op = op[0:op.rfind('-')].strip()
+    conn_beacon = sqlite3.connect(beacon_db)
+    cur_beacon = conn_beacon.cursor()
+    q = 'update beacons set tlon = ? where operator = ?'
+    try:
+        cur_beacon.execute(q,(tlon,op,))
+        conn_beacon.commit()
+    except Exception as err:
+        print >> sys.stderr, 'update beacon.db %s' % e
+    conn_beacon.close()
+
+def check_dupe_mesg(op,tw):
+    op = op[0:op.rfind('-')].strip()
+    conn_beacon = sqlite3.connect(beacon_db)
+    cur_beacon = conn_beacon.cursor()
+    q = 'select * from beacons where operator = ?'
+    cur_beacon.execute(q,(op,))
+    result = False
+    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,tlon,lasttweet,mode) in cur_beacon.fetchall():
+        if lasttweet == tw:
+         result = True
+    if not result:
+        q = 'update beacons set lasttweet = ? where operator = ?'
+        try:
+            cur_beacon.execute(q,(tw,op,))
+            conn_beacon.commit()
+        except Exception as err:
+            print >> sys.stderr, 'update beacon.db %s' % e
+            
+    conn_beacon.close()
+    return result
     
+def do_command(callfrom,mesg):
+    for com in mesg.split(","):
+        com.strip()
+        if com in 'DX' or com in 'dx':
+            res = readlast3(last3dx)
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'JA' or com in 'ja':
+            res = readlast3(last3)
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'LOC' or com in 'loc':
+            res = lookup_from_op(callfrom)
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'TLON' or com in 'tlon':
+            set_tweet_location(callfrom,1)
+            send_long_message_with_ack(aprs_beacon,callfrom,'Set tweet location ON')
+        elif com in 'TLOFF' or com in 'tloff':
+            set_tweet_location(callfrom,0)
+            send_long_message_with_ack(aprs_beacon,callfrom,'Set tweet location OFF')
+        else:
+            m = re.search('M=(.+)',mesg,re.IGNORECASE)
+            if m:
+                tm = m.group(1)
+                tm.strip()
+                if check_dupe_mesg(callfrom,tm):
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Dupe: '+tm)
+                else:
+                    tweet(tweet_api,callfrom + ": " + tm)
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Posted: '+tm)
+            else:
+                send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command:'+mesg)
+            break
+    del mesg
+        
 def callback(packet):
     msg = aprslib.parse(packet)
     callfrom = msg['from'] + "      "
@@ -561,19 +629,14 @@ def callback(packet):
             if m:
                 send_ack(aprs_beacon,callfrom,int(m.group(1)))
 
-            if re.search('DX',msg['message_text'],re.IGNORECASE):
-                res = readlast3(last3dx)
-            elif re.search('LOC',msg['message_text'],re.IGNORECASE):
-                res = lookup_from_op(callfrom)
-            else:
-                res = readlast3(last3)
-            send_long_message_with_ack(aprs_beacon,callfrom,res)
+            do_command(callfrom,msg['message_text'])
+    del msg
 
 def setup_db():
     conn_beacon = sqlite3.connect(beacon_db)
     cur_beacon = conn_beacon.cursor()
 
-    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen text,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,type text)'
+    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen text,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,tlon int,lasttweet text,type text)'
     cur_beacon.execute(q)
     q ='delete from beacons'
     cur_beacon.execute(q)
