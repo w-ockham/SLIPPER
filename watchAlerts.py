@@ -24,6 +24,7 @@ debug = False
 
 sotawatch_url = KEYS['SOTA_URL']
 summit_db = KEYS['SUMMIT_DB']
+dxsummit_db = KEYS['DXSUMMIT_DB']
 beacon_db = KEYS['BEACON_DB']
 alert_db = KEYS['ALERT_DB']
 last3 = KEYS['LAST3']
@@ -94,7 +95,7 @@ def lookup_from_op(op):
         cur_alert.execute(q,(op,))
         r = cur_alert.fetchall()
         if r:
-            mesg = "Out of Notification time window. Upcoming Activations: "
+            mesg = "Out of notification time window. Upcoming Activations: "
             for (time,_,_,_,_,summit,_,_,_,_) in r:
                 tm = datetime.fromtimestamp(int(time)).strftime("%m/%d %H:%M")
                 mesg = mesg + tm + " " + summit + " "
@@ -113,6 +114,8 @@ def lookup_summit(op,lat,lng):
     mag = KEYS['MAGNIFY']
     conn_summit = sqlite3.connect(summit_db)
     cur_summit = conn_summit.cursor()
+    conn_dxsummit = sqlite3.connect(dxsummit_db)
+    cur_dxsummit = conn_dxsummit.cursor()
     conn_beacon = sqlite3.connect(beacon_db)
     cur_beacon = conn_beacon.cursor()
 
@@ -133,9 +136,10 @@ def lookup_summit(op,lat,lng):
                 result.append((code,int(dist),int(az),pt,alt,name,desc))
         else:
             foreign = True
-            az,bkw_az,dist = grs80.inv(lng,lat,lng_dest,lat_dest)
-            name = mesg.split(',')[0]
-            result.append((code,int(dist),int(az),0,0,name,mesg))
+            for s in cur_dxsummit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
+                (code,lat1,lng1,pt,alt,name,desc)= s
+                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+                result.append((code,int(dist),int(az),pt,alt,name,desc))
             
         result.sort(key=lambda x:x[1])
         result = result[0:3]
@@ -189,33 +193,54 @@ def lookup_summit(op,lat,lng):
 
         conn_beacon.close()
         conn_summit.close()
-
+        conn_dxsummit.close()
         return (foreign, state, tlon, mesg)
     
     conn_beacon.close()
     conn_summit.close()
-
+    conn_dxsummit.close()
     return (False,-1, 0, "Oops!")
 
 def parse_summit(code):
-    url = "https://www.sota.org.uk/Summit/" + code
-    try:
-        response = requests.get(url)
-    except Exception, e:
-        print >> sys.stderr, 'HTTP GET %s' % e
-        return (-1.0,-1.0)
+    conn_dxsummit = sqlite3.connect(dxsummit_db)
+    cur_dxsummit = conn_dxsummit.cursor()
 
     lat,lng = 0.0,0.0
+    name,alt,pts = '',0,0
 
-    for line in response.text.splitlines():
-        if "data-content=" in line:
-            m = re.search('Lat:\s*(-*\d+\.\d+),\s*Long:\s*(-*\d+\.\d+)',line)
-            if m:
-                lat = float(m.group(1))
-                lng = float(m.group(2))
-
-    return (lat,lng)
-            
+    q = "select * from summits where code = ?"
+    cur_dxsummit.execute(q,(code,))
+    rows = cur_dxsummit.fetchall()
+    if rows:
+        for (code,lat,lng,pts,alt,name,_) in rows:
+            res = (lat,lng)
+    else:
+        url = "https://www.sota.org.uk/Summit/" + code
+        try:
+            response = requests.get(url)
+        except Exception, e:
+            print >> sys.stderr, 'HTTP GET %s' % e
+            return (lat,lng)
+        else:    
+            for line in response.text.splitlines():
+                if code in line:
+                    m = re.search(',\s*(.+)-\s*(\d+)m,\s*(\d+).*',line)
+                    if m:
+                        name = m.group(1)
+                        alt = int(m.group(2))
+                        pts = int(m.group(3))
+                elif "data-content=" in line:
+                    m = re.search('Lat:\s*(-*\d+\.\d+),\s*Long:\s*(-*\d+\.\d+)',line)
+                    if m:
+                        lat = float(m.group(1))
+                        lng = float(m.group(2))
+            q = 'insert into summits (code, lat ,lng, point, alt, name, desc) values(?,?,?,?,?,?,?)'
+            cur_dxsummit.execute(q,(code,lat,lng,pts,alt,name,""))
+            conn_dxsummit.commit()
+            res = (lat,lng)
+    conn_dxsummit.close()
+    return res
+    
 def parse_alerts(url):
     try:
         response = requests.get(url)
@@ -623,7 +648,7 @@ def do_command(callfrom,mesg):
                     send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
                 break
         else:
-            send_long_message_with_ack(aprs_beacon,callfrom,'Command unavailable: '+com)
+            send_long_message_with_ack(aprs_beacon,callfrom,'Out of service time window: '+com)
             break
     del mesg
         
@@ -652,13 +677,24 @@ def callback(packet):
 def setup_db():
     conn_beacon = sqlite3.connect(beacon_db)
     cur_beacon = conn_beacon.cursor()
-
+    conn_dxsummit = sqlite3.connect(dxsummit_db)
+    cur_dxsummit = conn_dxsummit.cursor()
+    
     q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen text,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,tlon int,lasttweet text,type text)'
     cur_beacon.execute(q)
     q ='delete from beacons'
     cur_beacon.execute(q)
     conn_beacon.commit()
 
+    q ='create table if not exists summits (code txt,lat real,lng real,point integer,alt integer,name text,desc text)'
+    cur_dxsummit.execute(q)
+    q = 'create index if not exists summit_index on summits(lat,lng)'
+    cur_dxsummit.execute(q)
+    conn_dxsummit.commit()
+
+    conn_beacon.close()
+    conn_dxsummit.close()
+    
     update_alerts()
     
 def main():
