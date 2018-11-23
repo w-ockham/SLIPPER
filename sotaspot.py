@@ -57,32 +57,35 @@ def main():
 
     try:
         for mention in reversed(mentions):
-            text = mention.text.encode('utf-8')
-            match = re.search(r'\son\s(\S+)\s\((.+?)\).*([\d|\.]+?)',text)
-            if match :
-                (code,summit,freq) = (match.group(1),match.group(2),
-                                      match.group(3))
-                if re.search(KEYS['Areas'],match.group(1)) :
-                    prfx = ""
-                    readlast3(LASTSPOT)
-                    addnewstation(text)
-                    writelast3(LASTSPOT)
-                    if len(prfx+text) <=140:
-                        api.update_status(status=prfx+text)
-                        if mention.coordinates and mention.place:
-                            [lo, la] = mention.coordinates['coordinates']
-                            pl = mention.place.full_name
-                            if dbstore(db,code,lo,la,freq,text):
-                                g = str(la)+","+str(lo)
-                                gmstr = KEYS['MapURL'].format(place=g,locate=g)
-                                api.update_status(status=prfx+ summit
-                                                  + " ("+ code +") "
-                                                  + pl + " "+ gmstr)
-                else :
-                    readlast3(LASTSPOTDX)
-                    addnewstation(text)
-                    writelast3(LASTSPOTDX)
-            since_id = mention.id
+            try:
+                text = mention.text.encode('utf-8')
+                match = re.search(r'\son\s(\S+)\s\((.+?)\).*([\d|\.]+?)',text)
+                if match :
+                    (code,summit,freq) = (match.group(1),match.group(2),
+                                          match.group(3))
+                    if re.search(KEYS['Areas'],match.group(1)) :
+                        prfx = ""
+                        readlast3(LASTSPOT)
+                        addnewstation(text)
+                        writelast3(LASTSPOT)
+                        if len(prfx+text) <=140:
+                            api.update_status(status=prfx+text)
+                            if mention.coordinates and mention.place:
+                                [lo, la] = mention.coordinates['coordinates']
+                                pl = mention.place.full_name
+                                if dbstore(db,code,lo,la,freq,text):
+                                    g = str(la)+","+str(lo)
+                                    gmstr = KEYS['MapURL'].format(place=g,locate=g)
+                                    api.update_status(status=prfx+ summit
+                                                      + " ("+ code +") "
+                                                      + pl + " "+ gmstr)
+                    else :
+                        readlast3(LASTSPOTDX)
+                        addnewstation(text)
+                        writelast3(LASTSPOTDX)
+                since_id = mention.id
+            except tweepy.error.TweepError:
+                pass
         db.close()
     except Exception, e:
         db.close()
