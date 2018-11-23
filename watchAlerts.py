@@ -184,11 +184,8 @@ def lookup_summit(op,lat,lng):
             cur_beacon.execute(q,(now,lat,lng,lat_dest,lng_dest,dist,az,state,code,mesg,'APRS',op,))
             conn_beacon.commit()
         except Exception as err:
-            print >> sys.stderr, 'update beacon.db %s' % e
-            foreign = False
-            state = -1
-            tlon = 0
-            mesg = "Oops!"
+            print >> sys.stderr, 'update beacon.db %s' % err
+            pass
 
         conn_beacon.close()
         conn_summit.close()
@@ -553,7 +550,7 @@ def on_service(op):
     result = False
     for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,tlon,lasttweet,mode) in cur_beacon.fetchall():
         result = True
-    conn_beacon.close
+    conn_beacon.close()
     return result
 
 def set_tweet_location(op,tlon):
