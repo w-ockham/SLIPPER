@@ -1,24 +1,14 @@
 KEYS = {
-    'Consumerkey':'',
-    'Consumersecret':'',
-    'Accesstoken':'',
-    'Accesstokensecret':'',
-
-    'Consumerkey2':'',
-    'Consumersecret2':'',
-    'Accesstoken2':'',
-    'Accesstokensecret2':'',
-
+    #Key for debug
+    'ConsumerkeySOTAwatch2':'',
+    'ConsumersecretSOTAwatch2':'',
+    'AccesstokenSOTAwatch2':'',
+    'AccesstokensecretSOTAwatch2':'',
+    #Key for SOTAwatchspot JA
     'ConsumerkeySOTAwatch':'',
     'ConsumersecretSOTAwatch':'',
     'AccesstokenSOTAwatch':'',
     'AccesstokensecretSOTAwatch':'',
-
-    'JAFFConsumerkey':'',
-    'JAFFConsumersecret':'',
-    'JAFFAccesstoken':'',
-    'JAFFAccesstokensecret':'',
-
     'Areas':r'^JA.*',
     'Alerts':r'JA\d*/\w\w\-',
     'JASummits':r'JA\d*/\w\w\-',
@@ -30,6 +20,7 @@ KEYS = {
 
     'SOTA_URL':'http://www.sotawatch.org/alerts.php',
     'SUMMIT_DB':'/home/ubuntu/pi/SOTAspotJA/summit_data/aprs-summit.db',
+    'DXSUMMIT_DB':'/home/ubuntu/pi/SOTAspotJA/summit_data/aprs-dx-summit.db',
     'BEACON_DB':'/home/ubuntu/pi/SOTAspotJA/beacon.db',
     'ALERT_DB':'/home/ubuntu/pi/SOTAspotJA/alert.db',
     'LAST3':"/home/ubuntu/pi/twitter/lastspot.txt",
