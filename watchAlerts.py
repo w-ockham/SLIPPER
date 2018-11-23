@@ -374,7 +374,7 @@ def update_alerts():
                        d['operator'],d['callsign'],
                        d['summit'],d['summit_info'],d['freq'],
                        d['comment'],d['poster']))
-        if now >= d['start'] and now <= d['end']:
+        if re.match(KEYS['JASummits'],d['summit']) and now >= d['start'] and now <= d['end']:
             if not d['operator'] in operators:
                 operators.append(d['operator'])
                 (lat_dest,lng_dest) = parse_summit(d['summit'])
@@ -610,12 +610,42 @@ def check_dupe_mesg(op,tw):
             
     conn_beacon.close()
     return result
+
+def check_status():
+    conn_beacon = sqlite3.connect(beacon_db)
+    cur_beacon = conn_beacon.cursor()
+    q = 'select * from beacons where state >=0 and state <=5'
+    cur_beacon.execute(q)
+    received = []
+    near_summit = []
+    on_summit =[]
+    for (_,_,op,_,_,_,_,_,_,_,state,_,_,_,_,_) in cur_beacon.fetchall():
+        if state == 0:
+            received.append(op)
+        elif state == 1 or state == 2 or state == 5:
+            near_summit.append(op)
+        elif state == 3 or state == 4:
+            on_summit.append(op)
+    conn_beacon.close()
+    if on_summit:
+        result = "On:"+','.join(on_summit)
+    else:
+        result = "On:None"
+    if near_summit:
+        result = result + " Near:"+','.join(near_summit)
+    else:
+        result = result + " Near:None"
+    if received:
+        result = result + " Recv:"+','.join(received)
+    else:
+        result = result + " Recv:None"
+    return result
     
 def do_command(callfrom,mesg):
     for com in mesg.split(","):
         com.strip()
         if com in 'HELP' or com in 'help' or com in '?':
-            res = 'DX,JA,LOC,LTON,LTOFF,M=<message>,HELP,?'
+            res = 'DX,JA,ST,LOC,LTON,LTOFF,M=<message>,HELP,?'
             send_long_message_with_ack(aprs_beacon,callfrom,res)
             break
         if com in 'DX' or com in 'dx':
@@ -624,11 +654,14 @@ def do_command(callfrom,mesg):
         elif com in 'JA' or com in 'ja':
             res = readlast3(last3)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'ST' or com in 'st':
+            res = check_status()
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'LOC' or com in 'loc':
+            res = lookup_from_op(callfrom)
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
         elif on_service(callfrom):
-            if com in 'LOC' or com in 'loc':
-                res = lookup_from_op(callfrom)
-                send_long_message_with_ack(aprs_beacon,callfrom,res)
-            elif com in 'LTON' or com in 'lton':
+            if com in 'LTON' or com in 'lton':
                 set_tweet_location(callfrom,1)
                 send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet ON')
             elif com in 'LTOFF' or com in 'ltoff':
@@ -656,6 +689,12 @@ def callback(packet):
     msg = aprslib.parse(packet)
     callfrom = msg['from'] + "      "
     callfrom = callfrom[0:9]
+
+    callto = msg['addresse'].strip()
+    if callto != KEYS['APRS_USER']:
+        del msg
+        return
+    
     if debug:
         print "Receive:"+callfrom+ ":"+msg['format']+"-"+msg['raw']
     if msg['format'] in  ['uncompressed','compressed','mic-e']:
@@ -718,11 +757,7 @@ def main():
 
     while True:
         schedule.run_pending()
-        #print "---"
-        #objgraph.show_most_common_types(limit=10)
-        #print "+++"
         gc.collect()
-        #objgraph.show_most_common_types(limit=10)
         sleep(30)
 
 
