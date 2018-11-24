@@ -690,11 +690,6 @@ def callback(packet):
     callfrom = msg['from'] + "      "
     callfrom = callfrom[0:9]
 
-    callto = msg['addresse'].strip()
-    if callto != KEYS['APRS_USER']:
-        del msg
-        return
-    
     if debug:
         print "Receive:"+callfrom+ ":"+msg['format']+"-"+msg['raw']
     if msg['format'] in  ['uncompressed','compressed','mic-e']:
@@ -702,6 +697,10 @@ def callback(packet):
         lng = msg['longitude']
         send_summit_message(callfrom, lat, lng)
     elif msg['format'] in ['message']:
+        callto = msg['addresse'].strip()
+        if callto != KEYS['APRS_USER']:
+            del msg
+            return
         m = re.search('ack(\d+)',msg['raw'])
         if m:
             push_msgno(int(m.group(1)))
