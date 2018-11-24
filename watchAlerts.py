@@ -582,7 +582,7 @@ def on_service(op):
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
     result = False
-    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,tlon,lasttweet,mode) in cur_beacon.fetchall():
+    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,mesg2,tlon,lasttweet,mode) in cur_beacon.fetchall():
         result = True
     conn_beacon.close()
     return result
@@ -606,7 +606,7 @@ def check_dupe_mesg(op,tw):
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
     result = False
-    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,tlon,lasttweet,mode) in cur_beacon.fetchall():
+    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,mesg2,tlon,lasttweet,mode) in cur_beacon.fetchall():
         if lasttweet == tw:
          result = True
     if not result:
