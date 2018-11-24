@@ -83,13 +83,13 @@ def lookup_from_op(op):
     cur_beacon.execute(q,(op,))
     r = cur_beacon.fetchall()
     if r:
-        for (start,end,op,_,_,_,_,_,_,_,state,name,m,tlon,lasttweet,mode) in r:
+        for (start,end,op,_,_,_,_,_,_,_,state,name,m,m2,tlon,lasttweet,mode) in r:
             if state == -2:
                 tm = datetime.fromtimestamp(int(start)).strftime("%H:%M")
                 mesg = "No beacons received. Upcoming Activation: " + tm + " " + name
                 break
             else:
-                mesg = m
+                mesg = m2
     else:
         q = 'select * from alerts where operator = ?'
         cur_alert.execute(q,(op,))
@@ -110,7 +110,8 @@ def lookup_from_op(op):
 def lookup_summit(op,lat,lng):
     op = op[0:op.rfind('-')].strip()
     if op in KEYS['EXCLUDE_USER']:
-        return (False,-1,"")
+        return (False,-1, 0, "Oops!")
+
     mag = KEYS['MAGNIFY']
     conn_summit = sqlite3.connect(summit_db)
     cur_summit = conn_summit.cursor()
@@ -122,8 +123,10 @@ def lookup_summit(op,lat,lng):
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
     state = -1
-    now = ""
-    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,tlon,lasttweet,mode) in cur_beacon.fetchall():
+    now = int(datetime.utcnow().strftime("%s"))
+    nowstr = datetime.fromtimestamp(now).strftime("%H:%M")
+
+    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,mesg2,tlon,lasttweet,mode) in cur_beacon.fetchall():
         latu,latl = lat + deltalat*mag, lat - deltalat*mag
         lngu,lngl = lng + deltalng*mag, lng - deltalng*mag
         result = []
@@ -143,7 +146,6 @@ def lookup_summit(op,lat,lng):
             
         result.sort(key=lambda x:x[1])
         result = result[0:3]
-        now = datetime.now(localtz).strftime("%H:%M")
         if len(result) > 0:
             (_,dist,_,_,_,_,_) = result[0]
             if dist <=100.0:
@@ -167,25 +169,30 @@ def lookup_summit(op,lat,lng):
             if state == 3 or state == 4:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Welcome to " + code +". "+ name + " " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
+                mesg2 = "On " + code + " - " + name + " " + str(alt) + "m "+ str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)." 
             elif state == 1 or state == 2:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Approaching " + code + "," + str(dist) +"m("+str(az)+"deg) to go."
+                mesg2 = mesg
             elif state == 5:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Departing " + code + "," + str(dist) +"m("+str(az)+"deg) from summit."
+                mesg2 = mesg
             elif state == 0 or state == 6:
-                mesg = now + " "
+                mesg = nowstr + " "
                 for (code,dist,az,pt,alt,name,desc) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m("+str(az)+") "
+                mesg2 = mesg
         else:
-            mesg = now + " No Summits within 30km square from {0:.6f},{1:.6f}.".format(lat,lng)
+            mesg = nowstr + " No Summits within 30km square from {0:.6f},{1:.6f}.".format(lat,lng)
+            mesg2 = mesg
             state = -1
             dist = 0
             az = 0
             
-        q = 'update beacons set lastseen = ?, lat = ?, lng = ?, lat_dest = ?, lng_dest = ?,dist = ?, az = ?,state = ?,summit = ?,message = ?, type = ? where operator = ?'
+        q = 'update beacons set lastseen = ?, lat = ?, lng = ?, lat_dest = ?, lng_dest = ?,dist = ?, az = ?,state = ?,summit = ?,message = ?,message2 =?, type = ? where operator = ?'
         try:
-            cur_beacon.execute(q,(now,lat,lng,lat_dest,lng_dest,dist,az,state,code,mesg,'APRS',op,))
+            cur_beacon.execute(q,(now,lat,lng,lat_dest,lng_dest,dist,az,state,code,mesg,mesg2,'APRS',op,))
             conn_beacon.commit()
         except Exception as err:
             print >> sys.stderr, 'update beacon.db %s' % err
@@ -364,7 +371,7 @@ def update_alerts():
     for user in KEYS['TEST_USER']:
         d = {'time':now,'start':now-100,'end':now+10800,
              'operator':user,'callsign':user,'summit':'JA/TT-TEST',
-             'summit_info':'Fujisan Kengamine.','freq':'433-fm',
+             'summit_info':'Test Summit','freq':'433-fm',
              'comment':'Alert Test','poster':'(Posted By JL1NIE)'}
         res.append(d)
         
@@ -378,15 +385,17 @@ def update_alerts():
             if not d['operator'] in operators:
                 operators.append(d['operator'])
                 (lat_dest,lng_dest) = parse_summit(d['summit'])
-                q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,message2,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
                 cur2.execute(q,(d['start'],d['end'],d['operator'],
-                                '', #lastseen
+                                0, #lastseen
                                 '', # lat
                                 '', # lng
                                 str(lat_dest), # lat_dest
                                 str(lng_dest), # lng_dest
                                 -1,0,-2,
-                                d['summit'],d['summit_info'],
+                                d['summit'],
+                                d['summit_info'],
+                                d['summit_info'],
                                 0,'',
                                 'SW2'))
     conn.commit()
@@ -614,18 +623,21 @@ def check_dupe_mesg(op,tw):
 def check_status():
     conn_beacon = sqlite3.connect(beacon_db)
     cur_beacon = conn_beacon.cursor()
-    q = 'select * from beacons where state >=0 and state <=5'
-    cur_beacon.execute(q)
+    now = int(datetime.utcnow().strftime("%s")) - 3600 * 2
+    q = 'select * from beacons where state >=0 and state <=5 and lastseen > ?'
+    cur_beacon.execute(q,(now,))
     received = []
     near_summit = []
     on_summit =[]
-    for (_,_,op,_,_,_,_,_,_,_,state,_,_,_,_,_) in cur_beacon.fetchall():
+
+    for (_,_,op,last,_,_,_,_,_,_,state,_,_,_,_,_,_) in cur_beacon.fetchall():
         if state == 0:
             received.append(op)
         elif state == 1 or state == 2 or state == 5:
             near_summit.append(op)
         elif state == 3 or state == 4:
-            on_summit.append(op)
+            tm = datetime.fromtimestamp(last).strftime("%H:%M")
+            on_summit.append(op+"("+tm+")")
     conn_beacon.close()
     if on_summit:
         result = "On:"+','.join(on_summit)
@@ -718,7 +730,7 @@ def setup_db():
     conn_dxsummit = sqlite3.connect(dxsummit_db)
     cur_dxsummit = conn_dxsummit.cursor()
     
-    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen text,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,tlon int,lasttweet text,type text)'
+    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen int,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,message2 text,tlon int,lasttweet text,type text)'
     cur_beacon.execute(q)
     q ='delete from beacons'
     cur_beacon.execute(q)
@@ -758,7 +770,6 @@ def main():
         schedule.run_pending()
         gc.collect()
         sleep(30)
-
-
+        
 if __name__ == '__main__':
     main()
