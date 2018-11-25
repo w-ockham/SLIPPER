@@ -161,22 +161,22 @@ def lookup_summit(op,lat,lng):
                 elif state == 4:
                     state = 5
             else:
-                if state <= 0:
-                    state = 0
-                elif state == 5:
+                if state >= 3:
                     state = 6
+                else:
+                    state = 0
 
             if state == 3 or state == 4:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Welcome to " + code +". "+ name + " " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
-                mesg2 = "On " + code + " - " + name + " " + str(alt) + "m "+ str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)." 
+                mesg2 = code + " - " + name + " " + str(alt) + "m "+ str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)." 
             elif state == 1 or state == 2:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg = "Approaching " + code + "," + str(dist) +"m("+str(az)+"deg) to go."
+                mesg = "Approaching " + code + ", " + str(dist) +"m("+str(az)+"deg) to go."
                 mesg2 = mesg
             elif state == 5:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg = "Departing " + code + "," + str(dist) +"m("+str(az)+"deg) from summit."
+                mesg = "Departing " + code + ", " + str(dist) +"m("+str(az)+"deg) from summit."
                 mesg2 = mesg
             elif state == 0 or state == 6:
                 mesg = nowstr + " "
