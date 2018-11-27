@@ -672,29 +672,34 @@ def do_command(callfrom,mesg):
         elif com in 'LOC' or com in 'loc':
             res = lookup_from_op(callfrom)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif on_service(callfrom):
-            if com in 'LTON' or com in 'lton':
-                set_tweet_location(callfrom,1)
-                send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet ON')
-            elif com in 'LTOFF' or com in 'ltoff':
-                set_tweet_location(callfrom,0)
-                send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet OFF')
-            else:
-                m = re.search('M=(.+)',mesg,re.IGNORECASE)
-                if m:
-                    tm = m.group(1)
-                    tm.strip()
-                    if check_dupe_mesg(callfrom,tm):
-                        send_long_message_with_ack(aprs_beacon,callfrom,'Dupe: '+tm)
-                    else:
-                        tweet(tweet_api,callfrom + " " + tm)
-                        send_long_message_with_ack(aprs_beacon,callfrom,'Posted: '+tm)
-                else:
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
+        elif com in 'LTON' or com in 'lton':
+            if not on_service(callfrom):
+                send_long_message_with_ack(aprs_beacon,callfrom,'Out of service time window: '+com)
                 break
+            set_tweet_location(callfrom,1)
+            send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet ON')
+        elif com in 'LTOFF' or com in 'ltoff':
+            if not on_service(callfrom):
+                send_long_message_with_ack(aprs_beacon,callfrom,'Out of service time window: '+com)
+                break
+            set_tweet_location(callfrom,0)
+            send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet OFF')
         else:
-            send_long_message_with_ack(aprs_beacon,callfrom,'Out of service time window: '+com)
-            break
+            m = re.search('M=(.+)',mesg,re.IGNORECASE)
+            if m:
+                if not on_service(callfrom):
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Out of service time window: '+com)
+                    break
+                tm = m.group(1)
+                tm.strip()
+                if check_dupe_mesg(callfrom,tm):
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Dupe: '+tm)
+                else:
+                    tweet(tweet_api,callfrom + " " + tm)
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Posted: '+tm)
+            else:
+                send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
+                break
     del mesg
         
 def callback(packet):
