@@ -180,8 +180,9 @@ def lookup_summit(op,lat,lng):
                 mesg2 = mesg
             elif state == 0 or state == 6:
                 mesg = nowstr + " "
-                for (code,dist,az,pt,alt,name,desc) in result:
+                for (_,dist,az,_,_,_,_) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m("+str(az)+") "
+                (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg2 = mesg
         else:
             mesg = nowstr + " No Summits within 30km square from {0:.6f},{1:.6f}.".format(lat,lng)
@@ -674,13 +675,13 @@ def do_command(callfrom,mesg):
             send_long_message_with_ack(aprs_beacon,callfrom,res)
         elif com in 'LTON' or com in 'lton':
             if not on_service(callfrom):
-                send_long_message_with_ack(aprs_beacon,callfrom,'Out of service time window: '+com)
+                send_long_message_with_ack(aprs_beacon,callfrom,'Out of service: '+com)
                 break
             set_tweet_location(callfrom,1)
             send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet ON')
         elif com in 'LTOFF' or com in 'ltoff':
             if not on_service(callfrom):
-                send_long_message_with_ack(aprs_beacon,callfrom,'Out of service time window: '+com)
+                send_long_message_with_ack(aprs_beacon,callfrom,'Out of service: '+com)
                 break
             set_tweet_location(callfrom,0)
             send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet OFF')
@@ -688,7 +689,7 @@ def do_command(callfrom,mesg):
             m = re.search('M=(.+)',mesg,re.IGNORECASE)
             if m:
                 if not on_service(callfrom):
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Out of service time window: '+com)
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Out of service: '+com)
                     break
                 tm = m.group(1)
                 tm.strip()
@@ -773,7 +774,8 @@ def main():
 
     while True:
         schedule.run_pending()
-        gc.collect()
+        #gc.collect()
+        objgraph.show_growth()
         sleep(30)
         
 if __name__ == '__main__':
