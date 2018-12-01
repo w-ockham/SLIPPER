@@ -110,7 +110,7 @@ def lookup_from_op(op):
 def lookup_summit(op,lat,lng):
     op = op[0:op.rfind('-')].strip()
     if op in KEYS['EXCLUDE_USER']:
-        return (False,-1, 0, "Oops!")
+        return (True,-1, 0, "Oops!")
 
     mag = KEYS['MAGNIFY']
     conn_summit = sqlite3.connect(summit_db)
@@ -207,7 +207,7 @@ def lookup_summit(op,lat,lng):
     conn_beacon.close()
     conn_summit.close()
     conn_dxsummit.close()
-    return (False,-1, 0, "Oops!")
+    return (True,-1, 0, "Oops!")
 
 def parse_summit(code):
     conn_dxsummit = sqlite3.connect(dxsummit_db)
@@ -383,7 +383,7 @@ def update_alerts():
                        d['operator'],d['callsign'],
                        d['summit'],d['summit_info'],d['freq'],
                        d['comment'],d['poster']))
-        if re.match(KEYS['JASummits'],d['summit']) and now >= d['start'] and now <= d['end']:
+        if re.match(KEYS['Watchfor'],d['summit']) and now >= d['start'] and now <= d['end']:
             if not d['operator'] in operators:
                 operators.append(d['operator'])
                 q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,message2,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -774,8 +774,8 @@ def main():
 
     while True:
         schedule.run_pending()
-        #gc.collect()
-        objgraph.show_growth()
+        gc.collect()
+        #objgraph.show_growth()
         sleep(30)
         
 if __name__ == '__main__':

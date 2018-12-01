@@ -12,6 +12,7 @@ KEYS = {
     'Areas':r'^JA.*',
     'Alerts':r'JA\d*/\w\w\-',
     'JASummits':r'JA\d*/\w\w\-',
+    'Watchfor':r'JA\d*/\w\w\-',
     'Alertafter':('Asia/Tokyo',6),
     'LOCALTIME':True,
     'MapURL':'https://maps.google.co.jp/maps?q={place}&ll={locate}&t=h&z=12',
