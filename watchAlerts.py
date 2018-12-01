@@ -180,7 +180,7 @@ def lookup_summit(op,lat,lng):
                 mesg2 = mesg
             elif state == 0 or state == 6:
                 mesg = nowstr + " "
-                for (_,dist,az,_,_,_,_) in result:
+                for (code,dist,az,_,_,_,_) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m("+str(az)+") "
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg2 = mesg
@@ -377,6 +377,7 @@ def update_alerts():
         res.append(d)
         
     for d in res:
+        (lat_dest,lng_dest) = parse_summit(d['summit'])
         q = 'insert into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
         cur.execute(q,(d['time'],d['start'],d['end'],
                        d['operator'],d['callsign'],
@@ -385,7 +386,6 @@ def update_alerts():
         if re.match(KEYS['JASummits'],d['summit']) and now >= d['start'] and now <= d['end']:
             if not d['operator'] in operators:
                 operators.append(d['operator'])
-                (lat_dest,lng_dest) = parse_summit(d['summit'])
                 q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,message2,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
                 cur2.execute(q,(d['start'],d['end'],d['operator'],
                                 0, #lastseen
