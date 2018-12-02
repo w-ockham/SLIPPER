@@ -727,7 +727,8 @@ def callback(packet):
             if m:
                 send_ack(aprs_beacon,callfrom,int(m.group(1)))
 
-            do_command(callfrom,msg['message_text'])
+            if 'message_text' in msg:
+                do_command(callfrom,msg['message_text'])
     del msg
 
 def setup_db():
