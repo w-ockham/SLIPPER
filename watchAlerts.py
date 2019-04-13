@@ -32,6 +32,7 @@ summit_db = KEYS['SUMMIT_DB']
 dxsummit_db = KEYS['DXSUMMIT_DB']
 beacon_db = KEYS['BEACON_DB']
 alert_db = KEYS['ALERT_DB']
+aprslog_db = KEYS['APRSLOG_DB']
 last3 = KEYS['LAST3']
 last3dx = KEYS['LAST3DX']
 aprs_user = KEYS['APRS_USER']
@@ -124,6 +125,8 @@ def lookup_summit(op,lat,lng):
     cur_dxsummit = conn_dxsummit.cursor()
     conn_beacon = sqlite3.connect(beacon_db)
     cur_beacon = conn_beacon.cursor()
+    conn_aprslog = sqlite3.connect(aprslog_db)
+    cur_aprslog = conn_aprslog.cursor()
 
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
@@ -203,13 +206,23 @@ def lookup_summit(op,lat,lng):
         except Exception as err:
             print >> sys.stderr, 'update beacon.db %s' % err
             pass
+        
+        q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
+        try:
+            cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
+            conn_aprslog.commit()
+        except Exception as err:
+            print >> sys.stderr, 'update aprslog.db %s' % err
+            pass
 
         conn_beacon.close()
+        conn_aprslog.close()
         conn_summit.close()
         conn_dxsummit.close()
         return (foreign, state, tlon, mesg)
     
     conn_beacon.close()
+    conn_aprslog.close()
     conn_summit.close()
     conn_dxsummit.close()
     return (True,-1, 0, "Oops!")
@@ -450,7 +463,6 @@ def update_alerts():
     conn2.close()
 
     aprs_filter =  "b/"+ "-*/".join(operators) +"-*"
-
     if aprs_beacon:
         aprs_beacon.set_filter(aprs_filter)
         
@@ -780,6 +792,8 @@ def callback(packet):
 def setup_db():
     conn_dxsummit = sqlite3.connect(dxsummit_db)
     cur_dxsummit = conn_dxsummit.cursor()
+    conn_aprslog = sqlite3.connect(aprslog_db)
+    cur_aprslog = conn_aprslog.cursor()
     
     q ='create table if not exists summits (code txt,lat real,lng real,point integer,alt integer,name text,desc text)'
     cur_dxsummit.execute(q)
@@ -787,6 +801,11 @@ def setup_db():
     cur_dxsummit.execute(q)
     conn_dxsummit.commit()
     conn_dxsummit.close()
+
+    q ='create table if not exists aprslog (time int,operator text,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text)'
+    cur_aprslog.execute(q)
+    conn_aprslog.commit()
+    conn_aprslog.close()
     
     update_alerts()
     
