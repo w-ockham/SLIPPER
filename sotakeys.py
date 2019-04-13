@@ -20,6 +20,7 @@ KEYS = {
     'VOAIMG':'/tmp/voaimg.png',
 
     'SOTA_URL':'http://www.sotawatch.org/alerts.php',
+    'SOTA_JSON_URL':'https://sota-api2.azurewebsites.net/api/alerts?',
     'SUMMIT_DB':'/home/ubuntu/pi/SOTAspotJA/summit_data/aprs-summit.db',
     'DXSUMMIT_DB':'/home/ubuntu/pi/SOTAspotJA/summit_data/aprs-dx-summit.db',
     'BEACON_DB':'/home/ubuntu/pi/SOTAspotJA/beacon.db',

@@ -16,6 +16,10 @@ from threading import Thread, Lock
 from time import sleep
 import tweepy
 
+import urllib
+import json
+import pprint
+
 from sotakeys import *
 from last3 import *
 
@@ -23,6 +27,7 @@ debug = False
 #debug = True
 
 sotawatch_url = KEYS['SOTA_URL']
+sotajson_url = KEYS['SOTA_JSON_URL']
 summit_db = KEYS['SUMMIT_DB']
 dxsummit_db = KEYS['DXSUMMIT_DB']
 beacon_db = KEYS['BEACON_DB']
@@ -258,8 +263,6 @@ def parse_alerts(url):
     
     result = []
     state = 'new'
-    conn = sqlite3.connect(summit_db)
-    cur = conn.cursor()
     parse_error = False
     for line in response.text.splitlines():
         if state == 'new' and "class=\"alertDate\">" in line:
@@ -346,7 +349,44 @@ def parse_alerts(url):
                                'poster':alert_poster})
             parse_error = False    
             state = 'new'
-    conn.close()
+    return result
+
+def parse_json_alerts(url):
+    try:
+        param = urllib.urlencode(
+        {
+        'client': 'sotawatch',
+        'user': 'anon'
+        })
+        readObj= urllib.urlopen(url+param)
+        res = readObj.read()
+    except Exception, e:
+        print >>sys.stderr, 'JSON GET %s' % e
+        return []
+
+    result = []
+    for item in json.loads(res):
+        alert_time = int(datetime.strptime(item['dateActivated'],'%Y-%m-%dT%H:%M:%S').strftime("%s"))
+        alert_start = alert_time + 3600 * KEYS['WINDOW_FROM']
+        alert_end= alert_time  + 3600 * KEYS['WINDOW_TO']
+        patplus = re.compile('S\+(\d+)',re.IGNORECASE)
+        patminus = re.compile('S-(\d+)',re.IGNORECASE)
+        for p in  patplus.findall(item['comments']):
+            alert_end = alert_time + int(p)*3600
+        for p in patminus.findall(item['comments']):
+            alert_start = alert_time - int(p)*3600
+            
+        result.append({'time':alert_time,
+                       'start':alert_start,
+                       'end': alert_end,
+                       'operator': item['posterCallsign'],
+                       'callsign': item['activatingCallsign'],
+                       'summit': item['associationCode']+"/"+item['summitCode'],
+                       'summit_info': item['summitDetails'],
+                       'freq': item['frequency'],
+                       'comment': item['comments'],
+                       'poster': "(Posted by " + item['posterCallsign'] + ")"})
+        
     return result
 
 def update_alerts():
@@ -361,7 +401,7 @@ def update_alerts():
     cur.execute(q)
     conn.commit()
 
-    res = parse_alerts(sotawatch_url)
+    res = parse_json_alerts(sotajson_url)
     operators = []
     now = int(datetime.utcnow().strftime("%s"))
 
@@ -427,7 +467,7 @@ def tweet_alerts():
         mesg = mesg + "An activation is currently scheduled on "
     else:
         mesg = str(num)+" activations are currently scheduled on "
-    mesg = mesg + today + " (Posted by SLIPPER ver1.0)"
+    mesg = mesg + today + " (Posted by SLIPPER1.1)."
     tweet(tweet_api,mesg)
     
     for (tm,_,_,_,call,summit,info,freq,comment,poster) in rows:
@@ -699,6 +739,7 @@ def do_command(callfrom,mesg):
                     tweet(tweet_api,callfrom + " " + tm)
                     send_long_message_with_ack(aprs_beacon,callfrom,'Posted: '+tm)
             else:
+                res = 'Command Error,DX,JA,ST,LOC,LTON,LTOFF,M=<message>,HELP,?'
                 send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
                 break
     del mesg
@@ -756,7 +797,7 @@ def setup_db():
     
 def main():
     global tweet_api
-    
+
     aprs = Thread(target=aprs_worker, args=())
     aprs.start()
 
