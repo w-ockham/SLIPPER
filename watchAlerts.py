@@ -395,19 +395,24 @@ def update_alerts():
     conn2 = sqlite3.connect(beacon_db)
     cur = conn.cursor()
     cur2 = conn2.cursor()
+
+    now = int(datetime.utcnow().strftime("%s"))
+    
     q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,freq text,comment text,poster text)'
     cur.execute(q)
-    q = 'delete from alerts'
-    cur.execute(q)
+    q = 'delete from alerts where end < ?'
+    cur.execute(q,(now,))
     conn.commit()
 
-    res = parse_json_alerts(sotajson_url)
-    operators = []
-    now = int(datetime.utcnow().strftime("%s"))
-
+    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen int,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,message2 text,tlon int,lasttweet text,type text)'
+    cur2.execute(q)
     q = 'delete from beacons where end < ?'
     cur2.execute(q,(now,))
     conn2.commit()
+
+    res = parse_json_alerts(sotajson_url)
+
+    operators = []
 
     for user in KEYS['TEST_USER']:
         d = {'time':now,'start':now-100,'end':now+10800,
@@ -773,24 +778,14 @@ def callback(packet):
     del msg
 
 def setup_db():
-    conn_beacon = sqlite3.connect(beacon_db)
-    cur_beacon = conn_beacon.cursor()
     conn_dxsummit = sqlite3.connect(dxsummit_db)
     cur_dxsummit = conn_dxsummit.cursor()
     
-    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen int,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,message2 text,tlon int,lasttweet text,type text)'
-    cur_beacon.execute(q)
-    q ='delete from beacons'
-    cur_beacon.execute(q)
-    conn_beacon.commit()
-
     q ='create table if not exists summits (code txt,lat real,lng real,point integer,alt integer,name text,desc text)'
     cur_dxsummit.execute(q)
     q = 'create index if not exists summit_index on summits(lat,lng)'
     cur_dxsummit.execute(q)
     conn_dxsummit.commit()
-
-    conn_beacon.close()
     conn_dxsummit.close()
     
     update_alerts()
