@@ -423,7 +423,7 @@ def update_alerts():
         
     for d in res:
         (lat_dest,lng_dest) = parse_summit(d['summit'])
-        q = 'insert into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
+        q = 'insert or ignore into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
         cur.execute(q,(d['time'],d['start'],d['end'],
                        d['operator'],d['callsign'],
                        d['summit'],d['summit_info'],d['freq'],
