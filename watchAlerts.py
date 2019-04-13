@@ -398,13 +398,13 @@ def update_alerts():
 
     now = int(datetime.utcnow().strftime("%s"))
     
-    q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,freq text,comment text,poster text)'
+    q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,freq text,comment text,poster text,primary key(time,callsign,summit))'
     cur.execute(q)
     q = 'delete from alerts where end < ?'
     cur.execute(q,(now,))
     conn.commit()
 
-    q ='create table if not exists beacons (start int,end int,operator text uniue primary key,lastseen int,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,message2 text,tlon int,lasttweet text,type text)'
+    q ='create table if not exists beacons (start int,end int,operator text,lastseen int,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,message2 text,tlon int,lasttweet text,type text,primary key(start,operator,summit))'
     cur2.execute(q)
     q = 'delete from beacons where end < ?'
     cur2.execute(q,(now,))
@@ -423,7 +423,7 @@ def update_alerts():
         
     for d in res:
         (lat_dest,lng_dest) = parse_summit(d['summit'])
-        q = 'insert or ignore into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
+        q = 'insert or replace into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
         cur.execute(q,(d['time'],d['start'],d['end'],
                        d['operator'],d['callsign'],
                        d['summit'],d['summit_info'],d['freq'],
@@ -431,7 +431,7 @@ def update_alerts():
         if re.match(KEYS['Watchfor'],d['summit']) and now >= d['start'] and now <= d['end']:
             if not d['operator'] in operators:
                 operators.append(d['operator'])
-                q = 'insert or ignore into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,message2,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                q = 'insert or replace into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,message2,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
                 cur2.execute(q,(d['start'],d['end'],d['operator'],
                                 0, #lastseen
                                 '', # lat
