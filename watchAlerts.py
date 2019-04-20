@@ -378,7 +378,10 @@ def parse_json_alerts(url):
         return []
 
     result = []
+    
     for item in json.loads(res):
+        if item['comments'] is None:
+            item['comments'] = ""
         alert_time = int(datetime.strptime(item['dateActivated'],'%Y-%m-%dT%H:%M:%S').strftime("%s"))
         alert_start = alert_time + 3600 * KEYS['WINDOW_FROM']
         alert_end= alert_time  + 3600 * KEYS['WINDOW_TO']
@@ -433,7 +436,7 @@ def update_alerts():
              'summit_info':'Test Summit','freq':'433-fm',
              'comment':'Alert Test','poster':'(Posted By JL1NIE)'}
         res.append(d)
-        
+    
     for d in res:
         (lat_dest,lng_dest) = parse_summit(d['summit'])
         q = 'insert or replace into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
