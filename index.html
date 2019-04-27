@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+ <meta http-equiv='cache-control' content='no-cache'>
+<meta http-equiv='expires' content='0'>
+<meta http-equiv='pragma' content='no-cache'>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" />
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+<link rel="shortcut icon" href="favicon.ico">
+<title>SOTAwatch Live!</title>
+<style>
+.jumbotron-extend {
+   position: relative;
+   height: 40vh;
+   min-height: 200px;
+};
+i.semantic-ui-custom {
+  margin-top: 9px;
+}
+</style>
+</head>
+<body>
+<div class="header clearfix">
+<h3 class="text-muted">&nbsp SOTAwatch Live! <div id="time"> </div></h3>
+</div>
+<div id="map" class="jumbotron jumbotron-extend">
+</div>
+<div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:10px;">	
+</div>
+
+<footer class="page-footer font-small bg-light text-center">
+  <p class="text-muted">
+    <a href="https://www.sotalive.tk/?area=WW"> <img src="svg/globe.svg"> &nbsp &nbsp</a>
+    <a href="https://www.sotalive.tk/"><img src="svg/home.svg"> &nbsp&nbsp<a/>
+ <!--
+    <a href="https://twitter.com/intent/tweet?screen_name=jl1nie" target="_lank"> <img src="svg/mention.svg"><a/>
+ -->
+  </p>
+</footer>
+<!-- Optional JavaScript -->
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
+<script
+  src="https://code.jquery.com/jquery-3.4.0.min.js"
+  integrity="sha256-BJeo0qm959uMBGb65z40ejJYGSgR7REI4+CW1fNKwOg="
+  crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+<!-- plugin -->
+<link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
+<script src="js/leaflet.extra-markers.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
+<link rel="stylesheet" href="css/L.Icon.Pulse.css" />
+<script src="js/L.Icon.Pulse.js"></script>
+    <!-- plugin -->
+    <style type="text/css">
+      i.semantic-ui-custom {
+        margin-top: 9px;
+      }
+</style>
+
+<script>
+function getParam(name, url) {
+    if (!url) url = window.location.href;
+    name = name.replace(/[\[\]]/g, "\\$&");
+    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, " "));
+}
+
+var map = L.map('map');
+var param = getParam('area')
+if (param=="WW") {
+    var osm = L.tileLayer('https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=767750c193e54ceeb3aee08d880bdb90',{
+	attribution: "<a href='https://www.thunderforest.com/'>Thunderforest</>"
+    });
+    osm.addTo(map);
+}else {
+
+    var gsi = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+	attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+    });
+    gsi.addTo(map);
+}
+
+function drawObj(lg,data) {
+    po = [];
+    tm = [];
+    for (var i = 0, len = data.route.length; i < len; ++i) {
+	po.push(data.route[i].latlng);
+	tm.push(data.route[i].time);
+    };
+    L.polyline(po,{color: "blue", wight:6}).addTo(lg);
+
+    for (var i = 0, len = po.length; i < len; ++i)
+	L.circleMarker(po[i],{color:"red", radius:4}).addTo(lg);
+    options = {
+        prefix: 'icon'
+        ,icon: 'flag checkered'
+        ,shape: 'circle'
+        ,markerColor: 'yellow'
+        ,extraClasses: 'semantic-ui-custom'
+    };
+    var marker = L.marker(data.summit_latlng,
+			  {icon: L.ExtraMarkers.icon(options)});
+    marker.bindPopup(data.summit + data.summit_info);
+    marker.addTo(lg);
+    
+    if (po.length > 0 ) {
+ 	options = {
+            prefix: 'icon'
+            ,icon: 'user outline'
+            ,shape: 'star'
+            ,markerColor: 'orange'
+            ,extraClasses: 'semantic-ui-custom'
+	};
+ 	var marker = L.marker(po[po.length-1],
+			      {icon: L.ExtraMarkers.icon(options)});
+	if (data.aprs_message != "") 
+	    marker.bindPopup(tm[tm.length-1]+' '+data.op+'<br>'+data.aprs_message).openPopup()
+	else
+	    marker.bindPopup(tm[tm.length-1]+' '+data.op).openPopup();
+	marker.addTo(lg);
+//	console.log(data);
+    }
+    if (data.spot_time != "") {
+	if (data.spot_color == "red")
+	    interval = 1
+	else if (data.spot_color == "orange")
+	    interval = 2
+	else
+	    interval = 10
+	var pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'red',heartbeat:interval});
+	var marker = L.marker(data.summit_latlng,{icon: pulsingIcon});
+	marker.bindPopup(data.summit + '<br>' 
+			 + data.spot_time + ' ' + data.op + ' ' + data.spot_freq 
+			 + '<br>' + data.spot_comment).openPopup();
+	marker.addTo(lg);
+    }
+};
+
+function clickButton(event) {
+    var p = event.target.eventParam;
+    qrvdata = p.data;
+    for (var i = 0, len = qrvdata.length; i< len; ++i) {
+	if (p.op == qrvdata[i].op && p.summit == qrvdata[i].summit) {
+	    map.setView(qrvdata[i].summit_latlng,15);
+	    break;
+     	};
+    };
+};
+
+function clickAPRSButton (event) {
+    var p = event.target.eventParam;
+    qrvdata = p.data;
+    for (var i = 0, len = qrvdata.length; i< len; ++i) {
+	if (p.op == qrvdata[i].op && p.summit == qrvdata[i].summit) {
+	    var r = qrvdata[i].route;
+	    dist = r[r.length - 1].dist;
+	    if (dist < 1000)
+		zm = 15
+	    else if (dist <2000)
+		zm = 14
+	    else if (dist <5000)
+		zm = 13
+	    else if (dist <10000)
+		zm = 12
+	    else if (dist <20000)
+		zm = 11
+	    else if (dist <30000)
+		zm = 10
+	    else if (dist <60000)
+		zm = 9
+	    else if (dist <100000)
+		zm = 7
+	    else
+		zm = 5
+	  
+	    map.setView(r[r.length - 1].latlng,zm);
+	    break;
+     	};
+    };
+};
+
+
+function update() {
+    $('#qrvinfo').html('');
+    console.log("updates");
+    param = getParam('area')
+    if (param == "WW")
+	fname = 'spots.json'
+    else
+	fname = 'spotsJA.json';
+    
+    $.getJSON("https://www.sotalive.tk/json/"+fname,{ts:new Date().getTime()},function(qrvdata) {
+	if (lg != null) {
+	    map.removeLayer(lg);
+	    lg = L.layerGroup();
+	} else
+	    lg = L.layerGroup();
+	map.addLayer(lg);
+	
+	for (var i = 0, len = qrvdata.length; i< len; ++i) {
+	    drawObj(lg,qrvdata[i]);
+	    if (qrvdata[i].spot_time != "") {
+		if (qrvdata[i].spot_color == "red")
+		    color = 'text-danger'
+		else if (qrvdata[i].spot_color == "orange")
+		    color = 'text-warning'
+		else
+		    color = 'text-primary'
+    		spotstr ='<p class="'+
+		    color+'"<strong>'+  qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq + '</strong></p>' + qrvdata[i].spot_comment;
+	    }
+	    else
+		spotstr = '';
+
+	    if (qrvdata[i].route.length > 0) 
+    		badge = ' <button id="abt_' +i + '" type="button" class="btn-warning btn-sm">APRS</button>'
+	    else
+    		badge = '';
+	    
+	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' + qrvdata[i].op +'</h5>'+
+    		'<div class="text-muted">' + qrvdata[i].summit +' '+ qrvdata[i].summit_info + '<br>' + 
+		qrvdata[i].alert_time + ' '+qrvdata[i].alert_freq  + ' ' + qrvdata[i].alert_comment + '</div>'+ spotstr + '</div>';
+	    button = '<div class="align-self-center ">'+badge +'&nbsp <button id="sbt_' + i + '" type="button" class="btn-info btn-sm">'+qrvdata[i].summit + '</button></div>';
+   	    $('#qrvinfo').append('<div class="media">' + body + button + '</div><hr/>');
+	    
+   	    var elm = document.getElementById("sbt_"+i);
+   	    elm.addEventListener("click",clickButton,false);
+	    elm.eventParam = { data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit };
+	    if (qrvdata[i].route.length > 0) { 
+   	    var elm = document.getElementById("abt_"+i);
+   		elm.addEventListener("click",clickAPRSButton,false);
+		elm.eventParam = { data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit };
+	    };
+	};
+	if (first_draw && qrvdata.length > 0) {
+	    console.log(qrvdata[0].summit_latlng);
+	    map.setView(qrvdata[0].summit_latlng,15);
+	    first_draw = false;
+	} else if (qrvdata.length == 0){
+	    map.setView([35.362853,138.730910],15);
+	    $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No Data.</h5></div><hr/></div>');
+	};
+    });
+};
+lg = null;
+first_draw = true;
+update();
+setInterval(update,60000);
+</script>
+</body>
+</html>
