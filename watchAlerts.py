@@ -27,10 +27,11 @@ debug = False
 #debug = True
 
 sotawatch_url = KEYS['SOTA_URL']
-sotajson_url = KEYS['SOTA_JSON_URL']
+sotawatch_json_url = KEYS['SOTAWATCH_JSON_URL']
+output_json_file = KEYS['OUTPUT_JSON_FILE']
+output_json_jafile = KEYS['OUTPUT_JSON_JAFILE']
 summit_db = KEYS['SUMMIT_DB']
 dxsummit_db = KEYS['DXSUMMIT_DB']
-beacon_db = KEYS['BEACON_DB']
 alert_db = KEYS['ALERT_DB']
 aprslog_db = KEYS['APRSLOG_DB']
 last3 = KEYS['LAST3']
@@ -40,7 +41,8 @@ aprs_password = KEYS['APRS_PASSWD']
 aprs_host = KEYS['APRS_HOST']
 aprs_port = KEYS['APRS_PORT']
 tweet_at = KEYS['TWEET_AT']
-update_every = KEYS['UPDATE_EVERY']
+update_alerts_every = KEYS['UPDATE_ALERTS_EVERY']
+update_spots_every = KEYS['UPDATE_SPOTS_EVERY']
 
 tweet_api = None
 
@@ -79,10 +81,9 @@ def tweet_with_media(api, fname, txt):
 	    return
 
 def lookup_from_op(op):
-    conn_beacon = sqlite3.connect(beacon_db)
-    cur_beacon = conn_beacon.cursor()
     conn_alert = sqlite3.connect(alert_db)
     cur_alert = conn_alert.cursor()
+    cur_beacon = conn_alert.cursor()
     
     op = op[0:op.rfind('-')].strip()
     q = 'select * from beacons where operator = ?'
@@ -109,7 +110,6 @@ def lookup_from_op(op):
         else:
             mesg = "No Upcoming Activations."
 
-    conn_beacon.close()
     conn_alert.close()
     return mesg
 
@@ -123,7 +123,7 @@ def lookup_summit(op,lat,lng):
     cur_summit = conn_summit.cursor()
     conn_dxsummit = sqlite3.connect(dxsummit_db)
     cur_dxsummit = conn_dxsummit.cursor()
-    conn_beacon = sqlite3.connect(beacon_db)
+    conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
@@ -371,10 +371,10 @@ def parse_json_alerts(url):
         'client': 'sotawatch',
         'user': 'anon'
         })
-        readObj= urllib.urlopen(url+param)
+        readObj= urllib.urlopen(url+'/api/alerts?'+param)
         res = readObj.read()
     except Exception, e:
-        print >>sys.stderr, 'JSON GET %s' % e
+        print >>sys.stderr, 'JSON GET ALERTS %s' % e
         return []
 
     result = []
@@ -395,7 +395,7 @@ def parse_json_alerts(url):
         result.append({'time':alert_time,
                        'start':alert_start,
                        'end': alert_end,
-                       'operator': item['posterCallsign'],
+                       'poster': item['posterCallsign'],
                        'callsign': item['activatingCallsign'],
                        'summit': item['associationCode']+"/"+item['summitCode'],
                        'summit_info': item['summitDetails'],
@@ -405,16 +405,138 @@ def parse_json_alerts(url):
         
     return result
 
+def update_json_data():
+    conn_aprslog = sqlite3.connect(aprslog_db)
+    cur_aprslog = conn_aprslog.cursor()
+    conn = sqlite3.connect(alert_db)
+    cur = conn.cursor()
+    q = 'select O.callsign,O.summit,A.operator,A.time,A.summit_info,A.lat_dest,A.lng_dest,A.alert_freq,A.alert_comment,B.lat,B.lng,B.dist,S.time,S.callsign,S.summit,S.summit_info,S.lat,S.lng,S.spot_freq,S.spot_mode,S.spot_comment,S.spot_color,S.poster from oprts as O  left outer join alerts as A on (O.callsign=A.callsign and O.summit=A.summit) left outer join spots as S on (O.callsign=S.callsign and O.summit = S.summit) left outer join beacons AS B on (O.operator=B.operator and O.summit = B.summit)'
+#    cur.execute(q,(alert_start,alert_end));
+    cur.execute(q);
+    rows = cur.fetchall()
+    j = []
+
+    now = int(datetime.utcnow().strftime("%s"))
+    alert_start = now + 3600 * -2
+    alert_end= now  + 3600 * KEYS['WINDOW_TO']
+
+    for (call,summit,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
+        if atime:
+            at = datetime.fromtimestamp(int(atime)).strftime("%m/%d %H:%M")
+        else:
+            at =""
+            afreq = ""
+            acomment = ""
+            
+        if stime:
+            st = datetime.fromtimestamp(int(stime)).strftime("%H:%M")
+            ainfo = sinfo
+        else:
+            st = ""
+            sfreq = ""
+            smode = ""
+            scolor= ""
+            scomment = ""
+            
+        if not alatdest:
+            alatdest = slat
+            alngdest = slng
+            
+        if atime:
+            time = atime
+        else:
+            time = stime
+        q = 'select time,lat,lng,dist from aprslog where operator = ? and time > ? and time < ?'
+        cur_aprslog.execute(q,(aop,alert_start,alert_end))
+        route = []
+        for (t,lat,lng,dist) in cur_aprslog.fetchall():
+            tm = datetime.fromtimestamp(int(time)).strftime("%H:%M")
+            route.append({'time':tm,'latlng':[float(lat),float(lng)],'dist':dist})
+
+        e = (time,{'op':call,'summit':summit,'summit_info':ainfo,
+             'summit_latlng':[float(alatdest),float(alngdest)],
+             'alert_time':at,
+             'alert_freq':afreq,
+             'alert_comment':acomment,
+             'spot_time':st,
+             'spot_freq':sfreq + ' ' +smode,
+             'spot_comment':scomment,
+             'spot_color':scolor,
+             'aprs_message':"",
+             'route':route
+        })
+        j.append(e)
+
+    js = sorted(j,key=lambda x: x[0])
+
+    dxl = []
+    jal = []
+    for (t,d) in js:
+        if t > alert_start and t < alert_end :
+            if re.search(KEYS['JASummits'],d['summit']):
+                jal.append(d)
+            else: 
+                dxl.append(d)
+                
+    with open(output_json_file,"w") as f:
+        json.dump(dxl,f)
+        
+    with open(output_json_jafile,"w") as f:
+        json.dump(jal,f)
+
+    conn.close()
+    conn_aprslog.close()
+    
+def update_spots():
+    try:
+        param = urllib.urlencode(
+        {
+        'client': 'sotawatch',
+        'user': 'anon'
+        })
+        readObj= urllib.urlopen(sotawatch_json_url+'/api/spots/20?'+param)
+        res = readObj.read()
+    except Exception, e:
+        print >>sys.stderr, 'JSON GET SPOTS %s' % e
+        return []
+
+    conn2 = sqlite3.connect(alert_db)
+    cur2 = conn2.cursor()
+    r = json.loads(res);
+    r.reverse()
+    for item in r:
+        if item['comments'] is None:
+            item['comments'] = ""
+        ts = item['timeStamp']
+        ts = ts[:ts.find('.')]
+        spot_time = int(datetime.strptime(ts,'%Y-%m-%dT%H:%M:%S').strftime("%s"))
+        spot_end= spot_time  + 3600 * KEYS['WINDOW_TO']
+        m = re.match('(\w+)/(\w+)/(\w+)',item['activatorCallsign'])
+        if m:
+            op = m.group(1)
+        else:
+            m = re.match('(\w+)/(\w+)',item['activatorCallsign'])
+            if m:
+                op = m.group(1)
+            else:
+                op = item['activatorCallsign']
+        summit = item['associationCode']+"/"+item['summitCode']
+        (lat,lng) = parse_summit(summit)
+        q ='insert or replace into spots (time,end,operator,callsign,summit,summit_info,lat,lng,spot_freq,spot_mode,spot_comment,spot_color,poster) values (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        cur2.execute(q,(spot_time,spot_end,op.upper(),item['activatorCallsign'],summit,item['summitDetails'],lat,lng,item['frequency'],item['mode'],item['comments'],item['highlightColor'],item['callsign']))
+    conn2.commit()
+    conn2.close()
+    update_json_data()
+    
 def update_alerts():
     global aprs_filter
     conn = sqlite3.connect(alert_db)
-    conn2 = sqlite3.connect(beacon_db)
     cur = conn.cursor()
-    cur2 = conn2.cursor()
+    cur2 = conn.cursor()
 
     now = int(datetime.utcnow().strftime("%s"))
     
-    q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,freq text,comment text,poster text,primary key(time,callsign,summit))'
+    q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,lat_dest text,lng_dest text,alert_freq text,alert_comment text,poster text,primary key(time,callsign,summit))'
     cur.execute(q)
     q = 'delete from alerts where end < ?'
     cur.execute(q,(now,))
@@ -424,31 +546,53 @@ def update_alerts():
     cur2.execute(q)
     q = 'delete from beacons where end < ?'
     cur2.execute(q,(now,))
-    conn2.commit()
 
-    res = parse_json_alerts(sotajson_url)
+    q ='create table if not exists spots (time int,end int,operator text,callsign text,summit text,summit_info text,lat text,lng text,spot_freq text,spot_mode text,spot_comment text,spot_color text,poster text,primary key(operator))'  
+    cur2.execute(q)
+    q = 'delete from spots where end < ?'
+    cur2.execute(q,(now,))
+
+    q = 'create view if not exists oprts as select distinct operator,callsign, summit from alerts union select operator,callsign,summit from spots;'
+    cur2.execute(q)
+    conn.commit()
+
+    res = parse_json_alerts(sotawatch_json_url)
 
     operators = []
 
     for user in KEYS['TEST_USER']:
         d = {'time':now,'start':now-100,'end':now+10800,
-             'operator':user,'callsign':user,'summit':'JA/TT-TEST',
+             'operator':user,'callsign':user,'summit':'JA/KN-006',
              'summit_info':'Test Summit','freq':'433-fm',
              'comment':'Alert Test','poster':'(Posted By JL1NIE)'}
         res.append(d)
     
     for d in res:
         (lat_dest,lng_dest) = parse_summit(d['summit'])
-        q = 'insert or replace into alerts(time,start,end,operator,callsign,summit,summit_info,freq,comment,poster) values (?,?,?,?,?,?,?,?,?,?)'
+
+        m = re.match('(\w+)/(\w+)/(\w+)',d['callsign'])
+        if m:
+            op = m.group(1)
+        else:
+            m = re.match('(\w+)/(\w+)',d['callsign'])
+            if m:
+                op = m.group(1)
+            else:
+                op = d['callsign']
+
+        q = 'insert or replace into alerts(time,start,end,operator,callsign,summit,summit_info,lat_dest,lng_dest,alert_freq,alert_comment,poster) values (?,?,?,?,?,?,?,?,?,?,?,?)'
         cur.execute(q,(d['time'],d['start'],d['end'],
-                       d['operator'],d['callsign'],
-                       d['summit'],d['summit_info'],d['freq'],
+                       op,d['callsign'],
+                       d['summit'],d['summit_info'],
+                       str(lat_dest),str(lng_dest),
+                       d['freq'],
                        d['comment'],d['poster']))
-        if re.match(KEYS['Watchfor'],d['summit']) and now >= d['start'] and now <= d['end']:
-            if not d['operator'] in operators:
-                operators.append(d['operator'])
+#        if re.match(KEYS['Watchfor'],d['summit']) and now >= d['start'] and now <= d['end']:
+        if now >= d['start'] and now <= d['end']:
+            if not op in operators:
+                operators.append(op)
                 q = 'insert or replace into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,message2,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-                cur2.execute(q,(d['start'],d['end'],d['operator'],
+                cur2.execute(q,(d['start'],d['end'],op,
                                 0, #lastseen
                                 '', # lat
                                 '', # lng
@@ -461,9 +605,7 @@ def update_alerts():
                                 0,'',
                                 'SW2'))
     conn.commit()
-    conn2.commit()
     conn.close()
-    conn2.close()
 
     aprs_filter =  "b/"+ "-*/".join(operators) +"-*"
     if aprs_beacon:
@@ -490,7 +632,7 @@ def tweet_alerts():
     mesg = mesg + today + " (Posted by SLIPPER1.1)."
     tweet(tweet_api,mesg)
     
-    for (tm,_,_,_,call,summit,info,freq,comment,poster) in rows:
+    for (tm,_,_,_,call,summit,info,lat,lng,freq,comment,poster) in rows:
         tm = datetime.fromtimestamp(int(tm)).strftime("%H:%M")
         mesg = tm + " " + call + " on\n" + summit + " " + freq + "\n" + info + "\n" + comment + " " + poster
         if summit != 'JA/TT-TEST':
@@ -638,7 +780,7 @@ def send_summit_message(callfrom, lat ,lng):
 
 def on_service(op):
     op = op[0:op.rfind('-')].strip()
-    conn_beacon = sqlite3.connect(beacon_db)
+    conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
@@ -650,7 +792,7 @@ def on_service(op):
 
 def set_tweet_location(op,tlon):
     op = op[0:op.rfind('-')].strip()
-    conn_beacon = sqlite3.connect(beacon_db)
+    conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     q = 'update beacons set tlon = ? where operator = ?'
     try:
@@ -662,7 +804,7 @@ def set_tweet_location(op,tlon):
 
 def check_dupe_mesg(op,tw):
     op = op[0:op.rfind('-')].strip()
-    conn_beacon = sqlite3.connect(beacon_db)
+    conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
@@ -682,7 +824,7 @@ def check_dupe_mesg(op,tw):
     return result
 
 def check_status():
-    conn_beacon = sqlite3.connect(beacon_db)
+    conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     now = int(datetime.utcnow().strftime("%s")) - 3600 * 2
     q = 'select * from beacons where state >=0 and state <=5 and lastseen > ?'
@@ -811,6 +953,7 @@ def setup_db():
     conn_aprslog.close()
     
     update_alerts()
+    update_spots()
     
 def main():
     global tweet_api
@@ -828,7 +971,8 @@ def main():
         print >>sys.stderr, 'access error: %s' % e
         sys.exit(1)
 
-    schedule.every(update_every).minutes.do(update_alerts)
+    schedule.every(update_alerts_every).minutes.do(update_alerts)
+    schedule.every(update_spots_every).minutes.do(update_spots)
     schedule.every().day.at(tweet_at).do(tweet_alerts)
 
     while True:
