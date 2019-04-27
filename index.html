@@ -107,7 +107,7 @@ function drawObj(lg,data) {
     };
     var marker = L.marker(data.summit_latlng,
 			  {icon: L.ExtraMarkers.icon(options)});
-    marker.bindPopup(data.summit + data.summit_info);
+    marker.bindPopup(data.summit + '&nbsp'+ data.summit_info);
     marker.addTo(lg);
     
     if (po.length > 0 ) {

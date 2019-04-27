@@ -444,6 +444,8 @@ def update_json_data():
             
         if atime:
             time = atime
+            if stime:
+                time = stime
         else:
             time = stime
         q = 'select time,lat,lng,dist from aprslog where operator = ? and time > ? and time < ?'
