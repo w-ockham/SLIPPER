@@ -114,9 +114,8 @@ def lookup_from_op(op):
     return mesg
 
 def lookup_summit(op,lat,lng):
-    ssidtype = op[op.rfind('-')+1:].strip()
-    op = op[0:op.rfind('-')].strip()
 
+    op = op[0:op.rfind('-')].strip()
     
     if op in KEYS['EXCLUDE_USER']:
         return (True,-1, 0, "Oops!")
@@ -211,14 +210,14 @@ def lookup_summit(op,lat,lng):
             print >> sys.stderr, 'oprator='+op+' summit='+code
             pass
 
-        if ssidtype in ['5','6','7','8','9']:
-            q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
-            try:
-                cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
-                conn_aprslog.commit()
-            except Exception as err:
-                print >> sys.stderr, 'update aprslog.db %s' % err
-                pass
+  
+        q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
+        try:
+            cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
+            conn_aprslog.commit()
+        except Exception as err:
+            print >> sys.stderr, 'update aprslog.db %s' % err
+            pass
 
         conn_beacon.close()
         conn_aprslog.close()
@@ -928,13 +927,15 @@ def callback(packet):
     msg = aprslib.parse(packet)
     callfrom = msg['from'] + "      "
     callfrom = callfrom[0:9]
-
+    ssidtype = callfrom[callfrom.rfind('-')+1:].strip()
+    
     if debug:
         print "Receive:"+callfrom+ ":"+msg['format']+"-"+msg['raw']
     if msg['format'] in  ['uncompressed','compressed','mic-e']:
-        lat = msg['latitude']
-        lng = msg['longitude']
-        send_summit_message(callfrom, lat, lng)
+        if ssidtype in ['5','6','7','8','9']:
+            lat = msg['latitude']
+            lng = msg['longitude']
+            send_summit_message(callfrom, lat, lng)
     elif msg['format'] in ['message']:
         callto = msg['addresse'].strip()
         if callto != KEYS['APRS_USER']:
