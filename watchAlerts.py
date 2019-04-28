@@ -114,7 +114,10 @@ def lookup_from_op(op):
     return mesg
 
 def lookup_summit(op,lat,lng):
+    ssidtype = op[op.rfind('-')+1:].strip()
     op = op[0:op.rfind('-')].strip()
+
+    
     if op in KEYS['EXCLUDE_USER']:
         return (True,-1, 0, "Oops!")
 
@@ -199,21 +202,23 @@ def lookup_summit(op,lat,lng):
             dist = 0
             az = 0
             
-        q = 'update beacons set lastseen = ?, lat = ?, lng = ?, lat_dest = ?, lng_dest = ?,dist = ?, az = ?,state = ?,summit = ?,message = ?,message2 =?, type = ? where operator = ?'
+        q = 'update beacons set lastseen = ?, lat = ?, lng = ?, lat_dest = ?, lng_dest = ?,dist = ?, az = ?,state = ?,summit = ?,message = ?,message2 =?, type = ? where operator = ? and summit = ?'
         try:
-            cur_beacon.execute(q,(now,lat,lng,lat_dest,lng_dest,dist,az,state,code,mesg,mesg2,'APRS',op,))
+            cur_beacon.execute(q,(now,lat,lng,lat_dest,lng_dest,dist,az,state,code,mesg,mesg2,'APRS',op,code))
             conn_beacon.commit()
         except Exception as err:
             print >> sys.stderr, 'update beacon.db %s' % err
+            print >> sys.stderr, 'oprator='+op+' summit='+code
             pass
-        
-        q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
-        try:
-            cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
-            conn_aprslog.commit()
-        except Exception as err:
-            print >> sys.stderr, 'update aprslog.db %s' % err
-            pass
+
+        if ssidtype in ['5','6','7','8','9']:
+            q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
+            try:
+                cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
+                conn_aprslog.commit()
+            except Exception as err:
+                print >> sys.stderr, 'update aprslog.db %s' % err
+                pass
 
         conn_beacon.close()
         conn_aprslog.close()
@@ -417,8 +422,8 @@ def update_json_data():
     j = []
 
     now = int(datetime.utcnow().strftime("%s"))
-    alert_start = now + 3600 * -2
-    alert_end= now  + 3600 * KEYS['WINDOW_TO']
+    alert_start = now + 3600 * KEYS['ALERT_FROM']/2
+    alert_end= now  + 3600 * KEYS['ALERT_TO']
 
     for (call,summit,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
         if atime:
@@ -444,15 +449,23 @@ def update_json_data():
             
         if atime:
             time = atime
+            aprs_start = atime + 3600 * KEYS['ALERT_FROM']
             if stime:
                 time = stime
         else:
             time = stime
+            aprs_start = stime + 3600 * KEYS['ALERT_FROM']
+
+        if time > (now-60*30):
+            spot_type = "after"
+        else:
+            spot_type = "before"
+            
         q = 'select time,lat,lng,dist from aprslog where operator = ? and time > ? and time < ?'
-        cur_aprslog.execute(q,(aop,alert_start,alert_end))
+        cur_aprslog.execute(q,(aop,aprs_start,now))
         route = []
         for (t,lat,lng,dist) in cur_aprslog.fetchall():
-            tm = datetime.fromtimestamp(int(time)).strftime("%H:%M")
+            tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
             route.append({'time':tm,'latlng':[float(lat),float(lng)],'dist':dist})
 
         e = (time,{'op':call,'summit':summit,'summit_info':ainfo,
@@ -465,10 +478,11 @@ def update_json_data():
              'spot_comment':scomment,
              'spot_color':scolor,
              'aprs_message':"",
-             'route':route
+             'route':route,
+             'spot_type':spot_type
         })
         j.append(e)
-
+        
     js = sorted(j,key=lambda x: x[0])
 
     dxl = []
@@ -477,6 +491,7 @@ def update_json_data():
         if t > alert_start and t < alert_end :
             if re.search(KEYS['JASummits'],d['summit']):
                 jal.append(d)
+                dxl.append(d)
             else: 
                 dxl.append(d)
                 
@@ -538,13 +553,13 @@ def update_alerts():
 
     now = int(datetime.utcnow().strftime("%s"))
     
-    q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,lat_dest text,lng_dest text,alert_freq text,alert_comment text,poster text,primary key(time,callsign,summit))'
+    q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,lat_dest text,lng_dest text,alert_freq text,alert_comment text,poster text,primary key(callsign,summit))'
     cur.execute(q)
     q = 'delete from alerts where end < ?'
     cur.execute(q,(now,))
     conn.commit()
 
-    q ='create table if not exists beacons (start int,end int,operator text,lastseen int,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,message2 text,tlon int,lasttweet text,type text,primary key(start,operator,summit))'
+    q ='create table if not exists beacons (start int,end int,operator text,lastseen int,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,message2 text,tlon int,lasttweet text,type text,primary key(operator,summit))'
     cur2.execute(q)
     q = 'delete from beacons where end < ?'
     cur2.execute(q,(now,))
@@ -608,8 +623,9 @@ def update_alerts():
                                 'SW2'))
     conn.commit()
     conn.close()
-
-    aprs_filter =  "b/"+ "-*/".join(operators) +"-*"
+    
+    uniqop = list(set(operators))
+    aprs_filter =  "b/"+ "-*/".join(uniqop) +"-*"
     if aprs_beacon:
         aprs_beacon.set_filter(aprs_filter)
         

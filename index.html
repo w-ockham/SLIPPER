@@ -131,9 +131,9 @@ function drawObj(lg,data) {
 	if (data.spot_color == "red")
 	    interval = 1
 	else if (data.spot_color == "orange")
-	    interval = 2
+	    interval = 4
 	else
-	    interval = 10
+	    interval = 8
 	var pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'red',heartbeat:interval});
 	var marker = L.marker(data.summit_latlng,{icon: pulsingIcon});
 	marker.bindPopup(data.summit + '<br>' 
@@ -168,17 +168,17 @@ function clickAPRSButton (event) {
 	    else if (dist <5000)
 		zm = 13
 	    else if (dist <10000)
-		zm = 12
-	    else if (dist <20000)
 		zm = 11
-	    else if (dist <30000)
-		zm = 10
-	    else if (dist <60000)
+	    else if (dist <20000)
 		zm = 9
-	    else if (dist <100000)
+	    else if (dist <30000)
+		zm = 8
+	    else if (dist <60000)
 		zm = 7
+	    else if (dist <100000)
+		zm = 6
 	    else
-		zm = 5
+		zm = 4
 	  
 	    map.setView(r[r.length - 1].latlng,zm);
 	    break;
@@ -203,7 +203,7 @@ function update() {
 	} else
 	    lg = L.layerGroup();
 	map.addLayer(lg);
-	
+	current="before"
 	for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	    drawObj(lg,qrvdata[i]);
 	    if (qrvdata[i].spot_time != "") {
@@ -228,7 +228,15 @@ function update() {
     		'<div class="text-muted">' + qrvdata[i].summit +' '+ qrvdata[i].summit_info + '<br>' + 
 		qrvdata[i].alert_time + ' '+qrvdata[i].alert_freq  + ' ' + qrvdata[i].alert_comment + '</div>'+ spotstr + '</div>';
 	    button = '<div class="align-self-center ">'+badge +'&nbsp <button id="sbt_' + i + '" type="button" class="btn-info btn-sm">'+qrvdata[i].summit + '</button></div>';
-   	    $('#qrvinfo').append('<div class="media">' + body + button + '</div><hr/>');
+	    if (current == "before" && qrvdata[i].spot_type=="after") {
+		current = "after";
+		idstr = 'id="current_data"';
+	    } else if ( i == qrvdata.legth && curent == "before") {
+		idstr = 'id="current_data"';
+	    } else {
+		idstr = '';
+	    }
+   	    $('#qrvinfo').append('<div class="media" '+idstr+'>' + body + button + '</div><hr/>');
 	    
    	    var elm = document.getElementById("sbt_"+i);
    	    elm.addEventListener("click",clickButton,false);
@@ -242,11 +250,15 @@ function update() {
 	if (first_draw && qrvdata.length > 0) {
 	    console.log(qrvdata[0].summit_latlng);
 	    map.setView(qrvdata[0].summit_latlng,15);
+	    document.getElementById("current_data").scrollIntoView(true);
 	    first_draw = false;
 	} else if (qrvdata.length == 0){
 	    map.setView([35.362853,138.730910],15);
 	    $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No Data.</h5></div><hr/></div>');
+	} else {
+	    document.getElementById("current_data").scrollIntoView(true);
 	};
+
     });
 };
 lg = null;
