@@ -23,18 +23,18 @@ i.semantic-ui-custom {
 </head>
 <body>
 <div class="header clearfix">
-<h3 class="text-muted">&nbsp SOTAwatch Live! <div id="time"> </div></h3>
-</div>
+    <h3 class="text-muted">&nbsp SOTAwatch Live! &nbsp&nbsp <small><span id="clock_time"></small></span>
+</div></h3>
 <div id="map" class="jumbotron jumbotron-extend">
 </div>
 <div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:10px;">	
 </div>
-
 <footer class="page-footer font-small bg-light text-center">
   <p class="text-muted">
-    <a href="https://www.sotalive.tk/?area=WW"> <img src="svg/globe.svg"> &nbsp &nbsp</a>
-    <a href="https://www.sotalive.tk/"><img src="svg/home.svg"> &nbsp&nbsp<a/>
- <!--
+    <a href="https://www.sotalive.tk/?area=WW"> <img src="svg/globe.svg">&nbsp&nbsp</a>
+    <a href="https://www.sotalive.tk/"><img src="svg/home.svg">&nbsp&nbsp<a/>
+    <a href="https://www.sotalive.tk/?area=WW&range=ALL"> <img src="svg/database.svg">&nbsp&nbsp</a>
+<!--
     <a href="https://twitter.com/intent/tweet?screen_name=jl1nie" target="_lank"> <img src="svg/mention.svg"><a/>
  -->
   </p>
@@ -186,15 +186,28 @@ function clickAPRSButton (event) {
     };
 };
 
+function clock() {
+    var now = new Date();
+    var utc = now.toUTCString()
+
+    document.getElementById("clock_time").innerHTML=utc.replace('GMT','')
+}
 
 function update() {
     $('#qrvinfo').html('');
     console.log("updates");
-    param = getParam('area')
-    if (param == "WW")
-	fname = 'spots.json'
+    area = getParam('area')
+    range = getParam('range')
+
+    if (range=="ALL")
+	postfix = '-hist.json'
     else
-	fname = 'spotsJA.json';
+	postfix = '.json';
+    
+    if (param == "WW")
+	fname = 'spots' + postfix
+    else
+	fname = 'spotsJA' + postfix
     
     $.getJSON("https://www.sotalive.tk/json/"+fname,{ts:new Date().getTime()},function(qrvdata) {
 	if (lg != null) {
@@ -264,7 +277,9 @@ function update() {
 lg = null;
 first_draw = true;
 update();
+clock();
 setInterval(update,60000);
+setInterval(clock,1000);
 </script>
 </body>
 </html>

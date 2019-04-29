@@ -368,7 +368,7 @@ def parse_alerts(url):
             state = 'new'
     return result
 
-def parse_json_alerts(url):
+def parse_json_alerts(url,time_to):
     try:
         param = urllib.urlencode(
         {
@@ -395,18 +395,18 @@ def parse_json_alerts(url):
             alert_end = alert_time + int(p)*3600
         for p in patminus.findall(item['comments']):
             alert_start = alert_time - int(p)*3600
-            
-        result.append({'time':alert_time,
-                       'start':alert_start,
-                       'end': alert_end,
-                       'poster': item['posterCallsign'],
-                       'callsign': item['activatingCallsign'],
-                       'summit': item['associationCode']+"/"+item['summitCode'],
-                       'summit_info': item['summitDetails'],
-                       'freq': item['frequency'],
-                       'comment': item['comments'],
-                       'poster': "(Posted by " + item['posterCallsign'] + ")"})
-        
+        if alert_time < time_to:
+            result.append({'time':alert_time,
+                           'start':alert_start,
+                           'end': alert_end,
+                           'poster': item['posterCallsign'],
+                           'callsign': item['activatingCallsign'],
+                           'summit': item['associationCode']+"/"+item['summitCode'],
+                           'summit_info': item['summitDetails'],
+                           'freq': item['frequency'],
+                           'comment': item['comments'],
+                           'poster': "(Posted by " + item['posterCallsign'] + ")"})
+
     return result
 
 def update_json_data():
@@ -433,7 +433,14 @@ def update_json_data():
             acomment = ""
             
         if stime:
-            st = datetime.fromtimestamp(int(stime)).strftime("%H:%M")
+            st = datetime.fromtimestamp(int(stime)).strftime("%m/%d %H:%M")
+            delta = now - stime
+            if delta <= 1800:
+                scolor = 'red'
+            elif delta <= 3600:
+                scolor = 'orange'
+            else:
+                scolor = 'normal'
             ainfo = sinfo
         else:
             st = ""
@@ -448,20 +455,22 @@ def update_json_data():
             
         if atime:
             time = atime
-            aprs_start = atime + 3600 * KEYS['ALERT_FROM']
+            aprs_start = atime + 3600 * KEYS['WINDOW_FROM']
+            aprs_end = atime + 3600 * KEYS['WINDOW_TO']
             if stime:
                 time = stime
         else:
             time = stime
-            aprs_start = stime + 3600 * KEYS['ALERT_FROM']
-
+            aprs_start = stime + 3600 * KEYS['WINDOW_FROM']
+            aprs_end = stime + 3600 * KEYS['WINDOW_TO']
+            
         if time > (now-60*30):
             spot_type = "after"
         else:
             spot_type = "before"
             
         q = 'select time,lat,lng,dist from aprslog where operator = ? and time > ? and time < ?'
-        cur_aprslog.execute(q,(aop,aprs_start,now))
+        cur_aprslog.execute(q,(aop,aprs_start,aprs_end))
         route = []
         for (t,lat,lng,dist) in cur_aprslog.fetchall():
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
@@ -486,20 +495,25 @@ def update_json_data():
 
     dxl = []
     jal = []
+    dxll= []
     for (t,d) in js:
-        if t > alert_start and t < alert_end :
+        dxll.append(d)
+        if t > alert_start:
             if re.search(KEYS['JASummits'],d['summit']):
                 jal.append(d)
                 dxl.append(d)
             else: 
                 dxl.append(d)
-                
-    with open(output_json_file,"w") as f:
+            
+    with open(output_json_file+'.json',"w") as f:
         json.dump(dxl,f)
         
-    with open(output_json_jafile,"w") as f:
+    with open(output_json_jafile+'.json',"w") as f:
         json.dump(jal,f)
 
+    with open(output_json_file+'-hist.json',"w") as f:
+        json.dump(dxll,f)
+        
     conn.close()
     conn_aprslog.close()
     
@@ -551,28 +565,29 @@ def update_alerts():
     cur2 = conn.cursor()
 
     now = int(datetime.utcnow().strftime("%s"))
+    keep_in_db = now - 3600 * KEYS['KEEP_IN_DB']
     
     q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,lat_dest text,lng_dest text,alert_freq text,alert_comment text,poster text,primary key(callsign,summit))'
     cur.execute(q)
     q = 'delete from alerts where end < ?'
-    cur.execute(q,(now,))
+    cur.execute(q,(keep_in_db,))
     conn.commit()
 
     q ='create table if not exists beacons (start int,end int,operator text,lastseen int,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text,message text,message2 text,tlon int,lasttweet text,type text,primary key(operator,summit))'
     cur2.execute(q)
     q = 'delete from beacons where end < ?'
-    cur2.execute(q,(now,))
+    cur2.execute(q,(keep_in_db,))
 
     q ='create table if not exists spots (time int,end int,operator text,callsign text,summit text,summit_info text,lat text,lng text,spot_freq text,spot_mode text,spot_comment text,spot_color text,poster text,primary key(operator))'  
     cur2.execute(q)
     q = 'delete from spots where end < ?'
-    cur2.execute(q,(now,))
+    cur2.execute(q,(keep_in_db,))
 
     q = 'create view if not exists oprts as select distinct operator,callsign, summit from alerts union select operator,callsign,summit from spots;'
     cur2.execute(q)
     conn.commit()
 
-    res = parse_json_alerts(sotawatch_json_url)
+    res = parse_json_alerts(sotawatch_json_url,now+3600 * KEYS['ALERT_TO'])
 
     operators = []
 
