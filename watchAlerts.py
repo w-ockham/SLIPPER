@@ -566,6 +566,11 @@ def update_alerts():
 
     now = int(datetime.utcnow().strftime("%s"))
     keep_in_db = now - 3600 * KEYS['KEEP_IN_DB']
+
+    q = 'drop table if exists current'
+    cur.execute(q)
+    q = 'create table current(operator text,summit text)'
+    cur.execute(q);
     
     q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,lat_dest text,lng_dest text,alert_freq text,alert_comment text,poster text,primary key(callsign,summit))'
     cur.execute(q)
@@ -611,6 +616,9 @@ def update_alerts():
             else:
                 op = d['callsign']
 
+        q = 'insert into current(operator,summit) values (?,?)'
+        cur.execute(q,(op,d['summit']))
+        
         q = 'insert or replace into alerts(time,start,end,operator,callsign,summit,summit_info,lat_dest,lng_dest,alert_freq,alert_comment,poster) values (?,?,?,?,?,?,?,?,?,?,?,?)'
         cur.execute(q,(d['time'],d['start'],d['end'],
                        op,d['callsign'],
@@ -635,6 +643,8 @@ def update_alerts():
                                 d['summit_info'],
                                 0,'',
                                 'SW2'))
+    q = 'delete from alerts where (operator,summit) not in (select * from current) and alerts.time > ?'
+    cur.execute(q,(now,))
     conn.commit()
     conn.close()
     
