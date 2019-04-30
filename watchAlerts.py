@@ -495,7 +495,7 @@ def update_json_data():
                 for i in range(2,len(route[ssid])):
                     d2 = calc_distance(route[ssid][r_pos-i]['latlng'],[lat,lng])
                     T2 = route[ssid][r_pos-i]['i_time']
-                    if d1 > d2 and (T1-T2)<600:
+                    if d1 > d2 and (T1-T2)<180:
                         d1 = d2
                         ip = i-1
                         insertp = True
