@@ -132,7 +132,7 @@ function drawObj(lg,data) {
     if (data.route[0].length >0)
 	drawPoly(lg,data,0,data.route[0])
     if (data.route[1].length >0)
-	drawPoly(lg,data,0,data.route[0])
+	drawPoly(lg,data,1,data.route[1])
     
     options = {
         prefix: 'icon'
@@ -221,6 +221,7 @@ function clock() {
 
 function update() {
     $('#qrvinfo').html('');
+
     area = getParam('area')
     range = getParam('range')
 
