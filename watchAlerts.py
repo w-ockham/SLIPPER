@@ -114,7 +114,7 @@ def lookup_from_op(op):
     return mesg
 
 def lookup_summit(op,lat,lng):
-
+    ssidtype = op[op.rfind('-')+1:].strip()
     op = op[0:op.rfind('-')].strip()
     
     if op in KEYS['EXCLUDE_USER']:
@@ -200,6 +200,11 @@ def lookup_summit(op,lat,lng):
             state = -1
             dist = 0
             az = 0
+
+        if ssidtype in ['5','6','7']:
+            state = 10 * 0 + (state + 1)
+        else:
+            state = 10 * 1 + (state + 1)
             
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?, lat_dest = ?, lng_dest = ?,dist = ?, az = ?,state = ?,summit = ?,message = ?,message2 =?, type = ? where operator = ? and summit = ?'
         try:
@@ -474,31 +479,32 @@ def update_json_data():
         else:
             spot_type = "before"
             
-        q = 'select time,lat,lng,dist from aprslog where operator = ? and time > ? and time < ?'
+        q = 'select time,lat,lng,dist,state from aprslog where operator = ? and time > ? and time < ?'
         cur_aprslog.execute(q,(call,aprs_start,aprs_end))
-        route = []
+        route = [[],[]]
         r_pos = 0
-        for (t,lat,lng,dist) in cur_aprslog.fetchall():
+        for (t,lat,lng,dist,state) in cur_aprslog.fetchall():
+            ssid = int(state)/10
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
             o = {'i_time':int(t),'time':tm,
                  'latlng':[float(lat),float(lng)],'dist':dist}
-            if len(route)>2:
-                d1 = calc_distance(route[r_pos-1]['latlng'],[lat,lng])
+            if len(route[ssid])>2:
+                d1 = calc_distance(route[ssid][r_pos-1]['latlng'],[lat,lng])
                 insertp = False
                 T1 = int(t)
-                for i in range(2,len(route)):
-                    d2 = calc_distance(route[r_pos-i]['latlng'],[lat,lng])
-                    T2 = route[r_pos-i]['i_time']
+                for i in range(2,len(route[ssid])):
+                    d2 = calc_distance(route[ssid][r_pos-i]['latlng'],[lat,lng])
+                    T2 = route[ssid][r_pos-i]['i_time']
                     if d1 > d2 and (T1-T2)<600:
                         d1 = d2
                         ip = i-1
                         insertp = True
                 if insertp:
-                    route.insert(r_pos-ip,o)
+                    route[ssid].insert(r_pos-ip,o)
                 else:
-                    route.append(o)
+                    route[ssid].append(o)
             else:
-                route.append(o)
+                route[ssid].append(o)
             r_pos+=1
             
         e = (time,{'op':call,'summit':summit,'summit_info':ainfo,
