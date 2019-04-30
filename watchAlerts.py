@@ -470,7 +470,7 @@ def update_json_data():
             spot_type = "before"
             
         q = 'select time,lat,lng,dist from aprslog where operator = ? and time > ? and time < ?'
-        cur_aprslog.execute(q,(aop,aprs_start,aprs_end))
+        cur_aprslog.execute(q,(call,aprs_start,aprs_end))
         route = []
         for (t,lat,lng,dist) in cur_aprslog.fetchall():
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
