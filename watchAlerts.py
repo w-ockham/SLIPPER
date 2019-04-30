@@ -409,6 +409,9 @@ def parse_json_alerts(url,time_to):
 
     return result
 
+def calc_distance(p1,p2):
+    return (float(p1[0])-float(p2[0]))**2 + (float(p1[1])-float(p2[1]))**2
+
 def update_json_data():
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
@@ -439,8 +442,10 @@ def update_json_data():
                 scolor = 'red'
             elif delta <= 3600:
                 scolor = 'orange'
-            else:
+            elif delta <= 7200:
                 scolor = 'normal'
+            else:
+                scolor = 'obsolete'
             ainfo = sinfo
         else:
             st = ""
@@ -472,10 +477,30 @@ def update_json_data():
         q = 'select time,lat,lng,dist from aprslog where operator = ? and time > ? and time < ?'
         cur_aprslog.execute(q,(call,aprs_start,aprs_end))
         route = []
+        r_pos = 0
         for (t,lat,lng,dist) in cur_aprslog.fetchall():
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
-            route.append({'time':tm,'latlng':[float(lat),float(lng)],'dist':dist})
-
+            o = {'i_time':int(t),'time':tm,
+                 'latlng':[float(lat),float(lng)],'dist':dist}
+            if len(route)>2:
+                d1 = calc_distance(route[r_pos-1]['latlng'],[lat,lng])
+                insertp = False
+                T1 = int(t)
+                for i in range(2,len(route)):
+                    d2 = calc_distance(route[r_pos-i]['latlng'],[lat,lng])
+                    T2 = route[r_pos-i]['i_time']
+                    if d1 > d2 and (T1-T2)<600:
+                        d1 = d2
+                        ip = i-1
+                        insertp = True
+                if insertp:
+                    route.insert(r_pos-ip,o)
+                else:
+                    route.append(o)
+            else:
+                route.append(o)
+            r_pos+=1
+            
         e = (time,{'op':call,'summit':summit,'summit_info':ainfo,
              'summit_latlng':[float(alatdest),float(alngdest)],
              'alert_time':at,
