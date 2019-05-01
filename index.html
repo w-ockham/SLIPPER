@@ -12,9 +12,9 @@
 <title>SOTAwatch Live!</title>
 <style>
 .jumbotron-extend {
-   position: relative;
-   height: 40vh;
-   min-height: 200px;
+    position: relative;
+    height: 40vh;
+    min-height: 220px;
 };
 i.semantic-ui-custom {
   margin-top: 9px;
@@ -25,19 +25,19 @@ i.semantic-ui-custom {
 <div class="header clearfix">
     <h3 class="text-muted">&nbsp SOTAwatch Live! &nbsp&nbsp <small><span id="clock_time"></small></span>
 </div></h3>
-<div id="map" class="jumbotron jumbotron-extend">
+<div id="map" class="jumbotron jumbotron-extend" style="padding-bottom:15px;margin-bottom:15px">
 </div>
-<div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:10px;">	
+<div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:4px;">	
 </div>
-<footer class="page-footer font-small bg-light text-center">
-  <p class="text-muted">
+<footer class="page-footer font-small text-center" style="padding-top:5px">
+    <button type="button" class="btn-light btn-sm global-button"> <img src="svg/globe.svg"></button>&nbsp&nbsp&nbsp
+    <button type="button" class="btn-light btn-sm ja-button"> <img src="svg/home.svg"></button>&nbsp&nbsp&nbsp
+    <button type="button" class="btn-light btn-sm history-button"> <img src="svg/database.svg"></button>
+<!--
     <a href="https://www.sotalive.tk/?area=WW&range=null"> <img src="svg/globe.svg">&nbsp&nbsp&nbsp&nbsp</a>
     <a href="https://www.sotalive.tk/?area=JA&range=null"><img src="svg/home.svg">&nbsp&nbsp&nbsp&nbsp<a/>
     <a href="https://www.sotalive.tk/?area=WW&range=ALL"> <img src="svg/database.svg">&nbsp&nbsp</a>
-<!--
-    <a href="https://twitter.com/intent/tweet?screen_name=jl1nie" target="_lank"> <img src="svg/mention.svg"><a/>
- -->
-  </p>
+-->
 </footer>
 <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
@@ -170,7 +170,26 @@ function drawObj(lg,data) {
     }
 };
 
-function clickButton(event) {
+function clickCommandButton(p){
+    console.log(p);
+    if ( p == "global") {
+	$.cookie('area',"WW");
+	$.cookie('range',null);
+    } else if ( p == "ja") {
+	$.cookie('area',"JA");
+	$.cookie('range',null);
+    } else if ( p == "history") {
+	$.cookie('area',"WW");
+	$.cookie('range',"ALL");
+    }
+    window.location.href = 'https://www.sotalive.tk/'
+};
+
+$('.global-button').on('click',function() { clickCommandButton("global");});
+$('.ja-button').on('click',function() { clickCommandButton("ja");});
+$('.history-button').on('click',function() { clickCommandButton("history");});
+
+function clickSummitButton(event) {
     var p = event.target.eventParam;
     qrvdata = p.data;
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
@@ -296,7 +315,7 @@ function update() {
    	    $('#qrvinfo').append('<div class="media" '+idstr+'>' + body + button + '</div><hr/>');
 	    
    	    var elm = document.getElementById("sbt_"+i);
-   	    elm.addEventListener("click",clickButton,false);
+   	    elm.addEventListener("click",clickSummitButton,false);
 	    elm.eventParam = { data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit };
 	    if (qrvdata[i].route[0].length > 0||qrvdata[i].route[1].length > 0) { 
    	    var elm = document.getElementById("abt_"+i);
@@ -306,13 +325,17 @@ function update() {
 	};
 	if (first_draw && qrvdata.length > 0) {
 	    map.setView(qrvdata[0].summit_latlng,15);
-	    document.getElementById("current_data").scrollIntoView(true);
+	    d = document.getElementById("current_data");
+	    if (d!=null)
+		d.scrollIntoView(true);
 	    first_draw = false;
 	} else if (qrvdata.length == 0){
 	    map.setView([35.362853,138.730910],15);
 	    $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No Data.</h5></div><hr/></div>');
 	} else {
-	    document.getElementById("current_data").scrollIntoView(true);
+	    d = document.getElementById("current_data");
+	    if (d!=null)
+		d.scrollIntoView(true);
 	};
 
     });

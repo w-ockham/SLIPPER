@@ -422,17 +422,16 @@ def update_json_data():
     cur_aprslog = conn_aprslog.cursor()
     conn = sqlite3.connect(alert_db)
     cur = conn.cursor()
-    q = 'select O.callsign,O.summit,A.operator,A.time,A.summit_info,A.lat_dest,A.lng_dest,A.alert_freq,A.alert_comment,B.lat,B.lng,B.dist,S.time,S.callsign,S.summit,S.summit_info,S.lat,S.lng,S.spot_freq,S.spot_mode,S.spot_comment,S.spot_color,S.poster from oprts as O  left outer join alerts as A on (O.callsign=A.callsign and O.summit=A.summit) left outer join spots as S on (O.callsign=S.callsign and O.summit = S.summit) left outer join beacons AS B on (O.operator=B.operator and O.summit = B.summit)'
-#    cur.execute(q,(alert_start,alert_end));
+    q = 'select O.operator,O.callsign,O.summit,A.operator,A.time,A.summit_info,A.lat_dest,A.lng_dest,A.alert_freq,A.alert_comment,B.lat,B.lng,B.dist,S.time,S.callsign,S.summit,S.summit_info,S.lat,S.lng,S.spot_freq,S.spot_mode,S.spot_comment,S.spot_color,S.poster from oprts as O  left outer join alerts as A on (O.callsign=A.callsign and O.summit=A.summit) left outer join spots as S on (O.callsign=S.callsign and O.summit = S.summit) left outer join beacons AS B on (O.operator=B.operator and O.summit = B.summit)'
     cur.execute(q);
     rows = cur.fetchall()
     j = []
 
     now = int(datetime.utcnow().strftime("%s"))
-    alert_start = now + 3600 * KEYS['ALERT_FROM']/2
+    alert_start = now + 3600 * KEYS['ALERT_FROM']
     alert_end= now  + 3600 * KEYS['ALERT_TO']
 
-    for (call,summit,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
+    for (op,call,summit,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
         if atime:
             at = datetime.fromtimestamp(int(atime)).strftime("%m/%d %H:%M")
         else:
@@ -480,7 +479,7 @@ def update_json_data():
             spot_type = "before"
             
         q = 'select time,lat,lng,dist,state from aprslog where operator = ? and time > ? and time < ?'
-        cur_aprslog.execute(q,(call,aprs_start,aprs_end))
+        cur_aprslog.execute(q,(op,aprs_start,aprs_end))
         route = [[],[]]
         r_pos = 0
         for (t,lat,lng,dist,state) in cur_aprslog.fetchall():
@@ -506,7 +505,6 @@ def update_json_data():
             else:
                 route[ssid].append(o)
             r_pos+=1
-            
         e = (time,{'op':call,'summit':summit,'summit_info':ainfo,
              'summit_latlng':[float(alatdest),float(alngdest)],
              'alert_time':at,
@@ -528,7 +526,8 @@ def update_json_data():
     jal = []
     dxll= []
     for (t,d) in js:
-        dxll.append(d)
+        if t < now:
+            dxll.append(d)
         if t > alert_start:
             if re.search(KEYS['JASummits'],d['summit']):
                 jal.append(d)
@@ -574,7 +573,7 @@ def update_spots():
         spot_end= spot_time  + 3600 * KEYS['WINDOW_TO']
         m = re.match('(\w+)/(\w+)/(\w+)',item['activatorCallsign'])
         if m:
-            op = m.group(1)
+            op = m.group(2)
         else:
             m = re.match('(\w+)/(\w+)',item['activatorCallsign'])
             if m:
@@ -639,7 +638,7 @@ def update_alerts():
 
         m = re.match('(\w+)/(\w+)/(\w+)',d['callsign'])
         if m:
-            op = m.group(1)
+            op = m.group(2)
         else:
             m = re.match('(\w+)/(\w+)',d['callsign'])
             if m:
