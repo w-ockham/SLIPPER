@@ -487,14 +487,14 @@ def update_json_data():
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
             o = {'i_time':int(t),'time':tm,
                  'latlng':[float(lat),float(lng)],'dist':dist}
-            if len(route[ssid])>2:
+            if len(route[ssid])<0:
                 d1 = calc_distance(route[ssid][r_pos-1]['latlng'],[lat,lng])
                 insertp = False
                 T1 = int(t)
                 for i in range(2,len(route[ssid])):
                     d2 = calc_distance(route[ssid][r_pos-i]['latlng'],[lat,lng])
                     T2 = route[ssid][r_pos-i]['i_time']
-                    if d1 > d2 and (T1-T2)<180:
+                    if d1 > d2 and (T1-T2)<0:
                         d1 = d2
                         ip = i-1
                         insertp = True
@@ -675,13 +675,17 @@ def update_alerts():
                                 'SW2'))
     q = 'delete from alerts where (operator,summit) not in (select * from current) and alerts.time > ?'
     cur.execute(q,(now,))
-    conn.commit()
-    conn.close()
-    
-    uniqop = list(set(operators))
-    aprs_filter =  "b/"+ "-*/".join(uniqop) +"-*"
+
+    q = 'select distinct operator from beacons where start < ? and end > ?'
+    cur.execute(q,(now,now))
+    operators = []
+    for ((r,)) in cur.fetchall():
+        operators.append(r)
+    aprs_filter =  "b/"+ "-*/".join(operators) +"-*"
     if aprs_beacon:
         aprs_beacon.set_filter(aprs_filter)
+    conn.commit()
+    conn.close()
         
 def tweet_alerts():
     today = datetime.now(localtz).strftime("%d %B %Y")
