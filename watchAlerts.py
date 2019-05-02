@@ -372,7 +372,7 @@ def parse_alerts(url):
             parse_error = False    
             state = 'new'
     return result
-
+        
 def parse_json_alerts(url,time_to):
     try:
         param = urllib.urlencode(
@@ -417,6 +417,32 @@ def parse_json_alerts(url,time_to):
 def calc_distance(p1,p2):
     return (float(p1[0])-float(p2[0]))**2 + (float(p1[1])-float(p2[1]))**2
 
+def smooth_route(route):
+    if len(route)<10:
+        return route
+    res = []
+    r_pos = 0
+    for d in route:
+        if len(res)>4:
+            d1 = calc_distance(res[r_pos-1]['latlng'],d['latlng'])
+            insertp = False
+            T1 = d['i_time']
+            for i in range(2,len(res)):
+                d2 = calc_distance(res[r_pos-i]['latlng'],d['latlng'])
+                T2 = res[r_pos-i]['i_time']
+                if d1 > d2 and (T1-T2)<300:
+                    d1 = d2
+                    ip = i-1
+                    insertp = True
+            if insertp:
+                res.insert(r_pos-ip,d)
+            else:
+                res.append(d)
+        else:
+            res.append(d)
+        r_pos+=1
+    return res
+    
 def update_json_data():
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
@@ -481,30 +507,17 @@ def update_json_data():
         q = 'select time,lat,lng,dist,state from aprslog where operator = ? and time > ? and time < ?'
         cur_aprslog.execute(q,(op,aprs_start,aprs_end))
         route = [[],[]]
-        r_pos = 0
+        smoothed = [[],[]]
         for (t,lat,lng,dist,state) in cur_aprslog.fetchall():
             ssid = int(state)/10
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
             o = {'i_time':int(t),'time':tm,
                  'latlng':[float(lat),float(lng)],'dist':dist}
-            if len(route[ssid])<0:
-                d1 = calc_distance(route[ssid][r_pos-1]['latlng'],[lat,lng])
-                insertp = False
-                T1 = int(t)
-                for i in range(2,len(route[ssid])):
-                    d2 = calc_distance(route[ssid][r_pos-i]['latlng'],[lat,lng])
-                    T2 = route[ssid][r_pos-i]['i_time']
-                    if d1 > d2 and (T1-T2)<0:
-                        d1 = d2
-                        ip = i-1
-                        insertp = True
-                if insertp:
-                    route[ssid].insert(r_pos-ip,o)
-                else:
-                    route[ssid].append(o)
-            else:
-                route[ssid].append(o)
-            r_pos+=1
+            route[ssid].append(o)
+
+        #smoothed[0] = smooth_route(route[0])
+        #smoothed[1] = smooth_route(route[1])
+
         e = (time,{'op':call,'summit':summit,'summit_info':ainfo,
              'summit_latlng':[float(alatdest),float(alngdest)],
              'alert_time':at,
@@ -516,6 +529,7 @@ def update_json_data():
              'spot_color':scolor,
              'aprs_message':"",
              'route':route,
+             #'smoothed':smoothed,
              'spot_type':spot_type
         })
         j.append(e)
@@ -560,9 +574,14 @@ def update_spots():
         print >>sys.stderr, 'JSON GET SPOTS %s' % e
         return []
 
+    try:
+        r = json.loads(res)
+    except Exception, e:
+        print >>sys.stderr, 'JSON SPOTS LOAD %s' % e
+        return []
+
     conn2 = sqlite3.connect(alert_db)
     cur2 = conn2.cursor()
-    r = json.loads(res);
     r.reverse()
     for item in r:
         if item['comments'] is None:
