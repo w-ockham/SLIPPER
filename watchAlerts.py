@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import aprslib
-from datetime import  datetime, timedelta
+from datetime import datetime, timedelta
 from dateutil.parser import parse
 import gc
 import objgraph
@@ -51,46 +51,49 @@ aprs_beacon = None
 
 localtz = pytz.timezone('Asia/Tokyo')
 grs80 = pyproj.Geod(ellps='GRS80')
-#3000m x 3000m
-deltalat,deltalng = 0.002704*10,0.003311*10
+# 3000m x 3000m
+deltalat, deltalng = 0.002704*10, 0.003311*10
+
 
 def tweet(api, txt):
     if debug:
-        print txt
+        print(txt)
     else:
         if len(txt) > 140:
             txt = txt[0:140]
-	try:
+        try:
             api.update_status(status=txt)
-	except Exception, e:
+        except Exception as e:
             print >>sys.stderr, 'tweet error: %s ' % e
-            print >>sys.stderr, 'txt = %s ' % txt 
+            print >>sys.stderr, 'txt = %s ' % txt
             return
+
 
 def tweet_with_media(api, fname, txt):
     if debug:
-        print txt
+        print(txt)
     else:
         if len(txt) > 110:
             txt = txt[0:110]
         try:
             api.update_with_media(fname, status=txt)
-        except Exception, e:
+        except Exception as e:
             print >>sys.stderr, 'tweet error %s ' % e
-            print >>sys.stderr, 'txt = %s ' % txt 
+            print >>sys.stderr, 'txt = %s ' % txt
 	    return
+
 
 def lookup_from_op(op):
     conn_alert = sqlite3.connect(alert_db)
     cur_alert = conn_alert.cursor()
     cur_beacon = conn_alert.cursor()
-    
     op = op[0:op.rfind('-')].strip()
     q = 'select * from beacons where operator = ?'
-    cur_beacon.execute(q,(op,))
+    cur_beacon.execute(q, (op, ))
     r = cur_beacon.fetchall()
     if r:
-        for (start,end,op,_,_,_,_,_,_,_,state,name,m,m2,tlon,lasttweet,mode) in r:
+        for (start, end, op, _, _, _, _, _ , _, _, state,
+             name, m, m2, tlon, lasttweet, mode) in r:
             if state == -2:
                 tm = datetime.fromtimestamp(int(start)).strftime("%H:%M")
                 mesg = "No beacons received. Upcoming Activation: " + tm + " " + name
@@ -99,11 +102,11 @@ def lookup_from_op(op):
                 mesg = m2
     else:
         q = 'select * from alerts where operator = ?'
-        cur_alert.execute(q,(op,))
+        cur_alert.execute(q, (op, ))
         r = cur_alert.fetchall()
         if r:
             mesg = "Out of notification time window. Upcoming Activations: "
-            for (time,_,_,_,_,summit,_,_,_,_) in r:
+            for (time, _, _, _, _, summit, _, _, _, _) in r:
                 tm = datetime.fromtimestamp(int(time)).strftime("%m/%d %H:%M")
                 mesg = mesg + tm + " " + summit + " "
                 break
@@ -113,6 +116,57 @@ def lookup_from_op(op):
     conn_alert.close()
     return mesg
 
+
+def search_summit(code_dest,lat,lng):
+    conn_summit = sqlite3.connect(summit_db)
+    cur_summit = conn_summit.cursor()
+    conn_dxsummit = sqlite3.connect(dxsummit_db)
+    cur_dxsummit = conn_dxsummit.cursor()
+
+    mag = KEYS['MAGNIFY']
+    latu,latl = lat + deltalat*mag, lat - deltalat*mag
+    lngu,lngl = lng + deltalng*mag, lng - deltalng*mag
+
+    result = []
+    target = None
+    
+    if re.search(KEYS['JASummits'],code_dest):
+        foreign = False
+        for s in cur_summit.execute('''select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)''',(latu,latl,lngu,lngl,)):
+            (code,lat1,lng1,pt,alt,name,desc,_,_)= s
+            az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+            o = (code,int(dist),int(az),pt,alt,name,desc)
+            result.append(o)
+            if code == code_dest:
+                target = o 
+    else:
+        foreign = True
+        for s in cur_dxsummit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
+            (code,lat1,lng1,pt,alt,name,desc)= s
+            az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+            o = (code,int(dist),int(az),pt,alt,name,desc)
+            result.append(o)
+            if code == code_dest:
+                target = o
+
+    if not target:
+        if re.search(KEYS['JASummits'],code_dest):
+            for s in cur_summit.execute("select * from summits where code = ?",(code_dest,)):
+                (code,lat1,lng1,pt,alt,name,desc,_,_)= s
+                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+                target = (code,int(dist),int(az),pt,alt,name,desc)
+        else:
+            for s in cur_dxsummit.execute("select * from summits where code = ?",(code_dest,)):
+                (code,lat1,lng1,pt,alt,name,desc)= s
+                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+                target = (code,int(dist),int(az),pt,alt,name,desc)
+
+    conn_summit.close()
+    conn_dxsummit.close()
+
+    result.sort(key=lambda x:x[1])
+    return (foreign,target,result[0:3])
+     
 def lookup_summit(op,lat,lng):
     ssidtype = op[op.rfind('-')+1:].strip()
     op = op[0:op.rfind('-')].strip()
@@ -120,42 +174,20 @@ def lookup_summit(op,lat,lng):
     if op in KEYS['EXCLUDE_USER']:
         return (True,-1, 0, "Oops!")
 
-    mag = KEYS['MAGNIFY']
-    conn_summit = sqlite3.connect(summit_db)
-    cur_summit = conn_summit.cursor()
-    conn_dxsummit = sqlite3.connect(dxsummit_db)
-    cur_dxsummit = conn_dxsummit.cursor()
     conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
 
-    q = 'select * from beacons where operator = ?'
+    q = 'select summit,operator,lat_dest,lng_dest,state from beacons where operator = ?'
     cur_beacon.execute(q,(op,))
-    state = -1
     now = int(datetime.utcnow().strftime("%s"))
     nowstr = datetime.fromtimestamp(now).strftime("%H:%M")
 
-    for (_,_,_,_,_,_,lat_dest,lng_dest,_,_,state,code,mesg,mesg2,tlon,lasttweet,mode) in cur_beacon.fetchall():
-        latu,latl = lat + deltalat*mag, lat - deltalat*mag
-        lngu,lngl = lng + deltalng*mag, lng - deltalng*mag
-        result = []
+    for (code_dest,_,lat_dest,lng_dest,state) in cur_beacon.fetchall():
+        (foreign,target,result) = search_summit(code_dest,lat,lng)
+        state = state % 10
 
-        if re.search(KEYS['JASummits'],code):
-            foreign = False
-            for s in cur_summit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
-                (code,lat1,lng1,pt,alt,name,desc,_,_)= s
-                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-                result.append((code,int(dist),int(az),pt,alt,name,desc))
-        else:
-            foreign = True
-            for s in cur_dxsummit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
-                (code,lat1,lng1,pt,alt,name,desc)= s
-                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-                result.append((code,int(dist),int(az),pt,alt,name,desc))
-            
-        result.sort(key=lambda x:x[1])
-        result = result[0:3]
         if len(result) > 0:
             (_,dist,_,_,_,_,_) = result[0]
             if dist <=100.0:
@@ -175,50 +207,52 @@ def lookup_summit(op,lat,lng):
                     state = 6
                 else:
                     state = 0
-
+            print dist
+            print state
             if state == 3 or state == 4:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg = "Welcome to " + code +". "+ name + " " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
-                mesg2 = code + " - " + name + " " + str(alt) + "m "+ str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)." 
+                mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
+                mesg2 = code + " - " + name + " " + str(alt) + "m " + str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)." 
+
             elif state == 1 or state == 2:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Approaching " + code + ", " + str(dist) +"m("+str(az)+"deg) to go."
-                mesg2 = mesg
+                mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)." 
+
             elif state == 5:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Departing " + code + ", " + str(dist) +"m("+str(az)+"deg) from summit."
-                mesg2 = mesg
+                mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)." 
             elif state == 0 or state == 6:
                 mesg = nowstr + " "
                 for (code,dist,az,_,_,_,_) in result:
-                    mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m("+str(az)+") "
-                (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg2 = mesg
+                    mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m(" + str(az) + ") "
+                (code,dist,az,pt,alt,name,desc) = target
+                mesg2 = nowstr + " "+ code + ":" + str(dist) + "m(" + str(az) + "deg)." 
         else:
-            mesg = nowstr + " No Summits within 30km square from {0:.6f},{1:.6f}.".format(lat,lng)
+            (code,dist,az,pt,alt,name,desc) = target
+            mesg = nowstr + " "+ code + ":" + str(dist) +"m("+str(az)+"deg)."
             mesg2 = mesg
-            state = -1
-            dist = 0
+            state = 0
             az = 0
 
         if ssidtype in ['5','6','7']:
-            state = 10 * 0 + (state + 1)
+            state = 10 * 0 + state
         else:
-            state = 10 * 1 + (state + 1)
+            state = 10 * 1 + state
             
-        q = 'update beacons set lastseen = ?, lat = ?, lng = ?, lat_dest = ?, lng_dest = ?,dist = ?, az = ?,state = ?,summit = ?,message = ?,message2 =?, type = ? where operator = ? and summit = ?'
+        q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and summit = ?'
         try:
-            cur_beacon.execute(q,(now,lat,lng,lat_dest,lng_dest,dist,az,state,code,mesg,mesg2,'APRS',op,code))
+            cur_beacon.execute(q,(now,lat,lng,dist,az,state,mesg,mesg2,'APRS',op,code_dest))
             conn_beacon.commit()
         except Exception as err:
             print >> sys.stderr, 'update beacon.db %s' % err
             print >> sys.stderr, 'oprator='+op+' summit='+code
             pass
 
-  
         q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
         try:
-            cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
+            cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code_dest))
             conn_aprslog.commit()
         except Exception as err:
             print >> sys.stderr, 'update aprslog.db %s' % err
@@ -226,13 +260,10 @@ def lookup_summit(op,lat,lng):
 
         conn_beacon.close()
         conn_aprslog.close()
-        conn_summit.close()
-        conn_dxsummit.close()
-        return (foreign, state, tlon, mesg)
+        return (foreign, state, 0, mesg)
     
     conn_beacon.close()
     conn_aprslog.close()
-    conn_summit.close()
     conn_dxsummit.close()
     return (True,-1, 0, "Oops!")
 
@@ -253,7 +284,7 @@ def parse_summit(code):
         url = "https://www.sota.org.uk/Summit/" + code
         try:
             response = requests.get(url)
-        except Exception, e:
+        except Exception as e:
             print >> sys.stderr, 'HTTP GET %s' % e
             return (lat,lng)
         else:    
@@ -279,7 +310,7 @@ def parse_summit(code):
 def parse_alerts(url):
     try:
         response = requests.get(url)
-    except Exception, e:
+    except Exception as e:
         print >>sys.stderr, 'HTTP GET %s' % e
         return []
     
@@ -382,7 +413,7 @@ def parse_json_alerts(url,time_to):
         })
         readObj= urllib.urlopen(url+'/api/alerts?'+param)
         res = readObj.read()
-    except Exception, e:
+    except Exception as e:
         print >>sys.stderr, 'JSON GET ALERTS %s' % e
         return []
 
@@ -504,15 +535,16 @@ def update_json_data():
         else:
             spot_type = "before"
             
-        q = 'select time,lat,lng,dist,state from aprslog where operator = ? and time > ? and time < ?'
-        cur_aprslog.execute(q,(op,aprs_start,aprs_end))
+        q = 'select time,lat,lng,dist,state,summit from aprslog where operator = ? and time > ? and time < ?'
+        cur_aprslog.execute(q,(op,aprs_start,aprs_end,))
         route = [[],[]]
         smoothed = [[],[]]
-        for (t,lat,lng,dist,state) in cur_aprslog.fetchall():
+        for (t,lat,lng,dist,state,aprs_summit) in cur_aprslog.fetchall():
             ssid = int(state)/10
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
             o = {'i_time':int(t),'time':tm,
-                 'latlng':[float(lat),float(lng)],'dist':dist}
+                 'latlng':[float(lat),float(lng)],
+                 'dist':dist,'summit':aprs_summit}
             route[ssid].append(o)
 
         #smoothed[0] = smooth_route(route[0])
@@ -570,13 +602,13 @@ def update_spots():
         })
         readObj= urllib.urlopen(sotawatch_json_url+'/api/spots/20?'+param)
         res = readObj.read()
-    except Exception, e:
+    except Exception as e:
         print >>sys.stderr, 'JSON GET SPOTS %s' % e
         return []
 
     try:
         r = json.loads(res)
-    except Exception, e:
+    except Exception as e:
         print >>sys.stderr, 'JSON SPOTS LOAD %s' % e
         return []
 
@@ -609,7 +641,11 @@ def update_spots():
     
 def update_alerts():
     global aprs_filter
-    conn = sqlite3.connect(alert_db)
+    try:
+        conn = sqlite3.connect(alert_db)
+    except Exception as err:
+        print >> sys.stderr, alert_db
+        print >> sys.stderr, '%s' % err
     cur = conn.cursor()
     cur2 = conn.cursor()
 
@@ -648,7 +684,7 @@ def update_alerts():
     for user in KEYS['TEST_USER']:
         d = {'time':now,'start':now-100,'end':now+10800,
              'operator':user,'callsign':user,'summit':'JA/KN-006',
-             'summit_info':'Test Summit','freq':'433-fm',
+             'summit_info':'Ooyama(Test)','freq':'433-fm',
              'comment':'Alert Test','poster':'(Posted By JL1NIE)'}
         res.append(d)
     
@@ -686,7 +722,7 @@ def update_alerts():
                                 '', # lng
                                 str(lat_dest), # lat_dest
                                 str(lng_dest), # lng_dest
-                                -1,0,-2,
+                                -1,0,0,
                                 d['summit'],
                                 d['summit_info'],
                                 d['summit_info'],
@@ -1064,7 +1100,7 @@ def main():
         auth = tweepy.OAuthHandler(KEYS['ConsumerkeySOTAwatch'], KEYS['ConsumersecretSOTAwatch'])
         auth.set_access_token(KEYS['AccesstokenSOTAwatch'], KEYS['AccesstokensecretSOTAwatch'])
         tweet_api = tweepy.API(auth)
-    except Exception, e:
+    except Exception as e:
         print >>sys.stderr, 'access error: %s' % e
         sys.exit(1)
 
@@ -1077,6 +1113,22 @@ def main():
         gc.collect()
         #objgraph.show_growth()
         sleep(30)
+
+def test_db():
+    setup_db()
+    op = 'JL1NIE-5'
+    tracks =[(35.679488, 139.754062),#54k
+             (35.440663, 139.236127),#447m
+             (35.440698, 139.234196),#300m
+             (35.440494, 139.232486),#121m
+             (35.440849, 139.231449),#23m
+             (35.440849, 139.231449),#23m
+             (35.440494, 139.232486),#121m
+             (35.440698, 139.234196),#300m
+             (35.440663, 139.236127),#447
+             (35.679488, 139.754062)]
+    for (lat, lng) in tracks:
+        print lookup_summit(op,lat,lng)
         
 if __name__ == '__main__':
     main()

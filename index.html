@@ -4,6 +4,15 @@
 <meta http-equiv='expires' content='0'>
 <meta http-equiv='pragma' content='no-cache'>
 <head>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-139463065-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-139463065-1');
+</script> 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" />
@@ -27,17 +36,15 @@ i.semantic-ui-custom {
 </div></h3>
 <div id="map" class="jumbotron jumbotron-extend" style="padding-bottom:15px;margin-bottom:15px">
 </div>
-<div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:4px;">	
+<div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:10px;-webkit-overflow-scrolling:touch">	
 </div>
 <footer class="page-footer font-small text-center" style="padding-top:5px">
-    <button type="button" class="btn-light btn-sm global-button"> <img src="svg/globe.svg"></button>&nbsp&nbsp&nbsp
-    <button type="button" class="btn-light btn-sm ja-button"> <img src="svg/home.svg"></button>&nbsp&nbsp&nbsp
-    <button type="button" class="btn-light btn-sm history-button"> <img src="svg/database.svg"></button>
-<!--
-    <a href="https://www.sotalive.tk/?area=WW&range=null"> <img src="svg/globe.svg">&nbsp&nbsp&nbsp&nbsp</a>
-    <a href="https://www.sotalive.tk/?area=JA&range=null"><img src="svg/home.svg">&nbsp&nbsp&nbsp&nbsp<a/>
-    <a href="https://www.sotalive.tk/?area=WW&range=ALL"> <img src="svg/database.svg">&nbsp&nbsp</a>
--->
+    <button type="button" class="btn-light btn-sm global-button" data-toggle="tooltip" title="Alerts/spots for all associations."> <img src="svg/globe.svg"></button>&nbsp&nbsp&nbsp
+<button type="button" class="btn-light btn-sm ja-button" data-toggle="tooltip" title="Alerts/spots for JA."> 
+  <svg xmlns="http://www.w3.org/2000/svg" background="#eeeeee" width=16 height=12> <rect x="0" y="0" width="16" height="11" style="fill:#ffffff"/>
+    <circle cx="50%" cy="50%" r="24%" fill="#bc002d"/> </svg>
+</button>&nbsp&nbsp&nbsp
+   <button type="button" class="btn-light btn-sm history-button" data-toggle="tooltip" title="All alerts/spots in the last 30hrs."> <img src="svg/database.svg"></button>
 </footer>
 <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
@@ -65,6 +72,9 @@ crossorigin="anonymous">
 </style>
 
 <script>
+$(function () {
+  $('[data-toggle="tooltip"]').tooltip()
+})
 function getParam(name, url) {
     if (!url) url = window.location.href;
     name = name.replace(/[\[\]]/g, "\\$&");
@@ -79,6 +89,8 @@ var map = L.map('map');
 var area = getParam('area')
 if (area == null &&  $.cookie('area') != "")
 	area = $.cookie('area');
+
+L.control.scale().addTo(map);
 
 if (area=="WW") {
     var osm = L.tileLayer('https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=767750c193e54ceeb3aee08d880bdb90',{
@@ -95,14 +107,16 @@ if (area=="WW") {
     gsi.addTo(map);
 }
 
-function drawPoly(lg,data,ssid,route) {
+function drawPoly(lg,data,ssid,cl,route) {
     po = [];
     tm = [];
+    dt = [];
     for (var i = 0, len = route.length; i < len; ++i) {
 	po.push(route[i].latlng);
 	tm.push(route[i].time);
+	dt.push(route[i].dist);
     };
-    L.polyline(po,{color: "blue", wight:6}).addTo(lg);
+    L.polyline(po,{color: cl, wight:6}).addTo(lg);
 
     for (var i = 0, len = po.length; i < len; ++i)
 	L.circleMarker(po[i],{color:"red", radius:4}).addTo(lg);
@@ -126,20 +140,16 @@ function drawPoly(lg,data,ssid,route) {
 	};	    
  	var marker = L.marker(po[po.length-1],
 			      {icon: L.ExtraMarkers.icon(options)});
+	dist = ' ('+dt[dt.length-1]+'m from '+data.summit+')'
 	if (data.aprs_message != "") 
-	    marker.bindPopup(tm[tm.length-1]+' '+data.op+'<br>'+data.aprs_message).openPopup()
+	    marker.bindPopup(tm[tm.length-1]+' '+data.op+dist+'<br>'+data.aprs_message).openPopup()
 	else
-	    marker.bindPopup(tm[tm.length-1]+' '+data.op).openPopup();
+	    marker.bindPopup(tm[tm.length-1]+' '+data.op +dist).openPopup();
 	marker.addTo(lg);
     }
-}    
+}
+					    
 function drawObj(lg,data) {
-
-    if (data.route[0].length >0)
-	drawPoly(lg,data,0,data.route[0])
-    if (data.route[1].length >0)
-	drawPoly(lg,data,1,data.route[1])
-    
     options = {
         prefix: 'icon'
         ,icon: 'flag checkered'
@@ -152,6 +162,17 @@ function drawObj(lg,data) {
     marker.bindPopup(data.summit + ' '+ data.summit_info +'<br>'
 		     + data.alert_time+ ' ' + data.op + ' ' + data.alert_freq + '<br>')
     marker.addTo(lg);
+
+    if (data.route[0].length >0)
+	drawPoly(lg,data,0,"blue",data.route[0])
+    if (data.route[1].length >0)
+	drawPoly(lg,data,1,"blue",data.route[1])
+
+//    if (data.route[0].length >0)
+//	drawPoly(lg,data,0,"red",data.smoothed[0])
+//    if (data.route[1].length >0)
+//	drawPoly(lg,data,1,"red",data.smoothed[1])
+    
     
     if (data.spot_time != "") {
 	if (data.spot_color == "red")
@@ -160,8 +181,13 @@ function drawObj(lg,data) {
 	    interval = 4
 	else if (data.spot_color == "normal")
 	    interval = 8
-	else interval = -1
-	var pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'red',heartbeat:interval});
+	else interval = -1;
+
+	var pulsingIcon;
+	if (interval >0) 
+	    pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'red',heartbeat:interval})
+	else
+	    pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'red',animate:false});
 	var marker = L.marker(data.summit_latlng,{icon: pulsingIcon});
 	marker.bindPopup(data.summit + '<br>'
 			 + data.spot_time + ' ' + data.op + ' ' + data.spot_freq 
@@ -171,7 +197,7 @@ function drawObj(lg,data) {
 };
 
 function clickCommandButton(p){
-    console.log(p);
+
     if ( p == "global") {
 	$.cookie('area',"WW");
 	$.cookie('range',null);
@@ -219,17 +245,21 @@ function clickAPRSButton (event) {
 	    else if (dist <5000)
 		zm = 13
 	    else if (dist <10000)
-		zm = 11
+		zm = 12
 	    else if (dist <20000)
-		zm = 9
+		zm = 11
 	    else if (dist <30000)
-		zm = 8
+		zm = 10
 	    else if (dist <60000)
+		zm = 9
+ 	    else if (dist <100000)
+		zm = 8
+ 	    else if (dist <200000)
 		zm = 7
-	    else if (dist <100000)
+	    else if (dist <400000)
 		zm = 6
 	    else
-		zm = 4
+		zm = 5
 	  
 	    map.setView(r[r.length - 1].latlng,zm);
 	    break;
@@ -256,11 +286,15 @@ function update() {
     if (range == null && $.cookie('range') != "") 
 	range = $.cookie('range');
 
-    if (range=="ALL")
-	postfix = '-hist.json'
-    else
+    if (range=="ALL") {
+	postfix = '-hist.json';
+	clearInterval(update_timer);
+	update_timer = null;
+    }else{
+	if (update_timer == null) 
+	    update_timer = setInterval(update,60000);
 	postfix = '.json';
-	
+    }
     if (area == "WW")
 	fname = 'spots' + postfix
     else
@@ -276,7 +310,8 @@ function update() {
 	} else
 	    lg = L.layerGroup();
 	map.addLayer(lg);
-	current="before"
+	current="before";
+
 	for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	    drawObj(lg,qrvdata[i]);
 	    if (qrvdata[i].spot_time != "") {
@@ -289,8 +324,12 @@ function update() {
 		else
 		    color = 'text-secondary'
 		
-    		spotstr ='<p class="'+
-		    color+'"<strong>'+  qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq + '</strong></p>' + qrvdata[i].spot_comment;
+    		spotstr ='<div class="'+
+		    color+'"><strong>'+
+		    qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq +
+		    '</strong></div>' +
+		    '<div class="text-muted">'+
+		    qrvdata[i].spot_comment + '</div>';
 	    }
 	    else
 		spotstr = '';
@@ -300,9 +339,15 @@ function update() {
 	    else
     		badge = '';
 	    
-	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' + qrvdata[i].op +'</h5>'+
-    		'<div class="text-muted">' + qrvdata[i].summit +' '+ qrvdata[i].summit_info + '<br>' + 
-		qrvdata[i].alert_time + ' '+qrvdata[i].alert_freq  + ' ' + qrvdata[i].alert_comment + '</div>'+ spotstr + '</div>';
+	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' +
+		qrvdata[i].op +'</h5>'+
+    		qrvdata[i].summit +' '+ qrvdata[i].summit_info + '<br>' + 
+		'<div class="text-muted">'
+		+qrvdata[i].alert_time + ' '
+		+qrvdata[i].alert_freq  + ' '
+		+ qrvdata[i].alert_comment +
+		'</div>'
+		+ spotstr + '</div>';
 	    button = '<div class="align-self-center ">'+badge +'&nbsp <button id="sbt_' + i + '" type="button" class="btn-info btn-sm">'+qrvdata[i].summit + '</button></div>';
 	    if (current == "before" && qrvdata[i].spot_type=="after") {
 		current = "after";
@@ -342,9 +387,9 @@ function update() {
 };
 lg = null;
 first_draw = true;
+update_timer = null;
 update();
 clock();
-setInterval(update,60000);
 setInterval(clock,1000);
 </script>
 </body>
