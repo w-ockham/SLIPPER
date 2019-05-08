@@ -478,7 +478,11 @@ def update_json_data():
     cur_aprslog = conn_aprslog.cursor()
     conn = sqlite3.connect(alert_db)
     cur = conn.cursor()
-    q = 'select O.operator,O.callsign,O.summit,A.operator,A.time,A.summit_info,A.lat_dest,A.lng_dest,A.alert_freq,A.alert_comment,B.lat,B.lng,B.dist,S.time,S.callsign,S.summit,S.summit_info,S.lat,S.lng,S.spot_freq,S.spot_mode,S.spot_comment,S.spot_color,S.poster from oprts as O  left outer join alerts as A on (O.callsign=A.callsign and O.summit=A.summit) left outer join spots as S on (O.callsign=S.callsign and O.summit = S.summit) left outer join beacons AS B on (O.operator=B.operator and O.summit = B.summit)'
+
+    q = "attach database '" + KEYS['ASSOC_DB'] + "' as assoc"
+    cur.execute(q);
+
+    q = 'select O.operator,O.callsign,O.summit,C.association,C.continent,A.operator,A.time,A.summit_info,A.lat_dest,A.lng_dest,A.alert_freq,A.alert_comment,B.lat,B.lng,B.dist,S.time,S.callsign,S.summit,S.summit_info,S.lat,S.lng,S.spot_freq,S.spot_mode,S.spot_comment,S.spot_color,S.poster from oprts as O  left outer join assoc.associations as C on (O.summit=C.code) left outer join alerts as A on (O.callsign=A.callsign and O.summit=A.summit) left outer join spots as S on (O.callsign=S.callsign and O.summit = S.summit) left outer join beacons AS B on (O.operator=B.operator and O.summit = B.summit)'
     cur.execute(q);
     rows = cur.fetchall()
     j = []
@@ -487,14 +491,15 @@ def update_json_data():
     alert_start = now + 3600 * KEYS['ALERT_FROM']
     alert_end= now  + 3600 * KEYS['ALERT_TO']
 
-    for (op,call,summit,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
+    for (op,call,summit,assoc,conti,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
+
         if atime:
             at = datetime.fromtimestamp(int(atime)).strftime("%m/%d %H:%M")
         else:
             at =""
             afreq = ""
             acomment = ""
-            
+        
         if stime:
             st = datetime.fromtimestamp(int(stime)).strftime("%m/%d %H:%M")
             delta = now - stime
@@ -549,19 +554,21 @@ def update_json_data():
         #smoothed[0] = smooth_route(route[0])
         #smoothed[1] = smooth_route(route[1])
 
-        e = (time,{'op':call,'summit':summit,'summit_info':ainfo,
-             'summit_latlng':[float(alatdest),float(alngdest)],
-             'alert_time':at,
-             'alert_freq':afreq,
-             'alert_comment':acomment,
-             'spot_time':st,
-             'spot_freq':sfreq + ' ' +smode,
-             'spot_comment':scomment,
-             'spot_color':scolor,
-             'aprs_message':"",
-             'route':route,
-             #'smoothed':smoothed,
-             'spot_type':spot_type
+        e = (time,{'op':call,
+                   'summit':summit,'summit_info':ainfo,
+                   'association':assoc,'continent':conti,
+                   'summit_latlng':[float(alatdest),float(alngdest)],
+                   'alert_time':at,
+                   'alert_freq':afreq,
+                   'alert_comment':acomment,
+                   'spot_time':st,
+                   'spot_freq':sfreq + ' ' +smode,
+                   'spot_comment':scomment,
+                   'spot_color':scolor,
+                   'aprs_message':"",
+                   'route':route,
+                   #'smoothed':smoothed,
+                   'spot_type':spot_type
         })
         j.append(e)
         
@@ -1132,4 +1139,3 @@ def test_db():
     
 if __name__ == '__main__':
     main()
-
