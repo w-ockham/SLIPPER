@@ -344,11 +344,10 @@ function update() {
     		qrvdata[i].summit +' '+ qrvdata[i].summit_info + 
 		' '+qrvdata[i].association +', '+qrvdata[i].continent+
 		'<br>'+ '<div class="text-muted">'+
-		+qrvdata[i].alert_time + ' '
-		+qrvdata[i].alert_freq  + ' '
-		+ qrvdata[i].alert_comment +
-		'</div>'
-		+ spotstr + '</div>';
+		qrvdata[i].alert_time + ' ' +
+		qrvdata[i].alert_freq  + ' '+
+		qrvdata[i].alert_comment + '</div>'+
+		spotstr + '</div>';
 	    button = '<div class="align-self-center ">'+badge +'&nbsp <button id="sbt_' + i + '" type="button" class="btn-info btn-sm">'+qrvdata[i].summit + '</button></div>';
 	    if (current == "before" && qrvdata[i].spot_type=="after") {
 		current = "after";
