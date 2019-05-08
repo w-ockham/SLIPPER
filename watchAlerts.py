@@ -207,8 +207,7 @@ def lookup_summit(op,lat,lng):
                     state = 6
                 else:
                     state = 0
-            print dist
-            print state
+
             if state == 3 or state == 4:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
@@ -243,7 +242,7 @@ def lookup_summit(op,lat,lng):
             
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and summit = ?'
         try:
-            cur_beacon.execute(q,(now,lat,lng,dist,az,state,mesg,mesg2,'APRS',op,code_dest))
+            cur_beacon.execute(q,(now,lat,lng,dist,az,state,mesg,mesg2,'APRS',op,code))
             conn_beacon.commit()
         except Exception as err:
             print >> sys.stderr, 'update beacon.db %s' % err
@@ -252,7 +251,7 @@ def lookup_summit(op,lat,lng):
 
         q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
         try:
-            cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code_dest))
+            cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
             conn_aprslog.commit()
         except Exception as err:
             print >> sys.stderr, 'update aprslog.db %s' % err
@@ -1129,6 +1128,8 @@ def test_db():
              (35.679488, 139.754062)]
     for (lat, lng) in tracks:
         print lookup_summit(op,lat,lng)
-        
+    update_json_data()
+    
 if __name__ == '__main__':
     main()
+
