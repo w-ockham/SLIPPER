@@ -21,7 +21,6 @@ import json
 import pprint
 
 from sotakeys import *
-from last3 import *
 
 debug = False
 #debug = True
@@ -34,8 +33,6 @@ summit_db = KEYS['SUMMIT_DB']
 dxsummit_db = KEYS['DXSUMMIT_DB']
 alert_db = KEYS['ALERT_DB']
 aprslog_db = KEYS['APRSLOG_DB']
-last3 = KEYS['LAST3']
-last3dx = KEYS['LAST3DX']
 aprs_user = KEYS['APRS_USER']
 aprs_password = KEYS['APRS_PASSWD']
 aprs_host = KEYS['APRS_HOST']
@@ -43,7 +40,8 @@ aprs_port = KEYS['APRS_PORT']
 tweet_at = KEYS['TWEET_AT']
 update_alerts_every = KEYS['UPDATE_ALERTS_EVERY']
 update_spots_every = KEYS['UPDATE_SPOTS_EVERY']
-
+lastJA =[]
+lastDX =[]
 tweet_api = None
 
 aprs_filter = ""
@@ -472,8 +470,23 @@ def smooth_route(route):
             res.append(d)
         r_pos+=1
     return res
-    
+
+def readlast3(slist):
+    if len(slist)>0:
+        msg = ""
+        slist.reverse()
+        for o in slist[0:3]:
+            msg = msg +' '+ o['spot_time'][6:] +'-'+o['op']+'-'+o['spot_freq']
+        msg = msg.strip(' ')
+    else:
+        msg ="None"
+        
+    return msg
+
 def update_json_data():
+    global lastJA
+    global lastDX
+    
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
     conn = sqlite3.connect(alert_db)
@@ -562,7 +575,8 @@ def update_json_data():
                    'alert_freq':afreq,
                    'alert_comment':acomment,
                    'spot_time':st,
-                   'spot_freq':sfreq + ' ' +smode,
+                   'spot_freq':sfreq.strip(' '),
+                   'spot_mode':smode,
                    'spot_comment':scomment,
                    'spot_color':scolor,
                    'aprs_message':"",
@@ -577,6 +591,9 @@ def update_json_data():
     dxl = []
     jal = []
     dxll= []
+    lastJA =[]
+    lastDX = []
+    
     for (t,d) in js:
         if t < now:
             dxll.append(d)
@@ -584,8 +601,12 @@ def update_json_data():
             if re.search(KEYS['JASummits'],d['summit']):
                 jal.append(d)
                 dxl.append(d)
+                if t < now and d['spot_time'] != "":
+                    lastJA.append(d)
             else: 
                 dxl.append(d)
+                if t < now and d['spot_time'] != "":
+                    lastDX.append(d)
             
     with open(output_json_file+'.json',"w") as f:
         json.dump(dxl,f)
@@ -907,7 +928,7 @@ def send_summit_message(callfrom, lat ,lng):
         if state == 3: # On Summit
             if tlon == 1:
                 tweet(tweet_api,callfrom + " " + mesg.split('\n')[0])
-            mesg = mesg + "\n" + readlast3(last3)
+            mesg = mesg + "\n" + readlast3(lastJA)
             send_long_message_with_ack(aprs_beacon,callfrom,mesg)
         elif state == 1:# Approaching Summit
             if tlon == 1:
@@ -1001,10 +1022,10 @@ def do_command(callfrom,mesg):
             send_long_message_with_ack(aprs_beacon,callfrom,res)
             break
         if com in 'DX' or com in 'dx':
-            res = readlast3(last3dx)
+            res = readlast3(lastDX)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
         elif com in 'JA' or com in 'ja':
-            res = readlast3(last3)
+            res = readlast3(lastJA)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
         elif com in 'ST' or com in 'st':
             res = check_status()

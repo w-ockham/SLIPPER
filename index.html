@@ -39,12 +39,29 @@ i.semantic-ui-custom {
 <div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:10px;-webkit-overflow-scrolling:touch">	
 </div>
 <footer class="page-footer font-small text-center" style="padding-top:5px">
+<!--
+<div class="dropdown">
+    <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Alerts/Spots for</button>
+    <ul class="dropdown-menu">
+        <li><button class="dropdown-item" value="last6">Last 6hrs.</button></li>
+        <li><button class="dropdown-item" value="last30">Last30hrs.</button></li>
+    </ul>
+    </button>
+    <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Within area:</button>
+    <ul class="dropdown-menu">
+    <li><button class="dropdown-item" value="JA">JA</button></li>
+    <li><button class="dropdown-item" value="ASOC">Asis/Oceania</button></li>        <li><button class="dropdown-item" value="EUAF">Europe/Africa</button></li>        <li><button class="dropdown-item" value="NASA">North Amerioca/South America</button></li>
+    </ul>
+    </div>
+-->
+
     <button type="button" class="btn-light btn-sm global-button" data-toggle="tooltip" title="Alerts/spots for all associations."> <img src="svg/globe.svg"></button>&nbsp&nbsp&nbsp
 <button type="button" class="btn-light btn-sm ja-button" data-toggle="tooltip" title="Alerts/spots for JA."> 
   <svg xmlns="http://www.w3.org/2000/svg" background="#eeeeee" width=16 height=12> <rect x="0" y="0" width="16" height="11" style="fill:#ffffff"/>
     <circle cx="50%" cy="50%" r="24%" fill="#bc002d"/> </svg>
 </button>&nbsp&nbsp&nbsp
-   <button type="button" class="btn-light btn-sm history-button" data-toggle="tooltip" title="All alerts/spots in the last 30hrs."> <img src="svg/database.svg"></button>
+<button type="button" class="btn-light btn-sm history-button" data-toggle="tooltip" title="All alerts/spots in the last 30hrs."> <img src="svg/database.svg"></button>
+
 </footer>
 <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
@@ -190,8 +207,7 @@ function drawObj(lg,data) {
 	    pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'red',animate:false});
 	var marker = L.marker(data.summit_latlng,{icon: pulsingIcon});
 	marker.bindPopup(data.summit + '<br>'
-			 + data.spot_time + ' ' + data.op + ' ' + data.spot_freq 
-			 + '<br>' + data.spot_comment).openPopup();
+			 + data.spot_time + ' ' + data.op + ' ' + data.spot_freq + ' ' + data.spot_mode + '<br>' + data.spot_comment).openPopup();
 	marker.addTo(lg);
     }
 };
@@ -326,7 +342,8 @@ function update() {
 		
     		spotstr ='<div class="'+
 		    color+'"><strong>'+
-		    qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq +
+		    qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq + ' '+
+		    qrvdata[i].spot_mode + 
 		    '</strong></div>' +
 		    '<div class="text-muted">'+
 		    qrvdata[i].spot_comment + '</div>';
