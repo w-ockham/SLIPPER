@@ -42,6 +42,7 @@ update_alerts_every = KEYS['UPDATE_ALERTS_EVERY']
 update_spots_every = KEYS['UPDATE_SPOTS_EVERY']
 lastJA =[]
 lastDX =[]
+last_tweetat = 0
 tweet_api = None
 
 aprs_filter = ""
@@ -621,6 +622,8 @@ def update_json_data():
     conn_aprslog.close()
     
 def update_spots():
+    global last_tweetat
+
     try:
         param = urllib.urlencode(
         {
@@ -660,8 +663,17 @@ def update_spots():
                 op = item['activatorCallsign']
         summit = item['associationCode']+"/"+item['summitCode']
         (lat,lng) = parse_summit(summit)
+
         q ='insert or replace into spots (time,end,operator,callsign,summit,summit_info,lat,lng,spot_freq,spot_mode,spot_comment,spot_color,poster) values (?,?,?,?,?,?,?,?,?,?,?,?,?)'
         cur2.execute(q,(spot_time,spot_end,op.upper(),item['activatorCallsign'],summit,item['summitDetails'],lat,lng,item['frequency'],item['mode'],item['comments'],item['highlightColor'],item['callsign']))
+
+        if spot_time >= last_tweetat:
+            if re.search(KEYS['JASummits'],summit):
+                st = datetime.fromtimestamp(int(spot_time)).strftime("%H:%M")
+                mesg = st +' ' + item['activatorCallsign'] + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
+                tweet(tweet_api,mesg)
+                
+    last_tweetat = int(datetime.utcnow().strftime("%s"))
     conn2.commit()
     conn2.close()
     update_json_data()
@@ -787,7 +799,7 @@ def tweet_alerts():
         mesg = mesg + "An activation is currently scheduled on "
     else:
         mesg = str(num)+" activations are currently scheduled on "
-    mesg = mesg + today + " (Posted by SLIPPER1.1)."
+    mesg = mesg + today + " (Posted by SLIPPER 1.2)."
     tweet(tweet_api,mesg)
     
     for (tm,_,_,_,call,summit,info,lat,lng,freq,comment,poster) in rows:
@@ -1117,12 +1129,6 @@ def setup_db():
     
 def main():
     global tweet_api
-
-    aprs = Thread(target=aprs_worker, args=())
-    aprs.start()
-
-    setup_db()
-        
     try:
         auth = tweepy.OAuthHandler(KEYS['ConsumerkeySOTAwatch'], KEYS['ConsumersecretSOTAwatch'])
         auth.set_access_token(KEYS['AccesstokenSOTAwatch'], KEYS['AccesstokensecretSOTAwatch'])
@@ -1130,7 +1136,11 @@ def main():
     except Exception as e:
         print >>sys.stderr, 'access error: %s' % e
         sys.exit(1)
-
+        
+    setup_db()
+    
+    aprs = Thread(target=aprs_worker, args=())
+    aprs.start()
     schedule.every(update_alerts_every).minutes.do(update_alerts)
     schedule.every(update_spots_every).minutes.do(update_spots)
     schedule.every().day.at(tweet_at).do(tweet_alerts)
