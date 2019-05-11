@@ -438,8 +438,8 @@ def parse_json_alerts(url,time_to):
                            'start':alert_start,
                            'end': alert_end,
                            'poster': item['posterCallsign'],
-                           'callsign': item['activatingCallsign'],
-                           'summit': item['associationCode']+"/"+item['summitCode'],
+                           'callsign': item['activatingCallsign'].upper(),
+                           'summit': item['associationCode'].upper()+"/"+item['summitCode'].upper(),
                            'summit_info': item['summitDetails'],
                            'freq': item['frequency'],
                            'comment': item['comments'],
@@ -657,25 +657,28 @@ def update_spots():
         ts = ts[:ts.find('.')]
         spot_time = int(datetime.strptime(ts,'%Y-%m-%dT%H:%M:%S').strftime("%s"))
         spot_end= spot_time  + 3600 * KEYS['WINDOW_TO']
-        m = re.match('(\w+)/(\w+)/(\w+)',item['activatorCallsign'])
+        activator = item['activatorCallsign'].upper()
+        m = re.match('(\w+)/(\w+)/(\w+)',activator)
         if m:
             op = m.group(2)
         else:
-            m = re.match('(\w+)/(\w+)',item['activatorCallsign'])
+            m = re.match('(\w+)/(\w+)',activator)
             if m:
                 op = m.group(1)
             else:
-                op = item['activatorCallsign']
+                op = activator
+
         summit = item['associationCode']+"/"+item['summitCode']
+        summit = summit.upper()
         (lat,lng) = parse_summit(summit)
 
         q ='insert or replace into spots (time,end,operator,callsign,summit,summit_info,lat,lng,spot_freq,spot_mode,spot_comment,spot_color,poster) values (?,?,?,?,?,?,?,?,?,?,?,?,?)'
-        cur2.execute(q,(spot_time,spot_end,op.upper(),item['activatorCallsign'],summit,item['summitDetails'],lat,lng,item['frequency'],item['mode'],item['comments'],item['highlightColor'],item['callsign']))
+        cur2.execute(q,(spot_time,spot_end,op,activator,summit,item['summitDetails'],lat,lng,item['frequency'],item['mode'],item['comments'],item['highlightColor'],item['callsign']))
 
         if spot_time >= last_tweetat:
             if re.search(KEYS['JASummits'],summit):
                 st = datetime.fromtimestamp(int(spot_time)).strftime("%H:%M")
-                mesg = st +' ' + item['activatorCallsign'] + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
+                mesg = st +' ' + activator + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
                 tweet(tweet_api,mesg)
                 
     last_tweetat = int(datetime.utcnow().strftime("%s"))
