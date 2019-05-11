@@ -392,8 +392,11 @@ function update() {
 	    if (current == "before" && qrvdata[i].spot_type=="after") {
 		current = "after";
 		idstr = 'id="current_data"';
-	    } else if ( i == qrvdata.legth && curent == "before") {
+		current_latlng = qrvdata[i].summit_latlng;
+			    
+	    } else if ( i == qrvdata.length && curent == "before") {
 		idstr = 'id="current_data"';
+		current_latlng = qrvdata[i].summit_latlng;
 	    } else {
 		idstr = '';
 	    }
@@ -409,10 +412,12 @@ function update() {
 	    };
 	};
 	if (first_draw && qdata.length > 0) {
-	    map.setView(qdata[0].summit_latlng,15);
 	    d = document.getElementById("current_data");
-	    if (d!=null)
+	    if (d!=null) {
 		d.scrollIntoView(true);
+		map.setView(current_latlng,15);
+	    } else
+		map.setView(qdata[0].summit_latlng,15);
 	    first_draw = false;
 	} else if (qrvdata.length == 0){
 	    map.setView([35.362853,138.730910],15);
