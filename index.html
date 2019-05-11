@@ -59,7 +59,7 @@ i.semantic-ui-custom {
     </select>
     </div>
     <div class="form-group">
-    &nbsp<button type="button" class="btn-info btn-sm GoButton" onClick="clickGoButton">Go</button>
+    &nbsp<button type="button" class="btn-info btn-sm ApplyButton" onClick="clickApplyButton">Apply</button>
     </div>
     </div>
 </div>
@@ -216,14 +216,14 @@ function drawObj(lg,data) {
     }
 };
 
-function clickGoButton(){
+function clickApplyButton(){
     const time_range = document.getElementById("select-time").value;
     const area = document.getElementById("select-area").value;
     $.cookie('area',area);
     $.cookie('range',time_range);
     window.location.href = 'https://www.sotalive.tk/'
 };
-$('.GoButton').on('click',function() { clickGoButton();});
+$('.ApplyButton').on('click',function() { clickApplyButton();});
 
 function clickSummitButton(event) {
     var p = event.target.eventParam;
