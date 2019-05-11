@@ -93,7 +93,7 @@ def lookup_from_op(op):
     if r:
         for (start, end, op, _, _, _, _, _ , _, _, state,
              name, m, m2, tlon, lasttweet, mode) in r:
-            if state == -2:
+            if state == -1:
                 tm = datetime.fromtimestamp(int(start)).strftime("%H:%M")
                 mesg = "No beacons received. Upcoming Activation: " + tm + " " + name
                 break
@@ -185,7 +185,11 @@ def lookup_summit(op,lat,lng):
 
     for (code_dest,_,lat_dest,lng_dest,state) in cur_beacon.fetchall():
         (foreign,target,result) = search_summit(code_dest,lat,lng)
-        state = state % 10
+
+        if state < 0:
+            state = 0
+        else:
+            state = state % 10
 
         if len(result) > 0:
             (_,dist,_,_,_,_,_) = result[0]
@@ -552,11 +556,12 @@ def update_json_data():
             spot_type = "after"
         else:
             spot_type = "before"
-            
+        
         q = 'select time,lat,lng,dist,state,summit from aprslog where operator = ? and time > ? and time < ?'
         cur_aprslog.execute(q,(op,aprs_start,aprs_end,))
         route = [[],[]]
         smoothed = [[],[]]
+
         for (t,lat,lng,dist,state,aprs_summit) in cur_aprslog.fetchall():
             ssid = int(state)/10
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
@@ -761,7 +766,7 @@ def update_alerts():
                                 '', # lng
                                 str(lat_dest), # lat_dest
                                 str(lng_dest), # lng_dest
-                                -1,0,0,
+                                -1,0,-1,
                                 d['summit'],
                                 d['summit_info'],
                                 d['summit_info'],
