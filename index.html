@@ -445,7 +445,7 @@ function update() {
 	    first_draw = false;
 	} else if (qdata.length == 0){
 	    map.setView([35.362853,138.730910],15);
-	    $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No Data.</h5></div><hr/></div>');
+	    $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No alerts or spots found.</h5></div><hr/></div>');
 	} else {
 	    d = document.getElementById("current_data");
 	    if (d!=null)
