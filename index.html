@@ -29,6 +29,17 @@
 i.semantic-ui-custom {
   margin-top: 9px;
 }
+@keyframes blink {
+  50% { opacity: 0.3; }
+}
+@-webkit-keyframes blink {
+  50% { opacity: 0.3; }
+}
+.blink-me {
+  animation: blink 1s linear infinite;
+  -webkit-animation: blink 1s linear infinite;
+}
+
 </style>
 </head>
 <body>
@@ -197,7 +208,7 @@ function drawObj(lg,data) {
     
     
     if (data.spot_time != "") {
-	if (data.spot_color == "red")
+	if (data.spot_color == "red-blink" || data.spot_color == "red")
 	    interval = 1
 	else if (data.spot_color == "orange")
 	    interval = 4
@@ -281,7 +292,7 @@ function clickAPRSButton (event) {
 function clock() {
     var now = new Date();
     var utc = now.toUTCString();
-    tm  = utc.replace(/:\d{2} GMT/,'');
+    tm  = utc.replace(/:\d{2} GMT/,' UTC');
     if (countdown != 0) {
 	pgrs = Math.floor(countdown/60*100);
 	if ((pgrs % 5) == 0) pbar = '<div class="progress"><div class="progress-bar progress-bar-striped" role="progressbar" style="width: '+pgrs+'%" aria-valuemin="0" aria-valuemax="100"></div></div>'
@@ -365,7 +376,9 @@ function update() {
 	    qdata.push(qrvdata[i]);
 	    drawObj(lg,qrvdata[i]);
 	    if (qrvdata[i].spot_time != "") {
-		if (qrvdata[i].spot_color == "red")
+		if (qrvdata[i].spot_color == "red-blink")
+		    color = 'text-danger blink-me'
+		else if (qrvdata[i].spot_color == "red")
 		    color = 'text-danger'
 		else if (qrvdata[i].spot_color == "orange")
 		    color = 'text-warning'
@@ -430,7 +443,7 @@ function update() {
 	    } else
 		map.setView(qdata[0].summit_latlng,15);
 	    first_draw = false;
-	} else if (qrvdata.length == 0){
+	} else if (qdata.length == 0){
 	    map.setView([35.362853,138.730910],15);
 	    $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No Data.</h5></div><hr/></div>');
 	} else {

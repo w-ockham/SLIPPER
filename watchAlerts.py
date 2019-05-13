@@ -522,7 +522,9 @@ def update_json_data():
         if stime:
             st = datetime.fromtimestamp(int(stime)).strftime("%m/%d %H:%M")
             delta = now - stime
-            if delta <= 1800:
+            if delta <= 180:
+                scolor = 'red-blink'
+            elif delta <= 1800:
                 scolor = 'red'
             elif delta <= 3600:
                 scolor = 'orange'
