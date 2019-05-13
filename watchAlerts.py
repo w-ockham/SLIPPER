@@ -415,13 +415,14 @@ def parse_json_alerts(url,time_to):
         })
         readObj= urllib.urlopen(url+'/api/alerts?'+param)
         res = readObj.read()
+        alerts = json.loads(res)
     except Exception as e:
         print >>sys.stderr, 'JSON GET ALERTS %s' % e
         return []
 
     result = []
     
-    for item in json.loads(res):
+    for item in alerts:
         if item['comments'] is None:
             item['comments'] = ""
         alert_time = int(datetime.strptime(item['dateActivated'],'%Y-%m-%dT%H:%M:%S').strftime("%s"))
