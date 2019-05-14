@@ -178,9 +178,9 @@ def lookup_summit(op,lat,lng):
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
 
-    q = 'select summit,operator,lat_dest,lng_dest,state from beacons where operator = ?'
-    cur_beacon.execute(q,(op,))
     now = int(datetime.utcnow().strftime("%s"))
+    q = 'select summit,operator,lat_dest,lng_dest,state from beacons where operator = ? and start < ? and end > ?'
+    cur_beacon.execute(q,(op,now,now))
     nowstr = datetime.fromtimestamp(now).strftime("%H:%M")
 
     for (code_dest,_,lat_dest,lng_dest,state) in cur_beacon.fetchall():
