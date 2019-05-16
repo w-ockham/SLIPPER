@@ -44,7 +44,7 @@ lastJA =[]
 lastDX =[]
 last_tweetat = 0
 tweet_api = None
-
+target_ssids = ['7','9','5','6','8']
 aprs_filter = ""
 aprs_beacon = None
 
@@ -238,10 +238,10 @@ def lookup_summit(op,lat,lng):
             state = 0
             az = 0
 
-        if ssidtype in ['5','6','7']:
-            state = 10 * 0 + state
+        if ssidtype in target_ssids:
+            state = 10 * target_ssids.index(ssidtype) + state
         else:
-            state = 10 * 1 + state
+            state = 10 * 0 + state
             
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and summit = ?'
         try:
@@ -562,16 +562,19 @@ def update_json_data():
         
         q = 'select time,lat,lng,dist,state,summit from aprslog where operator = ? and time > ? and time < ?'
         cur_aprslog.execute(q,(op,aprs_start,aprs_end,))
-        route = [[],[]]
-        smoothed = [[],[]]
-
+        route = {}
+        smoothed = {}
+        for s in target_ssids:
+            route['id'+s] = []
+            smoothed['id'+s] = []
+            
         for (t,lat,lng,dist,state,aprs_summit) in cur_aprslog.fetchall():
-            ssid = int(state)/10
+            ssid = target_ssids[int(state)/10]
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
             o = {'i_time':int(t),'time':tm,
                  'latlng':[float(lat),float(lng)],
                  'dist':dist,'summit':aprs_summit}
-            route[ssid].append(o)
+            route['id'+ssid].append(o)
 
         #smoothed[0] = smooth_route(route[0])
         #smoothed[1] = smooth_route(route[1])
@@ -1096,7 +1099,7 @@ def callback(packet):
     if debug:
         print "Receive:"+callfrom+ ":"+msg['format']+"-"+msg['raw']
     if msg['format'] in  ['uncompressed','compressed','mic-e']:
-        if ssidtype in ['5','6','7','8','9']:
+        if ssidtype in target_ssids:
             lat = msg['latitude']
             lng = msg['longitude']
             send_summit_message(callfrom, lat, lng)

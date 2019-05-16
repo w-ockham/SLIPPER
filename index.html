@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
- <meta http-equiv='cache-control' content='no-cache'>
+<meta http-equiv='cache-control' content='no-cache'>
 <meta http-equiv='expires' content='0'>
 <meta http-equiv='pragma' content='no-cache'>
 <head>
@@ -196,10 +196,17 @@ function drawObj(lg,data) {
 		     + data.alert_time+ ' ' + data.op + ' ' + data.alert_freq + '<br>')
     marker.addTo(lg);
 
-    if (data.route[0].length >0)
-	drawPoly(lg,data,0,"blue",data.route[0])
-    if (data.route[1].length >0)
-	drawPoly(lg,data,1,"blue",data.route[1])
+    if (data.route.id7.length >0)
+	drawPoly(lg,data,0,"blue",data.route.id7)
+    if (data.route.id5.length >0)
+	drawPoly(lg,data,0,"blue",data.route.id5)
+    if (data.route.id6.length >0)
+	drawPoly(lg,data,0,"blue",data.route.id6)
+    if (data.route.id9.length >0)
+	drawPoly(lg,data,1,"blue",data.route.id9)
+    if (data.route.id8.length >0)
+	drawPoly(lg,data,1,"blue",data.route.id8)
+
 
 //    if (data.route[0].length >0)
 //	drawPoly(lg,data,0,"red",data.smoothed[0])
@@ -254,10 +261,16 @@ function clickAPRSButton (event) {
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	if (p.op == qrvdata[i].op && p.summit == qrvdata[i].summit) {
 	    var r
-	    if (qrvdata[i].route[0].length > 0) 
-		r = qrvdata[i].route[0]
-	    else
-		r = qrvdata[i].route[1]
+	    if (qrvdata[i].route.id7.length > 0) 
+		r = qrvdata[i].route.id7
+	    else if (qrvdata[i].route.id5.length > 0) 
+		r = qrvdata[i].route.id5
+	    else if (qrvdata[i].route.id9.length > 0) 
+		r = qrvdata[i].route.id9
+	    else if (qrvdata[i].route.id6.length > 0) 
+		r = qrvdata[i].route.id6
+	    else if (qrvdata[i].route.id8.length > 0) 
+		r = qrvdata[i].route.id8
 	    
 	    dist = r[r.length - 1].dist;
 	    if (dist < 1000)
@@ -398,7 +411,7 @@ function update() {
 	    else
 		spotstr = '';
 
-	    if (qrvdata[i].route[0].length > 0||qrvdata[i].route[1].length > 0) 
+	    if (qrvdata[i].route.id7.length > 0||qrvdata[i].route.id5.length > 0 ||qrvdata[i].route.id9.length > 0||qrvdata[i].route.id6.length > 0||qrvdata[i].route.id8.length > 0 ) 
     		badge = ' <button id="abt_' +i + '" type="button" class="btn-warning btn-sm">APRS</button>'
 	    else
     		badge = '';
@@ -429,7 +442,7 @@ function update() {
    	    var elm = document.getElementById("sbt_"+i);
    	    elm.addEventListener("click",clickSummitButton,false);
 	    elm.eventParam = { data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit };
-	    if (qrvdata[i].route[0].length > 0||qrvdata[i].route[1].length > 0) { 
+	    if (qrvdata[i].route.id7.length > 0||qrvdata[i].route.id5.length > 0 ||qrvdata[i].route.id9.length > 0||qrvdata[i].route.id6.length > 0||qrvdata[i].route.id8.length > 0){ 
    	    var elm = document.getElementById("abt_"+i);
    		elm.addEventListener("click",clickAPRSButton,false);
 		elm.eventParam = { data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit };
