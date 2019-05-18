@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" />
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
 <link rel="shortcut icon" href="favicon.ico">
+<link href="font/css/open-iconic-bootstrap.css" rel="stylesheet">
 <title>SOTAwatch Live!</title>
 <style>
 .progress { height: 2px;}
@@ -400,31 +401,38 @@ function update() {
 		else
 		    color = 'text-secondary'
 		
-    		spotstr ='<div class="'+
-		    color+'"><strong>'+
+    		spotstr ='<br><div class="'+
+		    color+' oi oi-rss">&nbsp'+
 		    qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq + ' '+
 		    qrvdata[i].spot_mode + 
 		    '</strong></div>' +
-		    '<div class="text-muted">'+
+		    '<div class="text-muted ml-4">'+
 		    qrvdata[i].spot_comment + '</div>';
 	    }
 	    else
 		spotstr = '';
 
 	    if (qrvdata[i].route.id7.length > 0||qrvdata[i].route.id5.length > 0 ||qrvdata[i].route.id9.length > 0||qrvdata[i].route.id6.length > 0||qrvdata[i].route.id8.length > 0 ) 
-    		badge = ' <button id="abt_' +i + '" type="button" class="btn-warning btn-sm">APRS</button>'
+    		badge = '&nbsp<button id="abt_' +i + '" type="button" class="btn-warning btn-sm oi oi-map-marker"></button>'
 	    else
     		badge = '';
 	    
 	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' +
-		qrvdata[i].op +'</h5>'+
-    		qrvdata[i].summit +' '+ qrvdata[i].summit_info + 
-		' '+qrvdata[i].association +
-		'<br>'+ '<div class="text-muted">'+
-		qrvdata[i].alert_time + ' ' +
-		qrvdata[i].alert_freq  + ' '+
-		qrvdata[i].alert_comment + '</div>'+
-		spotstr + '</div>';
+		qrvdata[i].op +'</h5>'+'<span class="oi oi-map"></span>&nbsp'+
+    		qrvdata[i].summit +' '+ qrvdata[i].summit_info + ' '+
+		qrvdata[i].association;
+	    if (qrvdata[i].alert_time!=""){
+		body = body +
+		    '<br><div class="text-muted oi oi-calendar">&nbsp'+
+		    qrvdata[i].alert_time + ' ' +
+		    qrvdata[i].alert_freq  + ' '+
+		    qrvdata[i].alert_comment + '</div>'+
+		    spotstr + '</div>';
+	    }
+	    else {
+		body = body + spotstr + '</div>';
+	    }
+	    
 	    button = '<div class="align-self-center ">'+badge +'&nbsp <button id="sbt_' + i + '" type="button" class="btn-info btn-sm">'+qrvdata[i].summit + '</button></div>';
 	    if (current == "before" && qrvdata[i].spot_type=="after") {
 		current = "after";
