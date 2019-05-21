@@ -266,7 +266,6 @@ def lookup_summit(op,lat,lng):
     
     conn_beacon.close()
     conn_aprslog.close()
-    conn_dxsummit.close()
     return (True,-1, 0, "Oops!")
 
 def parse_summit(code):
@@ -933,6 +932,8 @@ def send_message_worker(aprs, callfrom, message):
         if ack_received(mlist):
             break
     discard_ack(mlist)
+    print >>sys.stderr, 'APRS:Can not send message:' + callfrom + ' ' + message
+
         
 def send_message_with_ack(aprs, callfrom, message):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
