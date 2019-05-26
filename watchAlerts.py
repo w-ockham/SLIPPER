@@ -920,7 +920,7 @@ def send_message(aprs, callfrom, message):
 
 def send_message_worker(aprs, callfrom, message):
     mlist = []
-    for i in range(4):
+    for i in range(8):
         msgno = get_new_msgno()
         mlist.append(msgno)
         m = message + '{' + str(msgno)
@@ -928,7 +928,7 @@ def send_message_worker(aprs, callfrom, message):
             print "Sending("+ str(i) + "):" + m
         else:
             aprs.sendall(m)
-        sleep(30)
+        sleep(60+int(i/4)*60)
         if ack_received(mlist):
             break
     discard_ack(mlist)
