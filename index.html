@@ -150,10 +150,12 @@ function drawPoly(lg,data,ssid,cl,route) {
 	dt.push(route[i].dist);
 	sm.push(route[i].summit);
     };
-    L.polyline(po,{color: cl, wight:6}).addTo(lg);
+    if (po.length > 1) 
+	L.polyline(po,{color: cl, wight:6}).addTo(lg);
 
     for (var i = 0, len = po.length; i < len; ++i)
 	L.circleMarker(po[i],{color:"red", radius:4}).addTo(lg);
+
     if (po.length > 0 ) {
 	if (ssid == 0) {
  	    options = {
@@ -419,7 +421,8 @@ function update() {
 	    
 	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' +
 		qrvdata[i].op +'</h5>'+'<span class="oi oi-map"></span>&nbsp'+
-    		qrvdata[i].summit +' '+ qrvdata[i].summit_info + ', '+
+    		'<a href="https://maps.google.co.jp/maps?t=p&ll='+ qrvdata[i].summit_latlng[0]+','+qrvdata[i].summit_latlng[1]+'&z=15" target=" blank">'+
+		qrvdata[i].summit +' '+ qrvdata[i].summit_info + '</a>, '+
 		qrvdata[i].association;
 	    if (qrvdata[i].alert_time!=""){
 		body = body +
