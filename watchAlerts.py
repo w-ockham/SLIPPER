@@ -262,7 +262,7 @@ def lookup_summit(op,lat,lng):
 
         conn_beacon.close()
         conn_aprslog.close()
-        return (foreign, state, 0, mesg)
+        return (foreign, state % 10, 0, mesg)
     
     conn_beacon.close()
     conn_aprslog.close()
@@ -787,7 +787,7 @@ def update_alerts():
     cur.execute(q,(now,now))
     operators = []
     for ((r,)) in cur.fetchall():
-        operators.append(r)
+        operators.append(r.strip())
     aprs_filter =  "b/"+ "-*/".join(operators) +"-*"
     if aprs_beacon:
         aprs_beacon.set_filter(aprs_filter)
@@ -920,7 +920,7 @@ def send_message(aprs, callfrom, message):
 
 def send_message_worker(aprs, callfrom, message):
     mlist = []
-    for i in range(8):
+    for i in range(4):
         msgno = get_new_msgno()
         mlist.append(msgno)
         m = message + '{' + str(msgno)
@@ -928,11 +928,12 @@ def send_message_worker(aprs, callfrom, message):
             print "Sending("+ str(i) + "):" + m
         else:
             aprs.sendall(m)
-        sleep(60+int(i/4)*60)
+        sleep(60+int(i/2)*30)
         if ack_received(mlist):
             break
     discard_ack(mlist)
-    print >>sys.stderr, 'APRS:Can not send message:' + callfrom + ' ' + message
+    if len(mlist) == 4:
+        print >>sys.stderr, "APRS:Can't send message:" + callfrom + ' ' + message
 
         
 def send_message_with_ack(aprs, callfrom, message):
@@ -1012,13 +1013,14 @@ def check_status():
     conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     now = int(datetime.utcnow().strftime("%s")) - 3600 * 2
-    q = 'select * from beacons where state >=0 and state <=5 and lastseen > ?'
+    q = 'select * from beacons where state >=0 and lastseen > ?'
     cur_beacon.execute(q,(now,))
     received = []
     near_summit = []
     on_summit =[]
 
     for (_,_,op,last,_,_,_,_,_,_,state,_,_,_,_,_,_) in cur_beacon.fetchall():
+        state = state % 10
         if state == 0:
             received.append(op)
         elif state == 1 or state == 2 or state == 5:
@@ -1072,6 +1074,8 @@ def do_command(callfrom,mesg):
                 break
             set_tweet_location(callfrom,0)
             send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet OFF')
+        elif com in 'DEBUG' or com in 'debug':
+            send_long_message_with_ack(aprs_beacon,callfrom,aprs_filter)
         else:
             m = re.search('M=(.+)',mesg,re.IGNORECASE)
             if m:
@@ -1104,6 +1108,8 @@ def callback(packet):
             lat = msg['latitude']
             lng = msg['longitude']
             send_summit_message(callfrom, lat, lng)
+        else:
+            print >>sys.stderr, 'Unkown SSID: ' + callfrom 
     elif msg['format'] in ['message']:
         callto = msg['addresse'].strip()
         if callto != KEYS['APRS_USER']:
