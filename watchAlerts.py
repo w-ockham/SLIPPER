@@ -671,7 +671,7 @@ def update_spots():
             if m:
                 op = m.group(1)
             else:
-                op = activator
+                op = activator.strip()
 
         summit = item['associationCode']+"/"+item['summitCode']
         summit = summit.upper()
@@ -1109,7 +1109,7 @@ def callback(packet):
             lng = msg['longitude']
             send_summit_message(callfrom, lat, lng)
         else:
-            print >>sys.stderr, 'Unkown SSID: ' + callfrom 
+            print >>sys.stderr, 'Fixed station SSID: ' + callfrom 
     elif msg['format'] in ['message']:
         callto = msg['addresse'].strip()
         if callto != KEYS['APRS_USER']:
