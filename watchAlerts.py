@@ -158,7 +158,7 @@ def search_summit(code_dest,lat,lng):
             for s in cur_dxsummit.execute("select * from summits where code = ?",(code_dest,)):
                 (code,lat1,lng1,pt,alt,name,desc)= s
                 az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-                target = (code,int(dist),int(az),pt,alt,name,desc)
+                target = (code,int(dist),int(az),pt,alt,name,"")
 
     conn_summit.close()
     conn_dxsummit.close()
