@@ -3,6 +3,7 @@ import aprslib
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 import gc
+import logging
 import objgraph
 import pyproj
 import pytz
@@ -143,7 +144,7 @@ def search_summit(code_dest,lat,lng):
         for s in cur_dxsummit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
             (code,lat1,lng1,pt,alt,name,desc)= s
             az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-            o = (code,int(dist),int(az),pt,alt,name,desc)
+            o = (code,int(dist),int(az),pt,alt,name,'')
             result.append(o)
             if code == code_dest:
                 target = o
@@ -158,7 +159,7 @@ def search_summit(code_dest,lat,lng):
             for s in cur_dxsummit.execute("select * from summits where code = ?",(code_dest,)):
                 (code,lat1,lng1,pt,alt,name,desc)= s
                 az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-                target = (code,int(dist),int(az),pt,alt,name,"")
+                target = (code,int(dist),int(az),pt,alt,name,'')
 
     conn_summit.close()
     conn_dxsummit.close()
@@ -213,9 +214,16 @@ def lookup_summit(op,lat,lng):
 
             if state == 3 or state == 4:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
-                mesg2 = code + " - " + name + " " + str(alt) + "m " + str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)." 
-
+                try:
+                    mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
+                    mesg2 = code + " - " + name + " " + str(alt) + "m " + str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)."
+                except Exception as e:
+                    print >>sys.stderr, 'TypeError:' + op
+                    print >>sys.stderr, code
+                    print >>sys.stderr, name
+                    mesg = "Welcome to " + code +". "+ name + "."
+                    mesg2 = code + " - " + name + " " + str(dist) +"m("+str(az)+"deg)."
+                    pass
             elif state == 1 or state == 2:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Approaching " + code + ", " + str(dist) +"m("+str(az)+"deg) to go."
@@ -1044,6 +1052,7 @@ def check_status():
     return result
     
 def do_command(callfrom,mesg):
+    print >>sys.stderr, 'SLIPPER Command: ' + callfrom + ':' + mesg 
     for com in mesg.split(","):
         com.strip()
         if com in 'HELP' or com in 'help' or com in '?':
@@ -1109,7 +1118,7 @@ def callback(packet):
             lng = msg['longitude']
             send_summit_message(callfrom, lat, lng)
         else:
-            print >>sys.stderr, 'Fixed station SSID: ' + callfrom 
+            print >>sys.stderr, 'Fixed station SSID: ' + msg['from']
     elif msg['format'] in ['message']:
         callto = msg['addresse'].strip()
         if callto != KEYS['APRS_USER']:
@@ -1159,6 +1168,8 @@ def main():
         sys.exit(1)
         
     setup_db()
+
+    logging.basicConfig()
     
     aprs = Thread(target=aprs_worker, args=())
     aprs.start()
