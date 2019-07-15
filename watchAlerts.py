@@ -202,8 +202,10 @@ def lookup_summit(op,lat,lng):
             elif dist <=300.0:
                 if state < 1:
                     state = 1
-                elif state ==1:
+                elif state == 1:
                     state = 2
+                elif state == 3:
+                    state = 4
                 elif state == 4:
                     state = 5
             else:
@@ -250,10 +252,14 @@ def lookup_summit(op,lat,lng):
             state = 10 * target_ssids.index(ssidtype) + state
         else:
             state = 10 * 0 + state
-            
-        q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and summit = ?'
+
+        q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and start < ? and end > ?'
+
+        errlog = op + ':' + code + ':(' + str(state) + '): ' + mesg.encode('utf_8')
+        print >> sys.stderr, 'UPDATE:' + errlog
+
         try:
-            cur_beacon.execute(q,(now,lat,lng,dist,az,state,mesg,mesg2,'APRS',op,code))
+            cur_beacon.execute(q,(now,lat,lng,dist,az,state,mesg,mesg2,'APRS',op,now,now))
             conn_beacon.commit()
         except Exception as err:
             print >> sys.stderr, 'update beacon.db %s' % err
@@ -771,25 +777,36 @@ def update_alerts():
                        str(lat_dest),str(lng_dest),
                        d['freq'],
                        d['comment'],d['poster']))
-#        if re.match(KEYS['Watchfor'],d['summit']) and now >= d['start'] and now <= d['end']:
         if now >= d['start'] and now <= d['end']:
             if not op in operators:
                 operators.append(op)
-                q = 'insert or replace into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,message2,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-                cur2.execute(q,(d['start'],d['end'],op,
-                                0, #lastseen
-                                '', # lat
-                                '', # lng
-                                str(lat_dest), # lat_dest
-                                str(lng_dest), # lng_dest
-                                -1,0,-1,
-                                d['summit'],
-                                d['summit_info'],
-                                d['summit_info'],
-                                0,'',
-                                'SW2'))
+                q = 'select * from beacons where operator = ? and summit = ?'
+                cur2.execute(q,(op,d['summit']))
+                r = cur2.fetchall()
+                if len(r)>0:
+                    q = 'update beacons set start = ? ,end = ? where operator = ? and summit = ?'
+                    cur2.execute(q,(d['start'],d['end'],op,d['summit']))
+                else:
+                    q = 'insert into beacons (start,end,operator,lastseen,lat,lng,lat_dest,lng_dest,dist,az,state,summit,message,message2,tlon,lasttweet,type) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                    cur2.execute(q,(d['start'],d['end'],op,
+                                    0, #lastseen
+                                    '', # lat
+                                    '', # lng
+                                    str(lat_dest), # lat_dest
+                                    str(lng_dest), # lng_dest
+                                    -1,0,-1,
+                                    d['summit'],
+                                    d['summit_info'],
+                                    d['summit_info'],
+                                    0,'',
+                                    'SW2'))
+        conn.commit()
+        
     q = 'delete from alerts where (operator,summit) not in (select * from current) and alerts.time > ?'
     cur.execute(q,(now,))
+
+    q = 'delete from beacons where (operator,summit) not in (select * from current) and beacons.start > ?'
+    cur2.execute(q,(now,))
 
     q = 'select distinct operator from beacons where start < ? and end > ?'
     cur.execute(q,(now,now))
@@ -928,7 +945,7 @@ def send_message(aprs, callfrom, message):
 
 def send_message_worker(aprs, callfrom, message):
     mlist = []
-    for i in range(4):
+    for i in range(2):
         msgno = get_new_msgno()
         mlist.append(msgno)
         m = message + '{' + str(msgno)
@@ -940,8 +957,8 @@ def send_message_worker(aprs, callfrom, message):
         if ack_received(mlist):
             break
     discard_ack(mlist)
-    if len(mlist) == 4:
-        print >>sys.stderr, "APRS:Can't send message:" + callfrom + ' ' + message
+    if len(mlist) == 2:
+        print >>sys.stderr, "APRS: Can't send message:" + callfrom + ' ' + message + '\n'
 
         
 def send_message_with_ack(aprs, callfrom, message):
@@ -961,14 +978,21 @@ def send_long_message_with_ack(aprs, callfrom, message):
 def send_summit_message(callfrom, lat ,lng):
     foreign,state,tlon,mesg = lookup_summit(callfrom,lat,lng)
     if not foreign:
-        if state == 3: # On Summit
-            if tlon == 1:
-                tweet(tweet_api,callfrom + " " + mesg.split('\n')[0])
-            mesg = mesg + "\n" + readlast3(lastJA)
+        last3 = lastJA
+    else:
+        last3 = lastDX
+    if state == 3: # On Summit
+        if tlon == 1:
+            tweet(tweet_api,callfrom + " " + mesg.split('\n')[0])
+        mesg = mesg + "\n" + readlast3(last3)
+        print >>sys.stderr, 'APRS: Message ' + callfrom + ' ' + mesg.encode('utf_8')
+        if not foreign:
             send_long_message_with_ack(aprs_beacon,callfrom,mesg)
-        elif state == 1:# Approaching Summit
-            if tlon == 1:
-                tweet(tweet_api,callfrom + " " + mesg)
+    elif state == 1:# Approaching Summit
+        if tlon == 1:
+            tweet(tweet_api,callfrom + " " + mesg)
+        print >>sys.stderr, 'APRS: Message ' + callfrom + ' ' + mesg.encode('utf_8')
+        if not foreign:
             send_long_message_with_ack(aprs_beacon,callfrom,mesg)
     del mesg
 
@@ -1117,8 +1141,8 @@ def callback(packet):
             lat = msg['latitude']
             lng = msg['longitude']
             send_summit_message(callfrom, lat, lng)
-        else:
-            print >>sys.stderr, 'Fixed station SSID: ' + msg['from']
+#        else:
+#            print >>sys.stderr, 'Fixed station SSID: ' + msg['from']
     elif msg['format'] in ['message']:
         callto = msg['addresse'].strip()
         if callto != KEYS['APRS_USER']:
