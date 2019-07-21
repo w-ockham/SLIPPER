@@ -1,10 +1,14 @@
 #!/usr/bin/env python
+# coding: utf-8
 import aprslib
+import bz2
 from datetime import datetime, timedelta
 from dateutil.parser import parse
 import gc
+import shelve
 import logging
 import objgraph
+import pickle
 import pyproj
 import pytz
 import re
@@ -32,8 +36,11 @@ output_json_file = KEYS['OUTPUT_JSON_FILE']
 output_json_jafile = KEYS['OUTPUT_JSON_JAFILE']
 summit_db = KEYS['SUMMIT_DB']
 dxsummit_db = KEYS['DXSUMMIT_DB']
+association_db = KEYS['ASSOC_DB']
 alert_db = KEYS['ALERT_DB']
 aprslog_db = KEYS['APRSLOG_DB']
+user_db = KEYS['USER_DB']
+params_db  = KEYS['PARAMS_DB']
 aprs_user = KEYS['APRS_USER']
 aprs_password = KEYS['APRS_PASSWD']
 aprs_host = KEYS['APRS_HOST']
@@ -41,9 +48,7 @@ aprs_port = KEYS['APRS_PORT']
 tweet_at = KEYS['TWEET_AT']
 update_alerts_every = KEYS['UPDATE_ALERTS_EVERY']
 update_spots_every = KEYS['UPDATE_SPOTS_EVERY']
-lastJA =[]
-lastDX =[]
-last_tweetat = 0
+latestSpot = {}
 tweet_api = None
 target_ssids = ['7','9','5','6','8']
 aprs_filter = ""
@@ -83,11 +88,25 @@ def tweet_with_media(api, fname, txt):
 	    return
 
 
-def lookup_from_op(op):
+def parse_callsign(call):
+    call = call.upper().replace(" ","")
+    r = call.rfind('-')
+    if r > 0:
+        op = call[0:r]
+        ssidtype = call[r+1:] 
+    else:
+        op = call
+        ssidtype = '7'
+        
+    return (op,ssidtype,call)
+
+def lookup_from_op(call):
     conn_alert = sqlite3.connect(alert_db)
     cur_alert = conn_alert.cursor()
     cur_beacon = conn_alert.cursor()
-    op = op[0:op.rfind('-')].strip()
+
+    (op,_,_) = parse_callsign(call)
+    
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q, (op, ))
     r = cur_beacon.fetchall()
@@ -105,13 +124,13 @@ def lookup_from_op(op):
         cur_alert.execute(q, (op, ))
         r = cur_alert.fetchall()
         if r:
-            mesg = "Out of notification time window. Upcoming Activations: "
+            mesg = "Out of notification time window. Upcoming Activation: "
             for (time, _, _, _, _, summit, _, _, _, _) in r:
                 tm = datetime.fromtimestamp(int(time)).strftime("%m/%d %H:%M")
                 mesg = mesg + tm + " " + summit + " "
                 break
         else:
-            mesg = "No Upcoming Activations."
+            mesg = "No Upcoming Activation."
 
     conn_alert.close()
     return mesg
@@ -122,7 +141,7 @@ def search_summit(code_dest,lat,lng):
     cur_summit = conn_summit.cursor()
     conn_dxsummit = sqlite3.connect(dxsummit_db)
     cur_dxsummit = conn_dxsummit.cursor()
-
+    
     mag = KEYS['MAGNIFY']
     latu,latl = lat + deltalat*mag, lat - deltalat*mag
     lngu,lngl = lng + deltalng*mag, lng - deltalng*mag
@@ -132,6 +151,7 @@ def search_summit(code_dest,lat,lng):
     
     if re.search(KEYS['JASummits'],code_dest):
         foreign = False
+        continent = 'JA'
         for s in cur_summit.execute('''select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)''',(latu,latl,lngu,lngl,)):
             (code,lat1,lng1,pt,alt,name,desc,_,_)= s
             az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
@@ -141,6 +161,7 @@ def search_summit(code_dest,lat,lng):
                 target = o 
     else:
         foreign = True
+        continent = 'WW'
         for s in cur_dxsummit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
             (code,lat1,lng1,pt,alt,name,desc)= s
             az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
@@ -161,18 +182,27 @@ def search_summit(code_dest,lat,lng):
                 az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
                 target = (code,int(dist),int(az),pt,alt,name,'')
 
+    result.sort(key=lambda x:x[1])
+    if result:
+        if foreign:
+            conn_assoc = sqlite3.connect(association_db)
+            cur_assoc = conn_assoc.cursor()
+            (code,_,_,_,_,_,_) = result[0]
+            for (c,)  in cur_assoc.execute("select continent from associations where code = ?",(code,)):
+                continent = c
+                break
+            conn_assoc.close()
+            
     conn_summit.close()
     conn_dxsummit.close()
-
-    result.sort(key=lambda x:x[1])
-    return (foreign,target,result[0:3])
+    
+    return (foreign,continent,target,result[0:3])
      
-def lookup_summit(op,lat,lng):
-    ssidtype = op[op.rfind('-')+1:].strip()
-    op = op[0:op.rfind('-')].strip()
+def lookup_summit(call,lat,lng):
+    (op,ssidtype,_) = parse_callsign(call)
     
     if op in KEYS['EXCLUDE_USER']:
-        return (True,-1, 0, "Oops!")
+        return (True,'',-1, 0, "Oops!")
 
     conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
@@ -185,7 +215,7 @@ def lookup_summit(op,lat,lng):
     nowstr = datetime.fromtimestamp(now).strftime("%H:%M")
 
     for (code_dest,_,lat_dest,lng_dest,state) in cur_beacon.fetchall():
-        (foreign,target,result) = search_summit(code_dest,lat,lng)
+        (foreign,continent,target,result) = search_summit(code_dest,lat,lng)
 
         if state < 0:
             state = 0
@@ -216,16 +246,14 @@ def lookup_summit(op,lat,lng):
 
             if state == 3 or state == 4:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                try:
-                    mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc+"."
-                    mesg2 = code + " - " + name + " " + str(alt) + "m " + str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)."
-                except Exception as e:
-                    print >>sys.stderr, 'TypeError:' + op
-                    print >>sys.stderr, code
-                    print >>sys.stderr, name
-                    mesg = "Welcome to " + code +". "+ name + "."
-                    mesg2 = code + " - " + name + " " + str(dist) +"m("+str(az)+"deg)."
-                    pass
+                if state == 3:
+                    nowstr2 = datetime.fromtimestamp(now).strftime("%m/%d %H:%M")
+                    update_user_params(op,[('LastActOn',code),('LastActAt',nowstr2)])
+                if desc == '':
+                    mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt."
+                else:
+                    mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc
+                mesg2 = code + " - " + name + " " + str(alt) + "m " + str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)."
             elif state == 1 or state == 2:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Approaching " + code + ", " + str(dist) +"m("+str(az)+"deg) to go."
@@ -254,8 +282,7 @@ def lookup_summit(op,lat,lng):
             state = 10 * 0 + state
 
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and start < ? and end > ?'
-
-        errlog = op + ':' + code + ':(' + str(state) + '): ' + mesg.encode('utf_8')
+        errlog = op + ':' + code + ':'+ continent + ':(' + str(state) + '): ' + mesg.decode('utf-8')
         print >> sys.stderr, 'UPDATE:' + errlog
 
         try:
@@ -276,11 +303,11 @@ def lookup_summit(op,lat,lng):
 
         conn_beacon.close()
         conn_aprslog.close()
-        return (foreign, state % 10, 0, mesg)
+        return (foreign, continent, state % 10, 0, mesg)
     
     conn_beacon.close()
     conn_aprslog.close()
-    return (True,-1, 0, "Oops!")
+    return (True,'', -1, 0, "Oops!")
 
 def parse_summit(code):
     conn_dxsummit = sqlite3.connect(dxsummit_db)
@@ -452,7 +479,7 @@ def parse_json_alerts(url,time_to):
                            'start':alert_start,
                            'end': alert_end,
                            'poster': item['posterCallsign'],
-                           'callsign': item['activatingCallsign'].upper(),
+                           'callsign': item['activatingCallsign'].upper().replace(" ",""),
                            'summit': item['associationCode'].upper()+"/"+item['summitCode'].upper(),
                            'summit_info': item['summitDetails'],
                            'freq': item['frequency'],
@@ -490,7 +517,25 @@ def smooth_route(route):
         r_pos+=1
     return res
 
-def readlast3(slist):
+def readlast3(c):
+    global latestSpot
+    if c == 'JA':
+        slist = latestSpot['JA']
+    elif c == 'AS':
+        slist = latestSpot['AS/OC']
+    elif c == 'OC':
+        slist = latestSpot['AS/OC']
+    elif c == 'EU':
+        slist = latestSpot['EU/AF']
+    elif c == 'AF':
+        slist = latestSpot['EU/AF']
+    elif c == 'NA':
+        slist = latestSpot['NA/SA']
+    elif c == 'SA':
+        slist = latestSpot['NA/SA']
+    else:
+        slist = latestSpot['WW']
+        
     if len(slist)>0:
         msg = ""
         slist.reverse()
@@ -503,15 +548,14 @@ def readlast3(slist):
     return msg
 
 def update_json_data():
-    global lastJA
-    global lastDX
+    global latestSpot
     
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
     conn = sqlite3.connect(alert_db)
     cur = conn.cursor()
 
-    q = "attach database '" + KEYS['ASSOC_DB'] + "' as assoc"
+    q = "attach database '" + association_db + "' as assoc"
     cur.execute(q);
 
     q = 'select O.operator,O.callsign,O.summit,C.association,C.continent,A.operator,A.time,A.summit_info,A.lat_dest,A.lng_dest,A.alert_freq,A.alert_comment,B.lat,B.lng,B.dist,S.time,S.callsign,S.summit,S.summit_info,S.lat,S.lng,S.spot_freq,S.spot_mode,S.spot_comment,S.spot_color,S.poster from oprts as O  left outer join assoc.associations as C on (O.summit=C.code) left outer join alerts as A on (O.callsign=A.callsign and O.summit=A.summit) left outer join spots as S on (O.callsign=S.callsign and O.summit = S.summit) left outer join beacons AS B on (O.operator=B.operator and O.summit = B.summit)'
@@ -593,6 +637,7 @@ def update_json_data():
         #smoothed[1] = smooth_route(route[1])
 
         e = (time,{'op':call,
+                   'opid':op,
                    'summit':summit,'summit_info':ainfo,
                    'association':assoc,'continent':conti,
                    'summit_latlng':[float(alatdest),float(alngdest)],
@@ -616,9 +661,8 @@ def update_json_data():
     dxl = []
     jal = []
     dxll= []
-    lastJA =[]
-    lastDX = []
-    
+    latestSpot = { 'WW':[],'JA':[],'AS/OC':[],'EU/AF':[], 'NA/SA':[] }
+
     for (t,d) in js:
         if t < now:
             dxll.append(d)
@@ -626,12 +670,24 @@ def update_json_data():
             if re.search(KEYS['JASummits'],d['summit']):
                 jal.append(d)
                 dxl.append(d)
-                if t < now and d['spot_time'] != "":
-                    lastJA.append(d)
+                read_user_params(d['opid'],[('Active',True),('Retry',3)])
+                if t < now and d['spot_time'] != "" and d['continent']:
+                    update_user_params(d['opid'],[('LastSpotOn',d['summit']),('LastSpotAt',d['spot_time'])])
+                    latestSpot['JA'].append(d)
+                    latestSpot['AS/OC'].append(d)
+                    latestSpot['WW'].append(d)
             else: 
                 dxl.append(d)
-                if t < now and d['spot_time'] != "":
-                    lastDX.append(d)
+                read_user_params(d['opid'],[('Active',False),('Retry',3)])
+                if t < now and d['spot_time'] != "" and d['continent']:
+                    update_user_params(d['opid'],[('LastSpotOn',d['summit']),('LastSpotAt',d['spot_time'])])
+                    latestSpot['WW'].append(d)
+                    if d['continent'] in ['AS','OC']:
+                        latestSpot['AS/OC'].append(d)
+                    elif d['continent'] in ['EU','AF']:
+                        latestSpot['EU/AF'].append(d)
+                    elif d['continent'] in ['NA','SA']:
+                        latestSpot['NA/SA'].append(d)
             
     with open(output_json_file+'.json',"w") as f:
         json.dump(dxl,f)
@@ -646,8 +702,6 @@ def update_json_data():
     conn_aprslog.close()
     
 def update_spots():
-    global last_tweetat
-
     try:
         param = urllib.urlencode(
         {
@@ -676,7 +730,7 @@ def update_spots():
         ts = ts[:ts.find('.')]
         spot_time = int(datetime.strptime(ts,'%Y-%m-%dT%H:%M:%S').strftime("%s"))
         spot_end= spot_time  + 3600 * KEYS['WINDOW_TO']
-        activator = item['activatorCallsign'].upper()
+        activator = item['activatorCallsign'].upper().replace(" ","")
         m = re.match('(\w+)/(\w+)/(\w+)',activator)
         if m:
             op = m.group(2)
@@ -693,14 +747,14 @@ def update_spots():
 
         q ='insert or replace into spots (time,end,operator,callsign,summit,summit_info,lat,lng,spot_freq,spot_mode,spot_comment,spot_color,poster) values (?,?,?,?,?,?,?,?,?,?,?,?,?)'
         cur2.execute(q,(spot_time,spot_end,op,activator,summit,item['summitDetails'],lat,lng,item['frequency'],item['mode'],item['comments'],item['highlightColor'],item['callsign']))
-
+        last_tweetat = read_params('last_tweetat')
         if spot_time >= last_tweetat:
             if re.search(KEYS['JASummits'],summit):
                 st = datetime.fromtimestamp(int(spot_time)).strftime("%H:%M")
                 mesg = st +' ' + activator + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
                 tweet(tweet_api,mesg)
-                
-    last_tweetat = int(datetime.utcnow().strftime("%s"))
+
+    update_params('last_tweetat',int(datetime.utcnow().strftime("%s")))
     conn2.commit()
     conn2.close()
     update_json_data()
@@ -750,7 +804,7 @@ def update_alerts():
     for user in KEYS['TEST_USER']:
         d = {'time':now,'start':now-100,'end':now+10800,
              'operator':user,'callsign':user,'summit':'JA/KN-006',
-             'summit_info':'Ooyama(Test)','freq':'433-fm',
+             'summit_info':'Test','freq':'433-fm',
              'comment':'Alert Test','poster':'(Posted By JL1NIE)'}
         res.append(d)
     
@@ -816,6 +870,7 @@ def update_alerts():
     aprs_filter =  "b/"+ "-*/".join(operators) +"-*"
     if aprs_beacon:
         aprs_beacon.set_filter(aprs_filter)
+    #print >>sys.stderr, 'APRS Filter:' + aprs_filter
     conn.commit()
     conn.close()
         
@@ -971,33 +1026,54 @@ def send_message_with_ack(aprs, callfrom, message):
         th = Thread(name="MessageWorker",target=send_message_worker,args=(aprs, callfrom, header+message))
         th.start()
 
-def send_long_message_with_ack(aprs, callfrom, message):
+def send_long_message_with_ack2(aprs, callfrom, message):
     for m in message.splitlines():
         send_message_with_ack(aprs, callfrom, m)
 
+def send_message_worker2(aprs, callfrom, header, messages,retry):
+    retry += 1
+    for message in messages.splitlines():
+        mlist = []
+        wait_timer = 7
+        for i in range(retry):
+            msgno = get_new_msgno()
+            mlist.append(msgno)
+            if len(message)>67:
+                message = message[0:67]
+            m = header + message + '{' + str(msgno)
+            print >>sys.stderr, 'APRS raw message(' + str(i)+ '):' + m.encode('utf_8')
+            aprs.sendall(m)
+            sleep(wait_timer)
+            if ack_received(mlist):
+                print >>sys.stderr, 'APRS recv_ack(' +str(wait_timer) +','+  str(msgno)+ ')'
+                break
+            else:
+                wait_timer *= 2
+
+        discard_ack(mlist)
+        if len(mlist) == retry:
+            print >>sys.stderr, "APRS: Can't send message:" + callfrom + ' ' + message.encode('utf_8') + '\n'
+
+def send_long_message_with_ack(aprs, callfrom, messages,retry = 3):
+    header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
+    th = Thread(name="MessageWorker",target=send_message_worker2,args=(aprs, callfrom, header, messages,retry))
+    th.start()
+ 
 def send_summit_message(callfrom, lat ,lng):
-    foreign,state,tlon,mesg = lookup_summit(callfrom,lat,lng)
-    if not foreign:
-        last3 = lastJA
-    else:
-        last3 = lastDX
+    foreign,continent,state,tlon,mesg = lookup_summit(callfrom,lat,lng)
     if state == 3: # On Summit
-        if tlon == 1:
-            tweet(tweet_api,callfrom + " " + mesg.split('\n')[0])
-        mesg = mesg + "\n" + readlast3(last3)
+        mesg = mesg + "\n" + readlast3(continent)
         print >>sys.stderr, 'APRS: Message ' + callfrom + ' ' + mesg.encode('utf_8')
-        if not foreign:
-            send_long_message_with_ack(aprs_beacon,callfrom,mesg)
+        if not foreign and read_user_param(callfrom,'Active'):
+            send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     elif state == 1:# Approaching Summit
-        if tlon == 1:
-            tweet(tweet_api,callfrom + " " + mesg)
         print >>sys.stderr, 'APRS: Message ' + callfrom + ' ' + mesg.encode('utf_8')
-        if not foreign:
-            send_long_message_with_ack(aprs_beacon,callfrom,mesg)
+        if not foreign and read_user_param(callfrom,'Active'):
+            send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     del mesg
 
-def on_service(op):
-    op = op[0:op.rfind('-')].strip()
+def on_service(callfrom):
+    (op,_,_) = parse_callsign(callfrom)
     conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     q = 'select * from beacons where operator = ?'
@@ -1008,8 +1084,8 @@ def on_service(op):
     conn_beacon.close()
     return result
 
-def set_tweet_location(op,tlon):
-    op = op[0:op.rfind('-')].strip()
+def set_tweet_location(callfrom,tlon):
+    (op,_,_) = parse_callsign(callfrom)
     conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     q = 'update beacons set tlon = ? where operator = ?'
@@ -1020,8 +1096,8 @@ def set_tweet_location(op,tlon):
         print >> sys.stderr, 'update beacon.db %s' % e
     conn_beacon.close()
 
-def check_dupe_mesg(op,tw):
-    op = op[0:op.rfind('-')].strip()
+def check_dupe_mesg(callfrom,tw):
+    (op,_,_) = parse_callsign(callfrom)
     conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     q = 'select * from beacons where operator = ?'
@@ -1041,7 +1117,7 @@ def check_dupe_mesg(op,tw):
     conn_beacon.close()
     return result
 
-def check_status():
+def check_beacon_status():
     conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
     now = int(datetime.utcnow().strftime("%s")) - 3600 * 2
@@ -1074,58 +1150,96 @@ def check_status():
     else:
         result = result + " Recv:None"
     return result
-    
+
+def check_user_status(callfrom):
+    r = read_user_params(callfrom,[('Active',None),('Retry',None),
+                                   ('LastActOn',None),('LastActAt',None),
+                                   ('LastSpotOn',None),('LastSpotAt',None)],False)
+    (op,_,_) = parse_callsign(callfrom)
+    mesg = op + ": "
+    if r['Active']:
+        mesg = mesg +"Message=Active: "
+    else:
+        mesg = mesg +"Message=Inactive: "
+    if r['Retry']:
+        mesg = mesg + "Max.Retry=" + str(r['Retry']) + ": "
+    if r['LastActOn']:
+        mesg = mesg +"LatestActivation: " + str(r['LastActAt']) + " " +  str(r['LastActOn']) + ": "  
+    if r['LastSpotOn']:
+        mesg = mesg + "LatestSpot: " + str(r['LastSpotAt']) + " " +  str(r['LastSpotOn']) + ": "  
+    return mesg
+
 def do_command(callfrom,mesg):
     print >>sys.stderr, 'SLIPPER Command: ' + callfrom + ':' + mesg 
     for com in mesg.split(","):
-        com.strip()
-        if com in 'HELP' or com in 'help' or com in '?':
-            res = 'DX,JA,ST,LOC,LTON,LTOFF,M=<message>,HELP,?'
+        com = com.upper().strip()
+        if com in 'HELP' or com in '?':
+            res = 'ACT,DEACT,DX,JA,AS,OC,EU,AF,NA,SA,BC,ST,LOC,RET=<num>,HELP,?'
             send_long_message_with_ack(aprs_beacon,callfrom,res)
             break
-        if com in 'DX' or com in 'dx':
-            res = readlast3(lastDX)
+        if com in 'ACT':
+            update_user_param(callfrom,'Active',True)
+            send_long_message_with_ack(aprs_beacon,callfrom,"Activate summit message.")
+        elif com in 'DEACT':
+                update_user_param(callfrom,'Active',False)
+                send_long_message_with_ack(aprs_beacon,callfrom,"Deactivate summit message.")
+        elif com in 'DX':
+            res = readlast3('WW')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'JA' or com in 'ja':
-            res = readlast3(lastJA)
+        elif com in 'JA':
+            res = readlast3('JA')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'ST' or com in 'st':
-            res = check_status()
+        elif com in 'AS':
+            res = readlast3('AS')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'LOC' or com in 'loc':
+        elif com in 'OC':
+            res = readlast3('OC')
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'EU':
+            res = readlast3('EU')
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'AF':
+            res = readlast3('AF')
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'NA':
+            res = readlast3('NA')
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'SA':
+            res = readlast3('SA')
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'BC':
+            res = check_beacon_status()
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'ST':
+            res = check_user_status(callfrom)
+            send_long_message_with_ack(aprs_beacon,callfrom,res)
+        elif com in 'LOC':
             res = lookup_from_op(callfrom)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'LTON' or com in 'lton':
-            if not on_service(callfrom):
-                send_long_message_with_ack(aprs_beacon,callfrom,'Out of service: '+com)
-                break
-            set_tweet_location(callfrom,1)
-            send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet ON')
-        elif com in 'LTOFF' or com in 'ltoff':
-            if not on_service(callfrom):
-                send_long_message_with_ack(aprs_beacon,callfrom,'Out of service: '+com)
-                break
-            set_tweet_location(callfrom,0)
-            send_long_message_with_ack(aprs_beacon,callfrom,'Set location tweet OFF')
-        elif com in 'DEBUG' or com in 'debug':
-            send_long_message_with_ack(aprs_beacon,callfrom,aprs_filter)
+        elif com in 'DUMP':
+            dump_userdb()
+            send_long_message_with_ack(aprs_beacon,callfrom,"done.")
         else:
-            m = re.search('M=(.+)',mesg,re.IGNORECASE)
+            m = re.search('RET=(.+)',mesg,re.IGNORECASE)
             if m:
-                if not on_service(callfrom):
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Out of service: '+com)
-                    break
-                tm = m.group(1)
-                tm.strip()
-                if check_dupe_mesg(callfrom,tm):
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Dupe: '+tm)
-                else:
-                    tweet(tweet_api,callfrom + " " + tm)
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Posted: '+tm)
+                cs = m.group(1)
+                try:
+                    rc = int(cs.strip())
+                except Exception as e:
+                    rc = 3
+                if rc > 18:
+                    rc = 17
+                update_user_param(callfrom,'Retry',rc)
+                send_long_message_with_ack(aprs_beacon,callfrom,'Set max. messsage retry = '+str(rc))
             else:
-                res = 'Command Error,DX,JA,ST,LOC,LTON,LTOFF,M=<message>,HELP,?'
-                send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
-                break
+                m = re.search('CALL=(.+)',mesg,re.IGNORECASE)
+                if m:
+                    (call,_,_) =parse_callsign(m.group(1))
+                    update_user_param(call,'Active',False)
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Deactivate = '+call)
+                else:
+                    send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
+            break
     del mesg
         
 def callback(packet):
@@ -1141,8 +1255,6 @@ def callback(packet):
             lat = msg['latitude']
             lng = msg['longitude']
             send_summit_message(callfrom, lat, lng)
-#        else:
-#            print >>sys.stderr, 'Fixed station SSID: ' + msg['from']
     elif msg['format'] in ['message']:
         callto = msg['addresse'].strip()
         if callto != KEYS['APRS_USER']:
@@ -1160,11 +1272,154 @@ def callback(packet):
                 do_command(callfrom,msg['message_text'])
     del msg
 
+def update_params(key, value):
+    db = shelve.open(params_db,'c')
+    db[key] = value
+    db.close()
+    return value
+
+def read_params(key):
+    db = shelve.open(params_db,'c')
+    try:
+        value = db[key]
+    except  Exception as e:
+        value = 0
+        db[key] = 0
+    db.close()
+    return value
+
+def setup_userdb():
+    global user_db
+    conn_user = sqlite3.connect(user_db)
+    conn_user.execute("create table if not exists user_db(operator text primary key,obj blob)")
+    conn_user.commit()
+    conn_user.close()
+
+def p2o(param):
+    return bz2.compress(pickle.dumps(param), 3)
+
+def o2p(obj):
+    return pickle.loads(bz2.decompress(obj))
+
+def update_user_param(callfrom, key, value):
+    global user_db
+    
+    (op,_,_) = parse_callsign(callfrom)
+    conn = sqlite3.connect(user_db)
+    conn.text_factory = str
+    for u in conn.execute('select * from user_db where operator = ?',(op,)):
+        (o,obj) = u
+        param = o2p(obj)
+        param[key] = value
+        conn.execute('update user_db set obj = ? where operator = ?',(p2o(param),op))
+        conn.commit()
+        conn.close()
+        return value
+    param = {}
+    param[key] = value
+    conn.execute('insert into user_db(operator, obj) values(?, ?)',(op,p2o(param)))
+    conn.commit()
+    conn.close()
+    return value
+
+def read_user_param(callfrom, key, init = None):
+    global user_db
+    
+    (op,_,_) = parse_callsign(callfrom)
+    conn = sqlite3.connect(user_db)
+    conn.text_factory = str
+    
+    value = init
+    for u in conn.execute('select * from user_db where operator = ?',(op,)):
+        (o,obj) = u
+        param = o2p(obj)
+        try:
+            value = param[key]
+        except Exception as e:
+            param[key] = value
+            conn.execute('update user_db set obj = ? where operator = ?' ,(p2o(param),op))
+            conn.commit()
+        conn.close()
+        return value
+    param = {}
+    param[key] = value
+    conn.execute('insert into user_db (operator, obj) values (?, ?)', (op,p2o(param)))
+    conn.commit()
+    conn.close()
+    return value
+
+def read_user_params(callfrom, vals,update = True):
+    global user_db
+
+    (op,_,_) = parse_callsign(callfrom)
+    conn = sqlite3.connect(user_db)
+    conn.text_factory = str
+    rslt = {}
+    for (key,init) in vals:
+        value = init
+        r = conn.execute('select * from user_db where operator = ?',(op,)).fetchone()
+        if r:
+            (o,obj) = r
+            param = o2p(obj)
+            try:
+                value = param[key]
+                rslt[key] = value
+            except Exception as e:
+                if update:
+                    param[key] = value
+                    conn.execute('update user_db set obj = ? where operator = ?' ,(p2o(param),op))
+                    conn.commit()
+                    rslt[key] = value
+                else:
+                    rslt[key] = None
+        else:
+            if update:
+                param = {}
+                param[key] = value
+                conn.execute('insert into user_db (operator, obj) values (?, ?)', (op,p2o(param)))
+                conn.commit()
+                rslt[key] = value
+            else:
+                rslt[key] = None
+    conn.close()
+    return rslt
+
+def update_user_params(callfrom, vals):
+    global user_db
+
+    (op,_,_) = parse_callsign(callfrom)
+    conn = sqlite3.connect(user_db)
+    conn.text_factory = str
+    rslt = []
+    for (key,value) in vals:
+        r = conn.execute('select * from user_db where operator = ?',(op,)).fetchone()
+        if r:
+            (o,obj) = r
+            param = o2p(obj)
+            param[key] = value
+            conn.execute('update user_db set obj = ? where operator = ?' ,(p2o(param),op))
+        else:
+            param = {}
+            param[key] = value
+            conn.execute('insert into user_db (operator, obj) values (?, ?)', (op,p2o(param)))
+    conn.commit()            
+    conn.close()
+
+def dump_userdb():
+    conn = sqlite3.connect(user_db)
+    conn.text_factory = str
+    for u in conn.execute('select * from user_db'):
+        (op,obj) = u
+        print >> sys.stderr, check_user_status(op)
+    conn.close()
+    print >> sys.stderr, "APRS Filter:" + aprs_filter
+    
 def setup_db():
     conn_dxsummit = sqlite3.connect(dxsummit_db)
     cur_dxsummit = conn_dxsummit.cursor()
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
+
     
     q ='create table if not exists summits (code txt,lat real,lng real,point integer,alt integer,name text,desc text)'
     cur_dxsummit.execute(q)
@@ -1177,6 +1432,8 @@ def setup_db():
     cur_aprslog.execute(q)
     conn_aprslog.commit()
     conn_aprslog.close()
+
+    setup_userdb()
     
     update_alerts()
     update_spots()
@@ -1220,9 +1477,11 @@ def test_db():
              (35.440698, 139.234196),#300m
              (35.440663, 139.236127),#447
              (35.679488, 139.754062)]
+    tracks = [(41.409,-122.194901)]
     for (lat, lng) in tracks:
-        print lookup_summit(op,lat,lng)
+        print search_summit('JA-KN/006',lat,lng)
     update_json_data()
     
 if __name__ == '__main__':
     main()
+

@@ -1,9 +1,4 @@
-KEYS = {
-    #Key for debug
-    'ConsumerkeySOTAwatch2':'',
-    'ConsumersecretSOTAwatch2':'',
-    'AccesstokenSOTAwatch2':'',
-    'AccesstokensecretSOTAwatch2':'',
+KEYS= {
     #Key for SOTAwatchspot JA
     'ConsumerkeySOTAwatch':'',
     'ConsumersecretSOTAwatch':'',
@@ -21,10 +16,17 @@ KEYS = {
 
     'SOTA_URL':'http://www.sotawatch.org/alerts.php',
     'SOTA_JSON_URL':'https://sota-api2.azurewebsites.net/api/alerts?',
+    'SOTAWATCH_JSON_URL':'https://sota-api2.azurewebsites.net',
+    'OUTPUT_JSON_FILE':'/var/www/html/json/spots',
+    'OUTPUT_JSON_JAFILE':'/var/www/html/json/spotsJA',
+    'ASSOC_DB':'/home/ubuntu/pi/SOTAspotJA/summit_data/association.db',
     'SUMMIT_DB':'/home/ubuntu/pi/SOTAspotJA/summit_data/aprs-summit.db',
     'DXSUMMIT_DB':'/home/ubuntu/pi/SOTAspotJA/summit_data/aprs-dx-summit.db',
     'BEACON_DB':'/home/ubuntu/pi/SOTAspotJA/beacon.db',
     'ALERT_DB':'/home/ubuntu/pi/SOTAspotJA/alert.db',
+    'APRSLOG_DB':'/home/ubuntu/pi/SOTAspotJA/aprslog.db',
+    'USER_DB':'/home/ubuntu/pi/SOTAspotJA/aprs-user.db',
+    'PARAMS_DB':'/home/ubuntu/pi/SOTAspotJA/params.dbm',
     'LAST3':"/home/ubuntu/pi/twitter/lastspot.txt",
     'LAST3DX':"/home/ubuntu/pi/twitter/lastspotdx.txt",
     'APRS_USER':'',
@@ -35,8 +37,11 @@ KEYS = {
     'ALERT_FROM':-4,
     'ALERT_TO':16,
     'UPDATE_EVERY':20,
-    'WINDOW_FROM':-4,
-    'WINDOW_TO':5,
+    'UPDATE_ALERTS_EVERY':10,
+    'UPDATE_SPOTS_EVERY':1,
+    'WINDOW_FROM':-5,
+    'WINDOW_TO':6,
+    'KEEP_IN_DB':24,
     'MAGNIFY':10.0,
     'TEST_USER':[],
     'EXCLUDE_USER':[]
