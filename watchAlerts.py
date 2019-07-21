@@ -1064,11 +1064,11 @@ def send_summit_message(callfrom, lat ,lng):
     if state == 3: # On Summit
         mesg = mesg + "\n" + readlast3(continent)
         print >>sys.stderr, 'APRS: Message ' + callfrom + ' ' + mesg.encode('utf_8')
-        if not foreign and read_user_param(callfrom,'Active'):
+        if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     elif state == 1:# Approaching Summit
         print >>sys.stderr, 'APRS: Message ' + callfrom + ' ' + mesg.encode('utf_8')
-        if not foreign and read_user_param(callfrom,'Active'):
+        if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     del mesg
 
