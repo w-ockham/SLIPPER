@@ -1232,11 +1232,19 @@ def do_command(callfrom,mesg):
                 update_user_param(callfrom,'Retry',rc)
                 send_long_message_with_ack(aprs_beacon,callfrom,'Set max. messsage retry = '+str(rc))
             else:
-                m = re.search('CALL=(.+)',mesg,re.IGNORECASE)
-                if m:
-                    (call,_,_) =parse_callsign(m.group(1))
-                    update_user_param(call,'Active',False)
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Deactivate = '+call)
+                (admin,_,_) = parse_callsign(aprs_user)
+                (u,_,_) =  parse_callsign(callfrom)
+                if u == admin:
+                    m1 = re.search('DCALL=(.+)',mesg,re.IGNORECASE)
+                    m2 = re.search('ACALL=(.+)',mesg,re.IGNORECASE)
+                    if m1:
+                        (call,_,_) =parse_callsign(m1.group(1))
+                        update_user_param(call,'Active',False)
+                        send_long_message_with_ack(aprs_beacon,callfrom,'Deactivate = '+call)
+                    elif m2:
+                        (call,_,_) =parse_callsign(m2.group(1))
+                        update_user_param(call,'Active',True)
+                        send_long_message_with_ack(aprs_beacon,callfrom,'Activate = '+call)
                 else:
                     send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
             break
