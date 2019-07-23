@@ -225,28 +225,31 @@ def lookup_summit(call,lat,lng):
         if len(result) > 0:
             (_,dist,_,_,_,_,_) = result[0]
             if dist <=100.0:
-                if state < 3:
+                if state <= 3:
+                    state = 4
+                else:
+                    state = 5
+            elif dist <=300.0:
+                if state >= 4:
+                    state = 6
+                elif state == 2:
                     state = 3
                 else:
-                    state = 4
-            elif dist <=300.0:
-                if state < 1:
-                    state = 1
-                elif state == 1:
                     state = 2
-                elif state == 3:
-                    state = 4
-                elif state == 4:
-                    state = 5
+            elif dist <= 600.0:
+                if state >= 4:
+                    state = 7
+                else:
+                    state = 1
             else:
-                if state >= 3:
-                    state = 6
+                if state >= 2:
+                    state = 8
                 else:
                     state = 0
 
-            if state == 3 or state == 4:
+            if state == 4 or state == 5 or state == 6:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                if state == 3:
+                if state == 4:
                     nowstr2 = datetime.fromtimestamp(now).strftime("%m/%d %H:%M")
                     update_user_params(op,[('LastActOn',code),('LastActAt',nowstr2)])
                 if desc == '':
@@ -254,16 +257,16 @@ def lookup_summit(call,lat,lng):
                 else:
                     mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc
                 mesg2 = code + " - " + name + " " + str(alt) + "m " + str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)."
-            elif state == 1 or state == 2:
+            elif state == 1 or state == 2 or state == 3:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Approaching " + code + ", " + str(dist) +"m("+str(az)+"deg) to go."
                 mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)." 
 
-            elif state == 5:
+            elif state == 7 or state == 8:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg = "Departing " + code + ", " + str(dist) +"m("+str(az)+"deg) from summit."
+                mesg = "Desceding " + code + ", " + str(dist) +"m("+str(az)+"deg) from summit."
                 mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)." 
-            elif state == 0 or state == 6:
+            elif state == 0:
                 mesg = nowstr + " "
                 for (code,dist,az,_,_,_,_) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m(" + str(az) + ") "
@@ -282,7 +285,7 @@ def lookup_summit(call,lat,lng):
             state = 10 * 0 + state
 
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and start < ? and end > ?'
-        errlog = op + ':' + code + ':'+ continent + ':(' + str(state) + '): ' + mesg.decode('utf-8')
+        errlog = op + ':' + code + ':'+ continent + ':(' + str(state) + ')'
         print >> sys.stderr, 'UPDATE:' + errlog
 
         try:
@@ -1061,13 +1064,13 @@ def send_long_message_with_ack(aprs, callfrom, messages,retry = 3):
  
 def send_summit_message(callfrom, lat ,lng):
     foreign,continent,state,tlon,mesg = lookup_summit(callfrom,lat,lng)
-    if state == 3: # On Summit
+    if state == 4: # On Summit
         mesg = mesg + "\n" + readlast3(continent)
-        print >>sys.stderr, 'APRS: Message ' + callfrom + ' ' + mesg.encode('utf_8')
+        print >>sys.stderr, 'APRS: Message ' + callfrom + ':On Summit'
         if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
-    elif state == 1:# Approaching Summit
-        print >>sys.stderr, 'APRS: Message ' + callfrom + ' ' + mesg.encode('utf_8')
+    elif state == 2:# Approaching Summit
+        print >>sys.stderr, 'APRS: Message ' + callfrom + ':Approaching'
         if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     del mesg
@@ -1123,32 +1126,40 @@ def check_beacon_status():
     now = int(datetime.utcnow().strftime("%s")) - 3600 * 2
     q = 'select * from beacons where state >=0 and lastseen > ?'
     cur_beacon.execute(q,(now,))
-    received = []
-    near_summit = []
+    approach = []
+    descend = []
     on_summit =[]
-
+    recv = []
     for (_,_,op,last,_,_,_,_,_,_,state,_,_,_,_,_,_) in cur_beacon.fetchall():
         state = state % 10
-        if state == 0:
-            received.append(op)
-        elif state == 1 or state == 2 or state == 5:
-            near_summit.append(op)
-        elif state == 3 or state == 4:
+
+        if state == 1 or state == 2 or state == 3:
+            approach.append(op)
+        elif state == 4 or state == 5 or state == 6:
             tm = datetime.fromtimestamp(last).strftime("%H:%M")
             on_summit.append(op+"("+tm+")")
+        elif state == 7 or state == 8:
+            descend.append(op)
+        elif state == 0:
+            recv.append(op)
+            
     conn_beacon.close()
     if on_summit:
         result = "On:"+','.join(on_summit)
     else:
         result = "On:None"
-    if near_summit:
-        result = result + " Near:"+','.join(near_summit)
+    if approach:
+        result = result + " APR:"+','.join(approach)
     else:
-        result = result + " Near:None"
-    if received:
-        result = result + " Recv:"+','.join(received)
+        result = result + " APR:None"
+    if descend:
+        result = result + " DESC:"+','.join(descend)
     else:
-        result = result + " Recv:None"
+        result = result + " DESC:None"
+    if recv:
+        result = result + " RECV:"+','.join(recv)
+    else:
+        result = result + " RECV:None"
     return result
 
 def check_user_status(callfrom):
