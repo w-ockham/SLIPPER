@@ -232,10 +232,10 @@ def lookup_summit(call,lat,lng):
             elif dist <=300.0:
                 if state >= 4:
                     state = 6
-                elif state == 2:
-                    state = 3
-                else:
+                elif state < 2:
                     state = 2
+                else:
+                    state = 3
             elif dist <= 600.0:
                 if state >= 4:
                     state = 7
