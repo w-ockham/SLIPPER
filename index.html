@@ -58,7 +58,7 @@ i.semantic-ui-custom {
     <label for="custom-select-time"><b>For last:</b>&nbsp</label>
     <select id="select-time" class="custom-select custom-select-sm" style="width:auto;">
     <option value="6">4H+Alerts</option>
-      <option value="30">30 hours</option>
+      <option value="48">48 hours</option>
     </select>
     </div>
     <div class="form-group">
@@ -334,7 +334,7 @@ function update() {
     sel_t = document.getElementById("select-time");
     sel_a = document.getElementById("select-area");
 
-    if (range=="30") {
+    if (range=="48") {
 	postfix = '-hist.json';
 	clearInterval(update_timer)
 	countdown = 0;

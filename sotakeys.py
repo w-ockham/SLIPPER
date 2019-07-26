@@ -41,7 +41,7 @@ KEYS= {
     'UPDATE_SPOTS_EVERY':1,
     'WINDOW_FROM':-5,
     'WINDOW_TO':6,
-    'KEEP_IN_DB':24,
+    'KEEP_IN_DB':42,
     'MAGNIFY':10.0,
     'TEST_USER':[],
     'EXCLUDE_USER':[]

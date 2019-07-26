@@ -768,16 +768,32 @@ def update_spots():
     
 def update_alerts():
     global aprs_filter
+
     try:
         conn = sqlite3.connect(alert_db)
     except Exception as err:
         print >> sys.stderr, alert_db
         print >> sys.stderr, '%s' % err
+        return
+    
+    try:
+        aprs = sqlite3.connect(aprslog_db)
+    except Exception as err:
+        print >> sys.stderr, aprslog_db
+        print >> sys.stderr, '%s' % err
+        return
+    
     cur = conn.cursor()
     cur2 = conn.cursor()
-
+    aprs_cur = aprs.cursor()
+    
     now = int(datetime.utcnow().strftime("%s"))
     keep_in_db = now - 3600 * KEYS['KEEP_IN_DB']
+    keepin_aprs = now - 2 * 3600 * KEYS['KEEP_IN_DB']
+    
+    aprs_cur.execute("delete from aprslog where time < %s" % str(keepin_aprs))
+    aprs.commit()
+    aprs.close()
 
     q = 'drop table if exists current'
     cur.execute(q)
