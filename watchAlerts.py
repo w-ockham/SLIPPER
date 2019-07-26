@@ -165,7 +165,7 @@ def search_summit(code_dest,lat,lng):
         for s in cur_dxsummit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
             (code,lat1,lng1,pt,alt,name,desc)= s
             az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-            o = (code,int(dist),int(az),pt,alt,name,'')
+            o = (code,int(dist),int(az),pt,alt,name,desc)
             result.append(o)
             if code == code_dest:
                 target = o
@@ -180,7 +180,7 @@ def search_summit(code_dest,lat,lng):
             for s in cur_dxsummit.execute("select * from summits where code = ?",(code_dest,)):
                 (code,lat1,lng1,pt,alt,name,desc)= s
                 az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-                target = (code,int(dist),int(az),pt,alt,name,'')
+                target = (code,int(dist),int(az),pt,alt,name,desc)
 
     result.sort(key=lambda x:x[1])
     if result:
@@ -217,11 +217,13 @@ def lookup_summit(call,lat,lng):
     for (code_dest,_,lat_dest,lng_dest,state) in cur_beacon.fetchall():
         (foreign,continent,target,result) = search_summit(code_dest,lat,lng)
 
+        prev_state = state
+        
         if state < 0:
             state = 0
         else:
             state = state % 10
-
+        
         if len(result) > 0:
             (_,dist,_,_,_,_,_) = result[0]
             if dist <=100.0:
@@ -252,8 +254,8 @@ def lookup_summit(call,lat,lng):
                 if state == 4:
                     nowstr2 = datetime.fromtimestamp(now).strftime("%m/%d %H:%M")
                     update_user_params(op,[('LastActOn',code),('LastActAt',nowstr2)])
-                if desc == '':
-                    mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt."
+                if foreign:
+                    mesg = "Welcome to " + code +". "+ name +","+ desc + " " + str(alt) + "m "+ str(pt) + "pt."
                 else:
                     mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc
                 mesg2 = code + " - " + name + " " + str(alt) + "m " + str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)."
@@ -285,8 +287,10 @@ def lookup_summit(call,lat,lng):
             state = 10 * 0 + state
 
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and start < ? and end > ?'
-        errlog = op + ':' + code + ':'+ continent + ':(' + str(state) + ')'
-        print >> sys.stderr, 'UPDATE:' + errlog
+        
+        if state != prev_state:
+            errlog = op + ':' + code + ':'+ continent + ':(' + str(prev_state) +'->'+ str(state) + ')'
+            print >> sys.stderr, 'UPDATE:' + errlog
 
         try:
             cur_beacon.execute(q,(now,lat,lng,dist,az,state,mesg,mesg2,'APRS',op,now,now))
@@ -1227,9 +1231,6 @@ def do_command(callfrom,mesg):
         elif com in 'LOC':
             res = lookup_from_op(callfrom)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'DUMP':
-            dump_userdb()
-            send_long_message_with_ack(aprs_beacon,callfrom,"done.")
         else:
             m = re.search('RET=(.+)',mesg,re.IGNORECASE)
             if m:
@@ -1256,6 +1257,11 @@ def do_command(callfrom,mesg):
                         (call,_,_) =parse_callsign(m2.group(1))
                         update_user_param(call,'Active',True)
                         send_long_message_with_ack(aprs_beacon,callfrom,'Activate = '+call)
+                    elif com in 'DUMP':
+                        dump_userdb()
+                        send_long_message_with_ack(aprs_beacon,callfrom,"done.")
+                    else:
+                        send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
                 else:
                     send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
             break
