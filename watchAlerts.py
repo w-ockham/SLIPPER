@@ -330,29 +330,8 @@ def parse_summit(code):
         for (code,lat,lng,pts,alt,name,_) in rows:
             res = (lat,lng)
     else:
-        url = "https://www.sota.org.uk/Summit/" + code
-        try:
-            response = requests.get(url)
-        except Exception as e:
-            print >> sys.stderr, 'HTTP GET %s' % e
-            return (lat,lng)
-        else:    
-            for line in response.text.splitlines():
-                if code in line:
-                    m = re.search(',\s*(.+)-\s*(\d+)m,\s*(\d+).*',line)
-                    if m:
-                        name = m.group(1)
-                        alt = int(m.group(2))
-                        pts = int(m.group(3))
-                elif "data-content=" in line:
-                    m = re.search('Lat:\s*(-*\d+\.\d+),\s*Long:\s*(-*\d+\.\d+)',line)
-                    if m:
-                        lat = float(m.group(1))
-                        lng = float(m.group(2))
-            q = 'insert into summits (code, lat ,lng, point, alt, name, desc) values(?,?,?,?,?,?,?)'
-            cur_dxsummit.execute(q,(code,lat,lng,pts,alt,name,""))
-            conn_dxsummit.commit()
-            res = (lat,lng)
+        res =(lat,lng)
+        print >> sys.stderr, 'Unknown Summit:' + code.encode('utf_8')
     conn_dxsummit.close()
     return res
     
