@@ -45,8 +45,8 @@ i.semantic-ui-custom {
 </head>
 <body>
 <div class="header clearfix">
-    <h4 class="text-muted">&nbsp SOTAwatch Live! &nbsp&nbsp <small><span id="clock_time"></small></span>
-</div></h3>
+  <h4 class="text-muted">&nbsp SOTAwatch Live! &nbsp&nbsp <small><span id="clock_time"></span></small> </h4>
+</div>
 <div id="map" class="jumbotron jumbotron-extend" style="padding-bottom:15px;margin-bottom:13px">
 </div>
 <div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:5px;-webkit-overflow-scrolling:touch">	
@@ -72,12 +72,55 @@ i.semantic-ui-custom {
     </select>
     </div>
     <div class="form-group">
-    &nbsp<button type="button" class="btn-info btn-sm ApplyButton" onClick="clickApplyButton">Apply</button>
+      &nbsp<button type="button" class="btn-info btn-sm ApplyButton" onClick="clickApplyButton">Apply</button>
+      &nbsp&nbsp<button type="button" class="btn-secondary btn-sm InfoButton oi oi-info" data-toggle="modal" data-target="#modal-aprs"></button>
     </div>
     </div>
 </div>
     <footer class="page-footer font-small text-center" style="padding-top:5px">
-</footer>
+    </footer>
+    <div class="modal" id="modal-aprs" tabindex="-1" role="dialog" aria-labelledby="staticModalLabel" aria-hidden="true" data-show="true" data-keyboard="false" data-backdrop="static">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title">SOTAwatch Live! APRS Commands</h4>
+          <button type="button" class="close" data-dismiss="modal">
+            <span aria-hidden="true">&#215;</span>
+          </button>
+        </div><!-- /modal-header -->
+        <div class="modal-body">
+	  <h4> Send the following APRS messages to "JL1NIE-10" to control SOTAwatchLive!</h4>
+	  <table class="table table-condensed">
+	    <thead><tr><th>Command</th><th>Description</th></tr></thead>
+	    <tbody>
+	      <tr>
+		<td>ACT</td> <td> Activate your account. A welcome message will be sent when you approach to the SOTA summits.</td>
+	      </tr>
+	      <tr>
+		<td>DEACT</td> <td> Deactivate your account.</td>
+	      </tr>
+	      <tr>
+		<td> DX </td> <td> Send the latest three SOTA spots. <br>You can also specify areas with the following commands: NA,EU,OC,AS,AF,SA and JA.</td>
+	      </tr>
+	      <tr>
+		<td> BC </td> <td> Show activator's beacon status. <br>'On:' On the summit. 'APR:' Approaching.<br> 'DESC:' Descending. 'RECV:' Beacon received. </td>
+	      </tr>
+	      <tr>
+		<td> RET=<i>num</i></td> <td> Set retry count for APRS message to <i>num</i>.<br> The default value is 3.</td>
+	      </tr>
+	      <tr>
+		<td> ST </i></td> <td> Show your status.<br> Ex. JL1NIE: Message=Active: Max.Retry=3: LatestSpot: 07/20 13:51 JA/OY-113</td>
+</tr>
+</tbody>
+</table>      
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div> <!-- /.modal-content -->
+    </div> <!-- /.modal-dialog -->
+  </div> <!-- /.modal -->
+</body>
 <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
     <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
@@ -252,7 +295,8 @@ function clickSummitButton(event) {
     qrvdata = p.data;
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	if (p.op == qrvdata[i].op && p.summit == qrvdata[i].summit) {
-	    map.setView(qrvdata[i].summit_latlng,15);
+	    if (qrvdata[i].summit_latlng[0]!=0 && qrvdata[i].summit_latlng[1]!=0)
+		map.setView(qrvdata[i].summit_latlng,15);
 	    break;
      	};
     };
@@ -463,9 +507,10 @@ function update() {
 	    d = document.getElementById("current_data");
 	    if (d!=null) {
 		d.scrollIntoView(true);
-		map.setView(current_latlng,15);
-	    } else
-		map.setView(qdata[0].summit_latlng,15);
+		if (current_latlng[0]!=0 && current_latlng[1]!=0)
+		    map.setView(current_latlng,15);
+	    } else if (current_latlng[0]!=0 && current_latlng[1]!=0)
+		    map.setView(qdata[0].summit_latlng,15);
 	    first_draw = false;
 	} else if (qdata.length == 0){
 	    map.setView([35.362853,138.730910],15);
