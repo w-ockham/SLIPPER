@@ -59,6 +59,17 @@ grs80 = pyproj.Geod(ellps='GRS80')
 # 3000m x 3000m
 deltalat, deltalng = 0.002704*10, 0.003311*10
 
+# Activator's state
+STATES = (
+    NOTRCVD,
+    RCVD,
+    NEAR,
+    APRCH,
+    APRCH_SENT,
+    ONSUMMIT,
+    ONSUMMIT_SENT,
+    DESC
+    ) = range(-1,7)
 
 def tweet(api, txt):
     if debug:
@@ -197,7 +208,22 @@ def search_summit(code_dest,lat,lng):
     conn_dxsummit.close()
     
     return (foreign,continent,target,result[0:3])
-     
+
+def get_activator_status(cur,op,summit):
+    q = 'select * from message_history where operator = ? and summit = ?'
+    cur.execute(q,(op,summit,))
+    r = cur.fetchone()
+    if r:
+        (_,_,_,state,_) = r
+        return state
+    else:
+        return None
+    
+def set_activator_status(cur,now,op,summit,state,dist):    
+    q = 'insert or replace into message_history(time,operator,summit,state,distance) values (? ,?, ?, ?, ?)'
+    cur.execute(q,(now,op,summit,state,dist,))
+    return state
+
 def lookup_summit(call,lat,lng):
     (op,ssidtype,_) = parse_callsign(call)
     
@@ -206,6 +232,7 @@ def lookup_summit(call,lat,lng):
 
     conn_beacon = sqlite3.connect(alert_db)
     cur_beacon = conn_beacon.cursor()
+    cur_message = conn_beacon.cursor()
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
 
@@ -217,41 +244,50 @@ def lookup_summit(call,lat,lng):
     for (code_dest,_,lat_dest,lng_dest,state) in cur_beacon.fetchall():
         (foreign,continent,target,result) = search_summit(code_dest,lat,lng)
 
-        prev_state = state
-        
         if state < 0:
-            state = 0
+            state = RCVD
         else:
             state = state % 10
-        
-        if len(result) > 0:
-            (_,dist,_,_,_,_,_) = result[0]
-            if dist <=100.0:
-                if state <= 3:
-                    state = 4
-                else:
-                    state = 5
-            elif dist <=300.0:
-                if state >= 4:
-                    state = 6
-                elif state < 2:
-                    state = 2
-                else:
-                    state = 3
-            elif dist <= 600.0:
-                if state >= 4:
-                    state = 7
-                else:
-                    state = 1
-            else:
-                if state >= 2:
-                    state = 8
-                else:
-                    state = 0
 
-            if state == 4 or state == 5 or state == 6:
+        prev_state = state
+    
+        if len(result) > 0:
+            (code,dist,_,_,_,_,_) = result[0]
+
+            prev_state = get_activator_status(cur_message,op,code)
+                
+            if dist <=100.0:
+                if prev_state == ONSUMMIT:
+                    state = ONSUMMIT_SENT
+                elif prev_state == ONSUMMIT_SENT:
+                    state = ONSUMMIT_SENT
+                else:
+                    state = ONSUMMIT
+            elif dist <=300.0:
+                if prev_state == APRCH or prev_state == APRCH_SENT:
+                    state = APRCH_SENT
+                elif prev_state == ONSUMMIT or prev_state == ONSUMMIT_SENT: 
+                    state = ONSUMMIT_SENT
+                else:
+                    state = APRCH
+            elif dist <= 600.0:
+                if prev_state == ONSUMMIT or prev_state == ONSUMMIT_SENT:
+                    state = DESC
+                elif prev_state == APRCH or prev_state == APRCH_SENT: 
+                    state = APRCH_SENT
+                else:
+                    state = NEAR
+            else:
+                if prev_state == ONSUMMIT or prev_state == ONSUMMIT_SENT or prev_state == APRCH or prev_state == APRCH_SENT:
+                    state = DESC
+                else:
+                    state = RCVD
+
+            set_activator_status(cur_message,now,op,code,state,dist)
+            
+            if state == ONSUMMIT or state == ONSUMMIT_SENT:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                if state == 4:
+                if state == ONSUMMIT:
                     nowstr2 = datetime.fromtimestamp(now).strftime("%m/%d %H:%M")
                     update_user_params(op,[('LastActOn',code),('LastActAt',nowstr2)])
                 if foreign:
@@ -259,20 +295,22 @@ def lookup_summit(call,lat,lng):
                 else:
                     mesg = "Welcome to " + code +". "+ name +" " + str(alt) + "m "+ str(pt) + "pt.\n"+desc
                 mesg2 = code + " - " + name + " " + str(alt) + "m " + str(pt) + "pt. " + str(dist) +"m("+str(az)+"deg)."
-            elif state == 1 or state == 2 or state == 3:
+
+            elif state == APRCH or state == APRCH_SENT:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Approaching " + code + ", " + str(dist) +"m("+str(az)+"deg) to go."
                 mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)." 
 
-            elif state == 7 or state == 8:
+            elif state == DESC:
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg = "Desceding " + code + ", " + str(dist) +"m("+str(az)+"deg) from summit."
+                mesg = "Descending " + code + ", " + str(dist) +"m("+str(az)+"deg) from summit."
                 mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)." 
-            elif state == 0:
+
+            elif state == RCVD or state == NEAR:
                 mesg = nowstr + " "
                 for (code,dist,az,_,_,_,_) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m(" + str(az) + ") "
-                (code,dist,az,pt,alt,name,desc) = target
+                (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg2 = nowstr + " "+ code + ":" + str(dist) + "m(" + str(az) + "deg)." 
         else:
             (code,dist,az,pt,alt,name,desc) = target
@@ -288,8 +326,8 @@ def lookup_summit(call,lat,lng):
 
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and start < ? and end > ?'
         
-        if state != prev_state:
-            errlog = op + ':' + code + ':'+ continent + ':(' + str(prev_state) +'->'+ str(state) + ')'
+        if (state % 10) != prev_state:
+            errlog = op + ':' + code + ':'+ continent + ':(' + str(prev_state) +'->'+ str(state) + '):' + str(dist) + 'm:' 
             print >> sys.stderr, 'UPDATE:' + errlog
 
         try:
@@ -331,7 +369,6 @@ def parse_summit(code):
             res = (lat,lng)
     else:
         res =(lat,lng)
-        print >> sys.stderr, 'Unknown Summit:' + code.encode('utf_8')
     conn_dxsummit.close()
     return res
     
@@ -769,6 +806,7 @@ def update_alerts():
     now = int(datetime.utcnow().strftime("%s"))
     keep_in_db = now - 3600 * KEYS['KEEP_IN_DB']
     keepin_aprs = now - 2 * 3600 * KEYS['KEEP_IN_DB']
+    keep_in_db_hist = now - 3600 * KEYS['WINDOW_TO'] + 3600 * KEYS['WINDOW_FROM']
     
     aprs_cur.execute("delete from aprslog where time < %s" % str(keepin_aprs))
     aprs.commit()
@@ -797,6 +835,12 @@ def update_alerts():
 
     q = 'create view if not exists oprts as select distinct operator,callsign, summit from alerts union select operator,callsign,summit from spots;'
     cur2.execute(q)
+
+    q = 'create table if not exists message_history(time int,operator text, summit text,state int,distance int,primary key(operator, summit))'
+    cur2.execute(q)
+    q = 'delete from message_history where time < ?'
+    cur2.execute(q,(keep_in_db_hist,))
+    
     conn.commit()
 
     res = parse_json_alerts(sotawatch_json_url,now+3600 * KEYS['ALERT_TO'])
@@ -850,7 +894,8 @@ def update_alerts():
                                     '', # lng
                                     str(lat_dest), # lat_dest
                                     str(lng_dest), # lng_dest
-                                    -1,0,-1,
+                                    -1,0,
+                                    NOTRCVD,
                                     d['summit'],
                                     d['summit_info'],
                                     d['summit_info'],
@@ -1063,12 +1108,12 @@ def send_long_message_with_ack(aprs, callfrom, messages,retry = 3):
  
 def send_summit_message(callfrom, lat ,lng):
     foreign,continent,state,tlon,mesg = lookup_summit(callfrom,lat,lng)
-    if state == 4: # On Summit
+    if state == ONSUMMIT: # On Summit
         mesg = mesg + "\n" + readlast3(continent)
         print >>sys.stderr, 'APRS: Message ' + callfrom + ':On Summit'
         if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
-    elif state == 2:# Approaching Summit
+    elif state == APRCH:# Approaching Summit
         print >>sys.stderr, 'APRS: Message ' + callfrom + ':Approaching'
         if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
@@ -1132,33 +1177,33 @@ def check_beacon_status():
     for (_,_,op,last,_,_,_,_,_,_,state,_,_,_,_,_,_) in cur_beacon.fetchall():
         state = state % 10
 
-        if state == 1 or state == 2 or state == 3:
+        if state == APRCH or state == APRCH_SENT or state == NEAR:
             approach.append(op)
-        elif state == 4 or state == 5 or state == 6:
+        elif state == ONSUMMIT or state == ONSUMMIT_SENT:
             tm = datetime.fromtimestamp(last).strftime("%H:%M")
             on_summit.append(op+"("+tm+")")
-        elif state == 7 or state == 8:
+        elif state == DESC:
             descend.append(op)
-        elif state == 0:
+        elif state == RCVD:
             recv.append(op)
             
     conn_beacon.close()
+
+    approach = list(set(approach))
+    descend = list(set(descend))
+    recv = list(set(recv))
+    
     if on_summit:
         result = "On:"+','.join(on_summit)
     else:
         result = "On:None"
     if approach:
         result = result + " APR:"+','.join(approach)
-    else:
-        result = result + " APR:None"
     if descend:
         result = result + " DESC:"+','.join(descend)
-    else:
-        result = result + " DESC:None"
     if recv:
         result = result + " RECV:"+','.join(recv)
-    else:
-        result = result + " RECV:None"
+
     return result
 
 def check_user_status(callfrom):
