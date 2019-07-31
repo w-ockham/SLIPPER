@@ -165,7 +165,10 @@ def search_summit(code_dest,lat,lng):
         continent = 'JA'
         for s in cur_summit.execute('''select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)''',(latu,latl,lngu,lngl,)):
             (code,lat1,lng1,pt,alt,name,desc,_,_)= s
-            az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+            try:
+                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+            except Exception as e:
+                az,bkw_az,dist = (0, 0, 99999)
             o = (code,int(dist),int(az),pt,alt,name,desc)
             result.append(o)
             if code == code_dest:
@@ -175,7 +178,10 @@ def search_summit(code_dest,lat,lng):
         continent = 'WW'
         for s in cur_dxsummit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
             (code,lat1,lng1,pt,alt,name,desc)= s
-            az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+            try:
+                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+            except Exception as e:
+                az,bkw_az,dist = (0, 0, 99999)
             o = (code,int(dist),int(az),pt,alt,name,desc)
             result.append(o)
             if code == code_dest:
@@ -185,12 +191,18 @@ def search_summit(code_dest,lat,lng):
         if re.search(KEYS['JASummits'],code_dest):
             for s in cur_summit.execute("select * from summits where code = ?",(code_dest,)):
                 (code,lat1,lng1,pt,alt,name,desc,_,_)= s
-                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+                try:
+                    az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+                except Exception as e:
+                    az,bkw_az,dist = (0, 0, 99999)
                 target = (code,int(dist),int(az),pt,alt,name,desc)
         else:
             for s in cur_dxsummit.execute("select * from summits where code = ?",(code_dest,)):
                 (code,lat1,lng1,pt,alt,name,desc)= s
-                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+                try:
+                    az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+                except Exception as e:
+                    az,bkw_az,dist = (0, 0, 99999)
                 target = (code,int(dist),int(az),pt,alt,name,desc)
 
     result.sort(key=lambda x:x[1])
@@ -209,19 +221,19 @@ def search_summit(code_dest,lat,lng):
     
     return (foreign,continent,target,result[0:3])
 
-def get_activator_status(cur,op,summit):
-    q = 'select * from message_history where operator = ? and summit = ?'
-    cur.execute(q,(op,summit,))
+def get_activator_status(cur,op,ssid,summit):
+    q = 'select * from message_history where operator = ? and ssid =? and summit = ?'
+    cur.execute(q,(op,ssid,summit,))
     r = cur.fetchone()
     if r:
-        (_,_,_,state,_) = r
+        (_,_,_,_,state,_) = r
         return state
     else:
         return None
     
-def set_activator_status(cur,now,op,summit,state,dist):    
-    q = 'insert or replace into message_history(time,operator,summit,state,distance) values (? ,?, ?, ?, ?)'
-    cur.execute(q,(now,op,summit,state,dist,))
+def set_activator_status(cur,now,op,ssid,summit,state,dist):    
+    q = 'insert or replace into message_history(time,operator,ssid,summit,state,distance) values (? ,?, ?, ?, ?, ?)'
+    cur.execute(q,(now,op,ssid,summit,state,dist,))
     return state
 
 def lookup_summit(call,lat,lng):
@@ -254,7 +266,7 @@ def lookup_summit(call,lat,lng):
         if len(result) > 0:
             (code,dist,_,_,_,_,_) = result[0]
 
-            prev_state = get_activator_status(cur_message,op,code)
+            prev_state = get_activator_status(cur_message,op,ssidtype,code)
                 
             if dist <=100.0:
                 if prev_state == ONSUMMIT:
@@ -283,7 +295,7 @@ def lookup_summit(call,lat,lng):
                 else:
                     state = RCVD
 
-            set_activator_status(cur_message,now,op,code,state,dist)
+            set_activator_status(cur_message,now,op,ssidtype,code,state,dist)
             
             if state == ONSUMMIT or state == ONSUMMIT_SENT:
                 (code,dist,az,pt,alt,name,desc) = result[0]
@@ -327,7 +339,7 @@ def lookup_summit(call,lat,lng):
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and start < ? and end > ?'
         
         if (state % 10) != prev_state:
-            errlog = op + ':' + code + ':'+ continent + ':(' + str(prev_state) +'->'+ str(state) + '):' + str(dist) + 'm:' 
+            errlog = op +'-'+ ssidtype + ':' + code + ':'+ continent + ':(' + str(prev_state) +'->'+ str(state) + '):' + str(dist) + 'm:' 
             print >> sys.stderr, 'UPDATE:' + errlog
 
         try:
@@ -836,7 +848,7 @@ def update_alerts():
     q = 'create view if not exists oprts as select distinct operator,callsign, summit from alerts union select operator,callsign,summit from spots;'
     cur2.execute(q)
 
-    q = 'create table if not exists message_history(time int,operator text, summit text,state int,distance int,primary key(operator, summit))'
+    q = 'create table if not exists message_history(time int,operator text,ssid text, summit text,state int,distance int,primary key(operator,ssid,summit))'
     cur2.execute(q)
     q = 'delete from message_history where time < ?'
     cur2.execute(q,(keep_in_db_hist,))
@@ -1088,7 +1100,7 @@ def send_message_worker2(aprs, callfrom, header, messages,retry):
             if len(message)>67:
                 message = message[0:67]
             m = header + message + '{' + str(msgno)
-            print >>sys.stderr, 'APRS raw message(' + str(i)+ '):' + m.encode('utf_8')
+            print >>sys.stderr, 'APRS raw message(' + str(wait_timer) + ',' + str(i) + '):' + m.encode('utf_8')
             aprs.sendall(m)
             sleep(wait_timer)
             if ack_received(mlist):
@@ -1189,6 +1201,7 @@ def check_beacon_status():
             
     conn_beacon.close()
 
+    on_summit = list(set(on_summit))
     approach = list(set(approach))
     descend = list(set(descend))
     recv = list(set(recv))
