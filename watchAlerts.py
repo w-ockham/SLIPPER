@@ -601,7 +601,8 @@ def update_json_data():
     now = int(datetime.utcnow().strftime("%s"))
     alert_start = now + 3600 * KEYS['ALERT_FROM']
     alert_end= now  + 3600 * KEYS['ALERT_TO']
-
+    mid_hist = now - 3600 * KEYS['MID_HIST']
+    
     for (op,call,summit,assoc,conti,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
 
         if atime:
@@ -695,12 +696,16 @@ def update_json_data():
 
     dxl = []
     jal = []
+    dxml= []
     dxll= []
+
     latestSpot = { 'WW':[],'JA':[],'AS/OC':[],'EU/AF':[], 'NA/SA':[] }
 
     for (t,d) in js:
         if t < now:
             dxll.append(d)
+            if (t > mid_hist):
+                dxml.append(d)
         if t > alert_start:
             if re.search(KEYS['JASummits'],d['summit']):
                 jal.append(d)
@@ -729,6 +734,9 @@ def update_json_data():
         
     with open(output_json_jafile+'.json',"w") as f:
         json.dump(jal,f)
+
+    with open(output_json_file+'-mid-hist.json',"w") as f:
+        json.dump(dxml,f)
 
     with open(output_json_file+'-hist.json',"w") as f:
         json.dump(dxll,f)

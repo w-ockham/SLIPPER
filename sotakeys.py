@@ -42,6 +42,7 @@ KEYS= {
     'WINDOW_FROM':-5,
     'WINDOW_TO':6,
     'KEEP_IN_DB':42,
+    'MID_HIST':24,
     'MAGNIFY':10.0,
     'TEST_USER':[],
     'EXCLUDE_USER':[]

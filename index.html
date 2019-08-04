@@ -58,7 +58,8 @@ i.semantic-ui-custom {
     <label for="custom-select-time"><b>For last:</b>&nbsp</label>
     <select id="select-time" class="custom-select custom-select-sm" style="width:auto;">
     <option value="6">4H+Alerts</option>
-      <option value="48">48 hours</option>
+    <option value="24">24 hours</option>
+    <option value="48">48 hours</option>
     </select>
     </div>
     <div class="form-group">
@@ -89,18 +90,18 @@ i.semantic-ui-custom {
           </button>
         </div><!-- /modal-header -->
         <div class="modal-body">
-	  <h4> Send the following APRS messages to "JL1NIE-10" to obtain the SOTA activation information via APRS.</h4>
+	  <h4> Send the following APRS messages to "JL1NIE-10" to obtain the activation information via APRS.</h4>
 	  <table class="table table-condensed">
 	    <thead><tr><th>Command</th><th>Description</th></tr></thead>
 	    <tbody>
 	      <tr>
-		<td>ACT</td> <td> Activate your account. A welcome message will be sent when you approach to the SOTA summits.</td>
+		<td>ACT</td> <td> Activate your account. A welcome message will be sent when you approach the SOTA summits.</td>
 	      </tr>
 	      <tr>
 		<td>DEACT</td> <td> Deactivate your account.</td>
 	      </tr>
 	      <tr>
-		<td> DX </td> <td> Send the latest three SOTA spots. <br>You can also specify areas with the following commands: NA,EU,OC,AS,AF,SA and JA.</td>
+		<td> DX </td> <td> Send the latest three spots. <br>You can also specify areas with the following commands, NA,EU,OC,AS,AF,SA and JA.</td>
 	      </tr>
 	      <tr>
 		<td> BC </td> <td> Show activator's beacon status. <br>'On:' On the summit. 'APR:' Approaching.<br> 'DESC:' Descending. 'RECV:' Beacon received. </td>
@@ -109,8 +110,11 @@ i.semantic-ui-custom {
 		<td> RET=<i>num</i></td> <td> Set retry count for APRS message to <i>num</i>.<br> The default value is 3.</td>
 	      </tr>
 	      <tr>
-		<td> ST </i></td> <td> Show your status.<br> Ex. JL1NIE: Message=Active: Max.Retry=3: LatestSpot: 07/20 13:51 JA/OY-113</td>
-</tr>
+		<td> ST </td> <td> Show your status.<br> Ex. JL1NIE: Message=Active: Max.Retry=3: LatestSpot: 07/20 13:51 JA/OY-113</td>
+              </tr>
+	      <tr>
+		<td> HELP <i>or</i> &#x3f </td> <td> Show help message. </td>
+              </tr>
 </tbody>
 </table>      
         </div>
@@ -380,6 +384,12 @@ function update() {
 
     if (range=="48") {
 	postfix = '-hist.json';
+	clearInterval(update_timer)
+	countdown = 0;
+	sel_t.selectedIndex = 2;
+	update_timer = null;
+    } else if (range=="24") {
+	postfix = '-mid-hist.json';
 	clearInterval(update_timer)
 	countdown = 0;
 	sel_t.selectedIndex = 1;
