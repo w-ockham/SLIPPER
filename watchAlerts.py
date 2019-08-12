@@ -27,6 +27,10 @@ import pprint
 
 from sotakeys import *
 
+import sys, codecs
+sys.stderr = codecs.getwriter("utf-8")(sys.stderr)
+sys.stdout = codecs.getwriter("utf-8")(sys.stdout)
+
 debug = False
 #debug = True
 
@@ -205,6 +209,9 @@ def search_summit(code_dest,lat,lng):
                     az,bkw_az,dist = (0, 0, 99999)
                 target = (code,int(dist),int(az),pt,alt,name,desc)
 
+    if not target:
+        target = (code,999999,0,0,0,"Summit not recognized","")
+    
     result.sort(key=lambda x:x[1])
     if result:
         if foreign:
@@ -578,7 +585,7 @@ def readlast3(c):
             msg = msg +' '+ o['spot_time'][6:] +'-'+o['op']+'-'+o['spot_freq']
         msg = msg.strip(' ')
     else:
-        msg ="None"
+        msg ="No spots."
         
     return msg
 
@@ -959,7 +966,7 @@ def tweet_alerts():
         mesg = mesg + "An activation is currently scheduled on "
     else:
         mesg = str(num)+" activations are currently scheduled on "
-    mesg = mesg + today + " (Posted by SLIPPER 1.2)."
+    mesg = mesg + today + "."
     tweet(tweet_api,mesg)
     
     for (tm,_,_,_,call,summit,info,lat,lng,freq,comment,poster) in rows:
@@ -1108,8 +1115,8 @@ def send_message_worker2(aprs, callfrom, header, messages,retry):
             if len(message)>67:
                 message = message[0:67]
             m = header + message + '{' + str(msgno)
-            print >>sys.stderr, 'APRS raw message(' + str(wait_timer) + ',' + str(i) + '):' + m.encode('utf_8')
-            aprs.sendall(m)
+            print >>sys.stderr, 'APRS raw message(' + str(wait_timer) + ',' + str(i) + '):' + m
+            aprs.sendall(m.encode('utf-8'))
             sleep(wait_timer)
             if ack_received(mlist):
                 print >>sys.stderr, 'APRS recv_ack(' +str(wait_timer) +','+  str(msgno)+ ')'
@@ -1119,7 +1126,7 @@ def send_message_worker2(aprs, callfrom, header, messages,retry):
 
         discard_ack(mlist)
         if len(mlist) == retry:
-            print >>sys.stderr, "APRS: Can't send message:" + callfrom + ' ' + message.encode('utf_8') + '\n'
+            print >>sys.stderr, "APRS: Can't send message:" + callfrom + ' ' + message + '\n'
 
 def send_long_message_with_ack(aprs, callfrom, messages,retry = 3):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
