@@ -75,6 +75,36 @@ STATES = (
     DESC
     ) = range(-1,7)
 
+ERRLEVEL = (
+    E_NONE,
+    E_INFO,
+    E_WARN,
+    E_FATAL
+    ) = range(0,4)
+
+_sys_stat = {
+    }
+
+def sys_clearstat():
+    global _sys_stat
+    _sys_stat['ALERTS'] = 0
+    _sys_stat['SPOTS'] = 0
+    _sys_stat['TRACKS'] = 0
+    _sys_stat['PACKETS'] = 0
+
+def sys_updatestat(facility, val):
+    _sys_stat[facility] = val
+    with open("/var/tmp/sotalive-stat.json","w") as f:
+        json.dump(_sys_stat,f)
+
+def sys_updatestatall(alerts,spots,aprs,packets):
+    _sys_stat['ALERTS'] = alerts
+    _sys_stat['SPOTS'] = spots
+    _sys_stat['TRACKS'] = aprs
+    _sys_stat['PACKETS'] = packets
+    with open("/var/tmp/sotalive-stat.json","w") as f:
+        json.dump(_sys_stat,f)
+    
 def tweet(api, txt):
     if debug:
         print(txt)
@@ -88,7 +118,6 @@ def tweet(api, txt):
             print >>sys.stderr, 'txt = %s ' % txt
             return
 
-
 def tweet_with_media(api, fname, txt):
     if debug:
         print(txt)
@@ -101,7 +130,6 @@ def tweet_with_media(api, fname, txt):
             print >>sys.stderr, 'tweet error %s ' % e
             print >>sys.stderr, 'txt = %s ' % txt
 	    return
-
 
 def parse_callsign(call):
     call = call.upper().replace(" ","")
@@ -500,8 +528,10 @@ def parse_json_alerts(url,time_to):
         alerts = json.loads(res)
     except Exception as e:
         print >>sys.stderr, 'JSON GET ALERTS %s' % e
+        sys_updatestat('SOTAWATCH',E_FATAL)
         return []
 
+    sys_updatestat('SOTAWATCH',E_NONE)
     result = []
     
     for item in alerts:
@@ -591,7 +621,9 @@ def readlast3(c):
 
 def update_json_data():
     global latestSpot
-    
+
+    sys_clearstat()
+
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
     conn = sqlite3.connect(alert_db)
@@ -609,6 +641,11 @@ def update_json_data():
     alert_start = now + 3600 * KEYS['ALERT_FROM']
     alert_end= now  + 3600 * KEYS['ALERT_TO']
     mid_hist = now - 3600 * KEYS['MID_HIST']
+
+    alert_count = 0
+    spot_count = 0
+    aprs_count = 0
+    beacon_count = 0
     
     for (op,call,summit,assoc,conti,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
 
@@ -618,14 +655,16 @@ def update_json_data():
             at =""
             afreq = ""
             acomment = ""
-        
+            
         if stime:
             st = datetime.fromtimestamp(int(stime)).strftime("%m/%d %H:%M")
             delta = now - stime
             if delta <= 180:
                 scolor = 'red-blink'
+                spot_count += 1
             elif delta <= 1800:
                 scolor = 'red'
+                spot_count += 1
             elif delta <= 3600:
                 scolor = 'orange'
             elif delta <= 7200:
@@ -667,7 +706,7 @@ def update_json_data():
         for s in target_ssids:
             route['id'+s] = []
             smoothed['id'+s] = []
-            
+
         for (t,lat,lng,dist,state,aprs_summit) in cur_aprslog.fetchall():
             ssid = target_ssids[int(state)/10]
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
@@ -713,7 +752,15 @@ def update_json_data():
             dxll.append(d)
             if (t > mid_hist):
                 dxml.append(d)
+
         if t > alert_start:
+
+            alert_count += 1
+            l_1 =len(d['route']['id5']) + len(d['route']['id7'])
+            if l_1 > 0:
+                beacon_count += l_1
+                aprs_count += 1
+
             if re.search(KEYS['JASummits'],d['summit']):
                 jal.append(d)
                 dxl.append(d)
@@ -723,7 +770,7 @@ def update_json_data():
                     latestSpot['JA'].append(d)
                     latestSpot['AS/OC'].append(d)
                     latestSpot['WW'].append(d)
-            else: 
+            else:
                 dxl.append(d)
                 read_user_params(d['opid'],[('Active',False),('Retry',3)])
                 if t < now and d['spot_time'] != "" and d['continent']:
@@ -735,7 +782,9 @@ def update_json_data():
                         latestSpot['EU/AF'].append(d)
                     elif d['continent'] in ['NA','SA']:
                         latestSpot['NA/SA'].append(d)
-            
+                        
+    sys_updatestatall(alert_count, spot_count, aprs_count, beacon_count)        
+
     with open(output_json_file+'.json',"w") as f:
         json.dump(dxl,f)
         
@@ -762,14 +811,18 @@ def update_spots():
         res = readObj.read()
     except Exception as e:
         print >>sys.stderr, 'JSON GET SPOTS %s' % e
+        sys_updatestat('SOTAWATCH',E_FATAL)
         return []
 
     try:
         r = json.loads(res)
     except Exception as e:
         print >>sys.stderr, 'JSON SPOTS LOAD %s' % e
+        sys_updatestat('SOTAWATCH',E_WARN)
         return []
-
+    
+    sys_updatestat('SOTAWATCH',E_NONE)
+    
     conn2 = sqlite3.connect(alert_db)
     cur2 = conn2.cursor()
     r.reverse()
@@ -811,7 +864,7 @@ def update_spots():
     
 def update_alerts():
     global aprs_filter
-
+    
     try:
         conn = sqlite3.connect(alert_db)
     except Exception as err:

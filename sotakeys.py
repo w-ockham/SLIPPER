@@ -15,8 +15,7 @@ KEYS= {
     'VOAIMG':'/tmp/voaimg.png',
 
     'SOTA_URL':'http://www.sotawatch.org/alerts.php',
-    'SOTA_JSON_URL':'https://sota-api2.azurewebsites.net/api/alerts?',
-    'SOTAWATCH_JSON_URL':'https://sota-api2.azurewebsites.net',
+    'SOTAWATCH_JSON_URL':'https://sota-fd.azurefd.net',
     'OUTPUT_JSON_FILE':'/var/www/html/json/spots',
     'OUTPUT_JSON_JAFILE':'/var/www/html/json/spotsJA',
     'ASSOC_DB':'/home/ubuntu/pi/SOTAspotJA/summit_data/association.db',
