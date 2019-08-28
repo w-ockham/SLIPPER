@@ -4,7 +4,7 @@ from datetime import datetime
 import json
 import os
 
-if True or os.environ.get('MACKEREL_AGENT_PLUGIN_META','') == '1':
+if os.environ.get('MACKEREL_AGENT_PLUGIN_META','') == '1':
     print("# mackerel-agent-plugin")
     meta = {
         'graphs': {
