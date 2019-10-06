@@ -1303,7 +1303,7 @@ def check_user_status(callfrom):
         mesg = mesg +"LatestActivation: " + str(r['LastActAt']) + " " +  str(r['LastActOn']) + ": "  
     if r['LastSpotOn']:
         mesg = mesg + "LatestSpot: " + str(r['LastSpotAt']) + " " +  str(r['LastSpotOn']) + ": "  
-    return mesg
+    return unicode(mesg,'utf-8')
 
 def do_command(callfrom,mesg):
     print >>sys.stderr, 'SLIPPER Command: ' + callfrom + ':' + mesg 
