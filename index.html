@@ -190,6 +190,8 @@ if (area!="JA") {
     gsi.addTo(map);
     map.on('click', function(e) {
 	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+e.latlng.lat+'&lon='+e.latlng.lng,function(res) {
+	    if (res['errors'] != 'OK')
+		return;
 	    accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
 	    if (res['type'] == 'JCC') 
 		popup.setContent('JCC'+res['jcc']+ ' ' + res['pref'] + res['addr2'] + res['addr1'] + ' <br> 標高' + res['elevation'] + 'm '+ accu);
