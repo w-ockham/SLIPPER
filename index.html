@@ -21,11 +21,38 @@
 <title>SOTAwatch Live!</title>
 <style>
 .progress { height: 2px;}
-.jumbotron-extend {
-    position: relative;
-    height: 40vh;
-    min-height: 220px;
+
+@media screen and (max-width: 767px){
+#map {
+ margin-top:3px;
+ width: auto;
+ height: 45vh;
 }
+#qrvinfo {
+ width: auto;
+ height: 45vh;
+ overflow:auto;
+ border:1px solid #aaa;
+ margin-top: 3px;
+ -webkit-overflow-scrolling:touch;
+ }
+}
+@media screen and (min-width: 768px) {
+#map {
+ width: auto;
+ height: 90vh;
+ margin-top:3px;
+}
+#qrvinfo {
+ width: auto;
+ height: 90vh;
+ overflow:auto;
+ border:1px solid #aaa;
+ margin-top:3px;
+ -webkit-overflow-scrolling:touch;
+}
+}
+
 i.semantic-ui-custom {
   margin-top: 9px;
 }
@@ -39,92 +66,99 @@ i.semantic-ui-custom {
   animation: blink 1s linear infinite;
   -webkit-animation: blink 1s linear infinite;
 }
-
 </style>
 </head>
 <body>
-<div class="header clearfix">
-  <h4 class="text-muted">&nbsp SOTAwatch Live! &nbsp&nbsp <small><span id="clock_time"></span></small> </h4>
-</div>
-<div id="map" class="jumbotron jumbotron-extend" style="padding-bottom:15px;margin-bottom:13px">
-</div>
-<div id="qrvinfo" class="container bg-light" style="height:50vh;overflow:auto;border:1px solid #aaa;padding:5px;-webkit-overflow-scrolling:touch">	
-</div>
-
-<div id="select" class="container" style="padding-top:4px">
+  <nav class="navbar navbar-expand-md navbar-dark bg-dark text-light">
+    <a class="navbar-brand" href="#">SOTAwatch Live!</a>
+    <small><span id="clock_time"></span></small>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse text-light" id="navbarNav">
     <div class="form-inline align-items-center justify-content-center">
-    <div class="form-group">
-    <label for="custom-select-time"><b>For last:</b>&nbsp</label>
-    <select id="select-time" class="custom-select custom-select-sm" style="width:auto;">
-    <option value="6">4H+Alerts</option>
-    <option value="24">24 hours</option>
-    <option value="48">48 hours</option>
-    </select>
+	<div class="form-group">
+	  <label for="custom-select-time"><b>&nbsp&nbspLast:</b>&nbsp</label>
+	  <select id="select-time" class="custom-select custom-select-sm" style="width:auto;">
+	    <option value="6">4H+Alerts</option>
+	    <option value="24">24 hours</option>
+	    <option value="48">48 hours</option>
+	  </select>
+	</div>
+	<div class="form-group">
+	  <label for="custom-select-area"><b>Area:</b>&nbsp</label>
+	  <select id="select-area" class="custom-select custom-select-sm" style="width:auto;">
+	    <option value="WW">WW</option>
+	    <option value="JA">JA</option>
+	    <option value="AS">AS/OC</option>
+	    <option value="EU">EU/AF</option>
+	    <option value="NA">NA/SA</option>
+	  </select>
+	</div>
+	<div class="form-group">
+	  &nbsp<button type="button" class="btn-primary btn-sm ApplyButton" onClick="clickApplyButton">Apply</button>
+	  &nbsp&nbsp<button type="button" class="btn-secondary btn-sm InfoButton oi oi-info" data-toggle="modal" data-target="#modal-aprs"></button>
+	</div>
+      </div>
     </div>
-    <div class="form-group">
-    <label for="custom-select-area"><b>Area:</b>&nbsp</label>
-    <select id="select-area" class="custom-select custom-select-sm" style="width:auto;">
-    <option value="WW">WW</option>
-    <option value="JA">JA</option>
-    <option value="AS">AS/OC</option>
-    <option value="EU">EU/AF</option>
-    <option value="NA">NA/SA</option>
-    </select>
+  </nav>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-7">
+	<div id="map"></div>
+      </div>
+      <div class="col-md-5">
+	<div id="qrvinfo" class="bg-light">
+	</div>
+      </div>
     </div>
-    <div class="form-group">
-      &nbsp<button type="button" class="btn-primary btn-sm ApplyButton" onClick="clickApplyButton">Apply</button>
-      &nbsp&nbsp<button type="button" class="btn-secondary btn-sm InfoButton oi oi-info" data-toggle="modal" data-target="#modal-aprs"></button>
-    </div>
-    </div>
-</div>
-    <footer class="page-footer font-small text-center" style="padding-top:5px">
-    </footer>
-    <div class="modal" id="modal-aprs" tabindex="-1" role="dialog" aria-labelledby="staticModalLabel" aria-hidden="true" data-show="true" data-keyboard="false" data-backdrop="static">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title">SOTAwatch Live! APRS Commands</h4>
-          <button type="button" class="close" data-dismiss="modal">
-            <span aria-hidden="true">&#215;</span>
-          </button>
-        </div><!-- /modal-header -->
-        <div class="modal-body">
-	  <h4> Send the following APRS messages to "JL1NIE-10" to obtain the activation information via APRS.</h4>
-	  <table class="table table-condensed">
-	    <thead><tr><th>Command</th><th>Description</th></tr></thead>
-	    <tbody>
-	      <tr>
-		<td>ACT</td> <td> Activate your account. A welcome message will be sent when you approach the SOTA summits.</td>
-	      </tr>
-	      <tr>
-		<td>DEACT</td> <td> Deactivate your account.</td>
-	      </tr>
-	      <tr>
-		<td> DX </td> <td> Send the latest three spots. <br>You can also specify areas with the following commands, NA,EU,OC,AS,AF,SA and JA.</td>
-	      </tr>
-	      <tr>
-		<td> BC </td> <td> Show activator's beacon status. <br>'On:' On the summit. 'APR:' Approaching.<br> 'DESC:' Descending. 'RECV:' Beacon received. </td>
-	      </tr>
-	      <tr>
-		<td> LOC </td> <td> Locate your position. <br> <i>Nearest Summit(direction)</i><br> e.g. JA/NN-031:116m(78deg) </td>
-	      </tr>
-	      <tr>
-		<td> RET=<i>num</i></td> <td> Set retry count for APRS message to <i>num</i>.<br> The default value is 3.</td>
-	      </tr>
-	      <tr>
-		<td> ST </td> <td> Show your status.<br> e.g. JL1NIE: Message=Active: Max.Retry=3: LatestSpot: 07/20 13:51 JA/OY-113</td>
-              </tr>
-	      <tr>
-		<td> HELP <i>or</i> &#x3f </td> <td> Show help message. </td>
-              </tr>
-</tbody>
-</table>      
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        </div>
-      </div> <!-- /.modal-content -->
-    </div> <!-- /.modal-dialog -->
+  </div>
+  <div class="modal" id="modal-aprs" tabindex="-1" role="dialog" aria-labelledby="staticModalLabel" aria-hidden="true" data-show="true" data-keyboard="false" data-backdrop="static">
+	<div class="modal-dialog">
+	  <div class="modal-content">
+            <div class="modal-header">
+              <h4 class="modal-title">SOTAwatch Live! APRS Commands</h4>
+              <button type="button" class="close" data-dismiss="modal">
+		<span aria-hidden="true">&#215;</span>
+              </button>
+            </div><!-- /modal-header -->
+            <div class="modal-body">
+	      <h4> Send the following APRS messages to "JL1NIE-10" to obtain the activation information via APRS.</h4>
+	      <table class="table table-condensed">
+		<thead><tr><th>Command</th><th>Description</th></tr></thead>
+		<tbody>
+		  <tr>
+		    <td>ACT</td> <td> Activate your account. A welcome message will be sent when you approach the SOTA summits.</td>
+		  </tr>
+		  <tr>
+		    <td>DEACT</td> <td> Deactivate your account.</td>
+		  </tr>
+		  <tr>
+		    <td> DX </td> <td> Send the latest three spots. <br>You can also specify areas with the following commands, NA,EU,OC,AS,AF,SA and JA.</td>
+		  </tr>
+		  <tr>
+		    <td> BC </td> <td> Show activator's beacon status. <br>'On:' On the summit. 'APR:' Approaching.<br> 'DESC:' Descending. 'RECV:' Beacon received. </td>
+		  </tr>
+		  <tr>
+		    <td> LOC </td> <td> Locate your position. <br> <i>Nearest Summit(direction)</i><br> e.g. JA/NN-031:116m(78deg) </td>
+		  </tr>
+		  <tr>
+		    <td> RET=<i>num</i></td> <td> Set retry count for APRS message to <i>num</i>.<br> The default value is 3.</td>
+		  </tr>
+		  <tr>
+		    <td> ST </td> <td> Show your status.<br> e.g. JL1NIE: Message=Active: Max.Retry=3: LatestSpot: 07/20 13:51 JA/OY-113</td>
+		  </tr>
+		  <tr>
+		    <td> HELP <i>or</i> &#x3f </td> <td> Show help message. </td>
+		  </tr>
+		</tbody>
+	      </table>      
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+	  </div> <!-- /.modal-content -->
+	</div> <!-- /.modal-dialog -->
   </div> <!-- /.modal -->
 </body>
 <!-- Optional JavaScript -->
@@ -156,6 +190,7 @@ crossorigin="anonymous">
 $(function () {
   $('[data-toggle="tooltip"]').tooltip()
 })
+
 function getParam(name, url) {
     if (!url) url = window.location.href;
     name = name.replace(/[\[\]]/g, "\\$&");
@@ -166,42 +201,40 @@ function getParam(name, url) {
     return decodeURIComponent(results[2].replace(/\+/g, " "));
 }
 
-var map = L.map('map');
-var area = getParam('area')
-if (area == null &&  $.cookie('area') != "")
-	area = $.cookie('area');
+var osm = L.tileLayer('https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=767750c193e54ceeb3aee08d880bdb90',{
+    attribution: "<a href='https://www.thunderforest.com/'>Thunderforest</a>"});
+var gsi = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+    attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+});
+
+var map = L.map('map',{
+    layers: [ gsi ]
+});
 
 L.control.scale().addTo(map);
-
-if (area!="JA") {
-    var osm = L.tileLayer('https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=767750c193e54ceeb3aee08d880bdb90',{
-    attribution: "<a href='https://www.thunderforest.com/'>Thunderforest</a>"});
-//    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-//    attribution: "<a href='https://osm.org/copyright'>OpenStreetMap</a> contributors",maxZoom:19});
- 
-    osm.addTo(map);
-}else {
-
-    var gsi = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-	attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
-    }),
-	popup = L.popup();
-
-    gsi.addTo(map);
-    map.on('click', function(e) {
-	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+e.latlng.lat+'&lon='+e.latlng.lng,function(res) {
-	    if (res['errors'] != 'OK')
-		return;
-	    accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
-	    if (res['type'] == 'JCC') 
-		popup.setContent('JCC'+res['jcc']+ ' ' + res['pref'] + res['addr2'] + res['addr1'] + ' <br> 標高' + res['elevation'] + 'm '+ accu);
-	    else
-		popup.setContent('JCG'+res['jcg']+ ' ' + res['pref'] + res['addr2'] + res['addr1']+ ' <br> 標高:' + res['elevation'] + 'm ' + accu);
-	});
-	popup.setLatLng(e.latlng).openOn(this);
+var popup = L.popup();
+map.on('click', function(e) {
+    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+e.latlng.lat+'&lon='+e.latlng.lng,function(res) {
+	if (res['errors'] != 'OK') {
+	    popup.setContent('Undefined')
+	    return;
+	}
+	accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
+	if (res['type'] == 'JCC') 
+	    popup.setContent('JCC'+res['jcc']+ ' ' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL: ' + res['maidenhead'] + '<br> 標高' + res['elevation'] + 'm '+ accu);
+	else
+	    popup.setContent('JCG'+res['jcg']+ ' ' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL: ' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm ' + accu);
     });
-    
-}
+    popup.setLatLng(e.latlng).openOn(this);
+});
+
+lg = null;
+first_draw = true;
+update_timer = null;
+countdown = 0;
+update();
+clock();
+setInterval(clock,1000);
 
 function drawPoly(lg,data,ssid,cl,route) {
     po = [];
@@ -274,13 +307,6 @@ function drawObj(lg,data) {
     if (data.route.id8.length >0)
 	drawPoly(lg,data,1,"blue",data.route.id8)
 
-
-//    if (data.route[0].length >0)
-//	drawPoly(lg,data,0,"red",data.smoothed[0])
-//    if (data.route[1].length >0)
-//	drawPoly(lg,data,1,"red",data.smoothed[1])
-    
-    
     if (data.spot_time != "") {
 	if (data.spot_color == "red-blink" || data.spot_color == "red")
 	    interval = 1
@@ -307,7 +333,7 @@ function clickApplyButton(){
     const area = document.getElementById("select-area").value;
     $.cookie('area',area);
     $.cookie('range',time_range);
-    window.location.href = 'https://www.sotalive.tk/'
+    update();  
 };
 $('.ApplyButton').on('click',function() { clickApplyButton();});
 
@@ -399,6 +425,20 @@ function update() {
     sel_t = document.getElementById("select-time");
     sel_a = document.getElementById("select-area");
 
+    if (area == "JA") {
+	if(map.hasLayer(osm)) {
+	    map.removeLayer(osm);
+	    map.addLayer(gsi);
+	    first_draw = true;
+	}
+    }
+    else {
+	if(map.hasLayer(gsi)) {
+	    map.removeLayer(gsi);
+	    map.addLayer(osm);
+	    first_draw = true;
+	}
+    }
     if (range=="48") {
 	postfix = '-hist.json';
 	clearInterval(update_timer)
@@ -551,13 +591,6 @@ function update() {
 
     });
 };
-lg = null;
-first_draw = true;
-update_timer = null;
-countdown = 0;
-update();
-clock();
-setInterval(clock,1000);
 </script>
 </body>
 </html>
