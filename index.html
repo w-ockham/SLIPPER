@@ -70,7 +70,7 @@ i.semantic-ui-custom {
 </head>
 <body>
   <nav class="navbar navbar-expand-md navbar-dark bg-dark text-light">
-    <a class="navbar-brand" href="#">SOTAwatch Live!</a>
+    <a class="navbar-brand" href="#"><h4>SOTAwatch Live!</h4></a>
     <small><span id="clock_time"></span></small>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
@@ -413,14 +413,17 @@ function clock() {
 function update() {
     $('#qrvinfo').html('');
 
-    area = getParam('area')
-    range = getParam('range')
+    area = $.cookie('area')
+    range = $.cookie('range')
     
-    if (area == null &&  $.cookie('area') != "")
-	area = $.cookie('area');
+    if (area == null )
+	area = "WW";
 	
-    if (range == null && $.cookie('range') != "") 
-	range = $.cookie('range');
+    if (range == null) 
+	range = "6";
+
+    $.cookie('area', area, { expires:14 });
+    $.cookie('range', range, { expires:14 });
 
     sel_t = document.getElementById("select-time");
     sel_a = document.getElementById("select-area");
@@ -464,8 +467,6 @@ function update() {
     else
 	fname = 'spots' + postfix
     
-    $.cookie('area', area);
-    $.cookie('range', range);
 
     if (area == "WW")
 	sel_a.selectedIndex = 0;
