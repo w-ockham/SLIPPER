@@ -24,33 +24,41 @@
 
 @media screen and (max-width: 767px){
 #map {
- margin-top:3px;
  width: auto;
- height: 45vh;
+ height: calc(50vh - 30px);
+ border:1px solid #aaa;
 }
 #qrvinfo {
  width: auto;
- height: 45vh;
+ height: calc(50vh - 30px);
  overflow:auto;
  border:1px solid #aaa;
- margin-top: 3px;
  -webkit-overflow-scrolling:touch;
  }
 }
 @media screen and (min-width: 768px) {
 #map {
  width: auto;
- height: 90vh;
- margin-top:3px;
-}
+ height:calc(100vh - 56px);
+ border:1px solid #aaa;
+ }
 #qrvinfo {
  width: auto;
- height: 90vh;
+ height: calc(100vh - 56px);
  overflow:auto;
  border:1px solid #aaa;
- margin-top:3px;
  -webkit-overflow-scrolling:touch;
+ }
 }
+
+.navbar-dark .navbar-toggler {
+border-color: rgba(0,0,0,0);
+}
+.navbar-toggler-icon {
+font-size: 0.8em;
+}
+.collapse.in {
+ height: auto;
 }
 
 i.semantic-ui-custom {
@@ -76,9 +84,9 @@ i.semantic-ui-custom {
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse text-light" id="navbarNav">
-    <div class="form-inline align-items-center justify-content-center">
+      <div class="form-inline">
 	<div class="form-group">
-	  <label for="custom-select-time"><b>&nbsp&nbspLast:</b>&nbsp</label>
+	  <label for="custom-select-time">&nbsp&nbsp&nbsp&nbsp<b>Last:</b>&nbsp</label>
 	  <select id="select-time" class="custom-select custom-select-sm" style="width:auto;">
 	    <option value="6">4H+Alerts</option>
 	    <option value="24">24 hours</option>
@@ -86,7 +94,7 @@ i.semantic-ui-custom {
 	  </select>
 	</div>
 	<div class="form-group">
-	  <label for="custom-select-area"><b>Area:</b>&nbsp</label>
+	  <label for="custom-select-area">&nbsp<b>Area:</b>&nbsp</label>
 	  <select id="select-area" class="custom-select custom-select-sm" style="width:auto;">
 	    <option value="WW">WW</option>
 	    <option value="JA">JA</option>
@@ -96,7 +104,7 @@ i.semantic-ui-custom {
 	  </select>
 	</div>
 	<div class="form-group">
-	  &nbsp<button type="button" class="btn-primary btn-sm ApplyButton" onClick="clickApplyButton">Apply</button>
+	  &nbsp&nbsp<button type="button" class="btn-secondary btn-sm ApplyButton oi oi-check" onClick="clickApplyButton"></button>
 	  &nbsp&nbsp<button type="button" class="btn-secondary btn-sm InfoButton oi oi-info" data-toggle="modal" data-target="#modal-aprs"></button>
 	</div>
       </div>
@@ -104,10 +112,10 @@ i.semantic-ui-custom {
   </nav>
   <div class="container-fluid">
     <div class="row">
-      <div class="col-md-7">
+      <div class="col-md-7 p-1">
 	<div id="map"></div>
       </div>
-      <div class="col-md-5">
+      <div class="col-md-5 p-1">
 	<div id="qrvinfo" class="bg-light">
 	</div>
       </div>
@@ -190,16 +198,6 @@ crossorigin="anonymous">
 $(function () {
   $('[data-toggle="tooltip"]').tooltip()
 })
-
-function getParam(name, url) {
-    if (!url) url = window.location.href;
-    name = name.replace(/[\[\]]/g, "\\$&");
-    var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-        results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, " "));
-}
 
 var osm = L.tileLayer('https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=767750c193e54ceeb3aee08d880bdb90',{
     attribution: "<a href='https://www.thunderforest.com/'>Thunderforest</a>"});
@@ -400,9 +398,10 @@ function clock() {
     var now = new Date();
     var utc = now.toUTCString();
     tm  = utc.replace(/:\d{2} GMT/,' UTC');
+    tm  = tm.replace(/\d{4}/,'');
     if (countdown != 0) {
 	pgrs = Math.floor(countdown/60*100);
-	if ((pgrs % 5) == 0) pbar = '<div class="progress"><div class="progress-bar progress-bar-striped" role="progressbar" style="width: '+pgrs+'%" aria-valuemin="0" aria-valuemax="100"></div></div>'
+	if ((pgrs % 5) == 0) pbar = '<div class="progress"><div class="progress-bar progress-bar" role="progressbar" style="width: '+pgrs+'%" aria-valuemin="0" aria-valuemax="100"></div></div>'
 	now = tm + pbar;  
 	countdown -=1;
     } else
