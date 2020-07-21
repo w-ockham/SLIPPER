@@ -50,6 +50,16 @@
  -webkit-overflow-scrolling:touch;
  }
 }
+.modal-header {
+    padding-top: 3px;
+    height: 20px;
+    padding-bottom: 3px;
+}
+.modal-body > .img-responsive {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
 
 .navbar-dark .navbar-toggler {
 border-color: rgba(0,0,0,0);
@@ -78,8 +88,8 @@ i.semantic-ui-custom {
 </head>
 <body>
   <nav class="navbar navbar-expand-md navbar-dark bg-dark text-light">
-    <a class="navbar-brand" href="#"><h4>SOTAwatch Live!</h4></a>
-    <small><span id="clock_time"></span></small>
+    <span class="navbar-brand" style="cursor: hand;cursor: pointer;" data-toggle="modal" data-target="#modal-mackerel"><h4>SOTAwatch Live!</h4></span>
+    <small><span id="clock_time" style="cursor: default;" ></span></small>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -121,6 +131,22 @@ i.semantic-ui-custom {
       </div>
     </div>
   </div>
+  <div class="modal" id="modal-mackerel" tabindex="-1" role="dialog" aria-labelledby="staticModalLabel" aria-hidden="true" data-show="true" data-keyboard="false" data-backdrop="static">
+    <div class="modal-dialog">
+      <div class="modal-content text-light bg-dark">
+        <div class="modal-header">
+          <h6>SOTA Activities</h6>
+          <button type="button" class="close" data-dismiss="modal">
+	    <h6><span aria-hidden="true">&#215;</span></h6>
+          </button>
+        </div><!-- /modal-header -->
+	<div class="modal-body">
+	  <iframe class="img-responsive" src="https://mackerel.io/embed/public/embed/yKtkCzMbywMqm4RnbfAxsfpgCz6U0aiZvqQCUrrF0jwNDR6A1nAyjG9lqTVSWcqK?period=1d" height="200" width="350" frameborder="0"></iframe>
+	</div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="modal-aprs" tabindex="-1" role="dialog" aria-labelledby="staticModalLabel" aria-hidden="true" data-show="true" data-keyboard="false" data-backdrop="static">
 	<div class="modal-dialog">
 	  <div class="modal-content">
@@ -213,8 +239,12 @@ L.control.scale().addTo(map);
 var popup = L.popup();
 map.on('click', function(e) {
     $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+e.latlng.lat+'&lon='+e.latlng.lng,function(res) {
+	if (res['errors'] == 'OUTSIDE_JA') {
+	    popup.setContent('GL: '+res['maidenhead']);
+	    return;
+        }
 	if (res['errors'] != 'OK') {
-	    popup.setContent('Undefined')
+ 	    popup.setContent('Parameter out of range.');
 	    return;
 	}
 	accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'

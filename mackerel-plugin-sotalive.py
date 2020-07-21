@@ -13,24 +13,24 @@ if os.environ.get('MACKEREL_AGENT_PLUGIN_META','') == '1':
                 'Unit' : 'integer',
                 'Metrics': [
                     {
-                        'Name':'sotawatch',
+                        'Name':'SOTAwatch3 Status',
                         'Label':'SOTAwatch3 Status'
                     },
                     {
-                        'Name':'alerts',
+                        'Name':'Alerts',
                         'Label':'Alerts'
                     },
                     {
-                        'Name':'spots',
+                        'Name':'Spots',
                         'Label':'Sposts'
                     },
                     {
-                        'Name':'aprs',
-                        'Label':'Beacon available'
+                        'Name':'APRS Stations',
+                        'Label':'APRS Stations'
                     },
                     {
-                        'Name':'beacon',
-                        'Label':'APRS packets'
+                        'Name':'APRS Packets',
+                        'Label':'APRS Packets'
                     }
                 ]
             }
@@ -42,9 +42,9 @@ else:
     with open("/var/tmp/sotalive-stat.json","r") as f:
         jd = json.load(f)
         now = datetime.utcnow().strftime("%s")
-        print("sotawatchlive.sotawatch\t{}\t{}".format(jd.get('SOTAWATCH',2),now))
-        print("sotawatchlive.alerts\t{}\t{}".format(jd.get('ALERTS',0),now))
-        print("sotawatchlive.spots\t{}\t{}".format(jd.get('SPOTS',0),now))
-        print("sotawatchlive.aprs\t{}\t{}".format(jd.get('TRACKS',0),now))
-        print("sotawatchlive.beacon\t{}\t{}".format(jd.get('PACKETS',0),now))
+        print("sotawatchlive.SOTAwatch3_Status\t{}\t{}".format(jd.get('SOTAWATCH',2),now))
+        print("sotawatchlive.Alerts\t{}\t{}".format(jd.get('ALERTS',0),now))
+        print("sotawatchlive.Spots\t{}\t{}".format(jd.get('SPOTS',0),now))
+        print("sotawatchlive.APRS_Stations\t{}\t{}".format(jd.get('TRACKS',0),now))
+        print("sotawatchlive.APRS_packets\t{}\t{}".format(jd.get('PACKETS',0),now))
 
