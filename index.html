@@ -15,7 +15,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" />
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+
+<!------------------------------------------------------------------>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+<!-- Google Fonts -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
+<!-- Bootstrap core CSS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+<!-- Material Design Bootstrap -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css" rel="stylesheet">
+<!------------------------------------------------------------------>
 <link rel="shortcut icon" href="favicon.ico">
 <link href="font/css/open-iconic-bootstrap.css" rel="stylesheet">
 <title>SOTAwatch Live!</title>
@@ -84,6 +94,10 @@ i.semantic-ui-custom {
   animation: blink 1s linear infinite;
   -webkit-animation: blink 1s linear infinite;
 }
+
+.btn {
+ margin: 0.1rem !important ; padding: 0.4rem 0.5rem !important;
+}
 </style>
 </head>
 <body>
@@ -114,8 +128,8 @@ i.semantic-ui-custom {
 	  </select>
 	</div>
 	<div class="form-group">
-	  &nbsp&nbsp<button type="button" class="btn-secondary btn-sm ApplyButton oi oi-check" onClick="clickApplyButton"></button>
-	  &nbsp&nbsp<button type="button" class="btn-secondary btn-sm InfoButton oi oi-info" data-toggle="modal" data-target="#modal-aprs"></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton oi oi-check" onClick="clickApplyButton"></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton oi oi-info" data-toggle="modal" data-target="#modal-aprs"></button>
 	</div>
       </div>
     </div>
@@ -126,7 +140,7 @@ i.semantic-ui-custom {
 	<div id="map"></div>
       </div>
       <div class="col-md-5 p-1">
-	<div id="qrvinfo" class="bg-light">
+	<div id="qrvinfo">
 	</div>
       </div>
     </div>
@@ -198,13 +212,16 @@ i.semantic-ui-custom {
 <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
     <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
-    <script
-src="https://code.jquery.com/jquery-3.4.0.min.js"
-integrity="sha256-BJeo0qm959uMBGb65z40ejJYGSgR7REI4+CW1fNKwOg="
-crossorigin="anonymous">
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+<!---------------------------------------------------------------------->
+<!-- JQuery -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<!-- Bootstrap tooltips -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+<!-- Bootstrap core JavaScript -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.min.js"></script>
+<!-- MDB core JavaScript -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/js/mdb.min.js"></script>
+<!------------------------------------------------------------------------>
 <!-- plugin -->
     <link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
     <script src="js/leaflet.extra-markers.min.js"></script>
@@ -543,13 +560,13 @@ function update() {
 		else if (qrvdata[i].spot_color == "normal")
 		    color = 'text-primary'
 		else
-		    color = 'text-secondary'
+		    color = 'text-muted'
 		
     		spotstr ='<br><div class="'+
-		    color+' oi oi-rss">&nbsp'+
+		    color+' oi oi-wifi mt-2">&nbsp'+
 		    qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq + ' '+
 		    qrvdata[i].spot_mode + 
-		    '</strong></div>' +
+		    '</div>' +
 		    '<div class="text-muted ml-4">'+
 		    qrvdata[i].spot_comment + '</div>';
 	    }
@@ -557,7 +574,7 @@ function update() {
 		spotstr = '';
 
 	    if (qrvdata[i].route.id7.length > 0||qrvdata[i].route.id5.length > 0 ||qrvdata[i].route.id9.length > 0||qrvdata[i].route.id6.length > 0||qrvdata[i].route.id8.length > 0 ) 
-    		badge = '&nbsp<button id="abt_' +i + '" type="button" class="btn-warning btn-sm oi oi-map-marker"></button>'
+    		badge = '&nbsp<button id="abt_' +i + '" type="button" class="btn btn-raised btn-amber oi oi-map-marker"></button>'
 	    else
     		badge = '';
 	    
@@ -568,7 +585,7 @@ function update() {
 		qrvdata[i].association;
 	    if (qrvdata[i].alert_time!=""){
 		body = body +
-		    '<br><div class="text-muted oi oi-calendar">&nbsp'+
+		    '<br><div class="text-muted oi oi-calendar mt-1">&nbsp'+
 		    qrvdata[i].alert_time + ' ' +
 		    qrvdata[i].alert_freq  + ' '+
 		    qrvdata[i].alert_comment + '</div>'+
@@ -578,7 +595,7 @@ function update() {
 		body = body + spotstr + '</div>';
 	    }
 	    
-	    button = '<div class="align-self-center ">'+badge +'&nbsp <button id="sbt_' + i + '" type="button" class="btn-info btn-sm">'+qrvdata[i].summit + '</button></div>';
+	    button = '<div class="align-self-center ">'+badge +'&nbsp <button id="sbt_' + i + '" type="button" class="btn btn-raised btn-primary">'+qrvdata[i].summit + '</button></div>';
 	    if (current == "before" && qrvdata[i].spot_type=="after") {
 		current = "after";
 		idstr = 'id="current_data"';
@@ -590,7 +607,13 @@ function update() {
 	    } else {
 		idstr = '';
 	    }
-   	    $('#qrvinfo').append('<div class="media" '+idstr+'>' + body + button + '</div><hr/>');
+
+	    if ( i % 2 == 0)
+		bgcolor = ""
+	    else
+		bgcolor = " bg-light"
+
+   	    $('#qrvinfo').append('<div class="media"'+idstr+'>' + body + button + '</div><hr/>');
 	    
    	    var elm = document.getElementById("sbt_"+i);
    	    elm.addEventListener("click",clickSummitButton,false);
