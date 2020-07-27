@@ -128,8 +128,8 @@ i.semantic-ui-custom {
 	  </select>
 	</div>
 	<div class="form-group">
-	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton oi oi-check" onClick="clickApplyButton"></button>
-	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton oi oi-info" data-toggle="modal" data-target="#modal-aprs"></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton" onClick="clickApplyButton"><i class="fas fa-check"></i></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
 	</div>
       </div>
     </div>
@@ -562,8 +562,8 @@ function update() {
 		else
 		    color = 'text-muted'
 		
-    		spotstr ='<br><div class="'+
-		    color+' oi oi-wifi mt-2">&nbsp'+
+    		spotstr ='<div class="'+
+		    color+'">'+'<i class="fas fa-wifi"></i>&nbsp'+
 		    qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq + ' '+
 		    qrvdata[i].spot_mode + 
 		    '</div>' +
@@ -574,18 +574,18 @@ function update() {
 		spotstr = '';
 
 	    if (qrvdata[i].route.id7.length > 0||qrvdata[i].route.id5.length > 0 ||qrvdata[i].route.id9.length > 0||qrvdata[i].route.id6.length > 0||qrvdata[i].route.id8.length > 0 ) 
-    		badge = '&nbsp<button id="abt_' +i + '" type="button" class="btn btn-raised btn-amber oi oi-map-marker"></button>'
+    		badge = '&nbsp<button id="abt_' +i + '" type="button" class="btn btn-raised btn-amber"><i class="fas fa-map-marker-alt"></i></button>'
 	    else
     		badge = '';
 	    
 	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' +
-		qrvdata[i].op +'</h5>'+'<span class="oi oi-map"></span>&nbsp'+
+		qrvdata[i].op +'</h5>'+'<i class="fas fa-map-marked-alt"></i>&nbsp'+
     		'<a href="https://maps.google.co.jp/maps?t=p&ll='+ qrvdata[i].summit_latlng[0]+','+qrvdata[i].summit_latlng[1]+'&z=15" target=" blank">'+
 		qrvdata[i].summit +' '+ qrvdata[i].summit_info + '</a>, '+
 		qrvdata[i].association;
 	    if (qrvdata[i].alert_time!=""){
 		body = body +
-		    '<br><div class="text-muted oi oi-calendar mt-1">&nbsp'+
+		    '<br><div class="text-muted mt-1"><i class="far fa-calendar-alt"></i>&nbsp'+
 		    qrvdata[i].alert_time + ' ' +
 		    qrvdata[i].alert_freq  + ' '+
 		    qrvdata[i].alert_comment + '</div>'+
