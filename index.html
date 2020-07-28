@@ -296,7 +296,7 @@ function drawPoly(lg,data,ssid,cl,route) {
 	L.polyline(po,{color: cl, wight:6}).addTo(lg);
 
     for (var i = 0, len = po.length; i < len; ++i)
-	L.circleMarker(po[i],{color:"red", radius:4}).addTo(lg);
+	L.circleMarker(po[i],{color:"#ff4444", radius:2}).addTo(lg);
 
     if (po.length > 0 ) {
 	if (ssid == 0) {
@@ -342,15 +342,15 @@ function drawObj(lg,data) {
     marker.addTo(lg);
 
     if (data.route.id7.length >0)
-	drawPoly(lg,data,0,"blue",data.route.id7)
+	drawPoly(lg,data,0,"#0d47a1",data.route.id7)
     if (data.route.id5.length >0)
-	drawPoly(lg,data,0,"blue",data.route.id5)
+	drawPoly(lg,data,0,"#0d47a1",data.route.id5)
     if (data.route.id6.length >0)
-	drawPoly(lg,data,0,"blue",data.route.id6)
+	drawPoly(lg,data,0,"#0d47a1",data.route.id6)
     if (data.route.id9.length >0)
-	drawPoly(lg,data,1,"blue",data.route.id9)
+	drawPoly(lg,data,1,"#0d47a1",data.route.id9)
     if (data.route.id8.length >0)
-	drawPoly(lg,data,1,"blue",data.route.id8)
+	drawPoly(lg,data,1,"#0d47a1",data.route.id8)
 
     if (data.spot_time != "") {
 	if (data.spot_color == "red-blink" || data.spot_color == "red")
@@ -363,9 +363,9 @@ function drawObj(lg,data) {
 
 	var pulsingIcon;
 	if (interval >0) 
-	    pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'red',heartbeat:interval})
+	    pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'#ff4444',heartbeat:interval})
 	else
-	    pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'red',animate:false});
+	    pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'#ff4444',animate:false});
 	var marker = L.marker(data.summit_latlng,{icon: pulsingIcon});
 	marker.bindPopup(data.summit + '<br>'
 			 + data.spot_time + ' ' + data.op + ' ' + data.spot_freq + ' ' + data.spot_mode + '<br>' + data.spot_comment).openPopup();
