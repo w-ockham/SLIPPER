@@ -383,10 +383,9 @@ function clickApplyButton(){
 $('.ApplyButton').on('click',function() { clickApplyButton();});
 
 function clickSummitButton(event) {
-    var p = event.target.eventParam;
-    qrvdata = p.data;
+    qrvdata = this.data;
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
-	if (p.op == qrvdata[i].op && p.summit == qrvdata[i].summit) {
+	if (this.op == qrvdata[i].op && this.summit == qrvdata[i].summit) {
 	    if (qrvdata[i].summit_latlng[0]!=0 && qrvdata[i].summit_latlng[1]!=0)
 		map.setView(qrvdata[i].summit_latlng,15);
 	    break;
@@ -395,10 +394,9 @@ function clickSummitButton(event) {
 };
 
 function clickAPRSButton (event) {
-    var p = event.target.eventParam;
-    qrvdata = p.data;
+    qrvdata = this.data;
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
-	if (p.op == qrvdata[i].op && p.summit == qrvdata[i].summit) {
+	if (this.op == qrvdata[i].op && this.summit == qrvdata[i].summit) {
 	    var r
 	    if (qrvdata[i].route.id7.length > 0) 
 		r = qrvdata[i].route.id7
@@ -616,12 +614,10 @@ function update() {
    	    $('#qrvinfo').append('<div class="media"'+idstr+'>' + body + button + '</div><hr/>');
 	    
    	    var elm = document.getElementById("sbt_"+i);
-   	    elm.addEventListener("click",clickSummitButton,false);
-	    elm.eventParam = { data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit };
+   	    elm.addEventListener("click",{ handleEvent:clickSummitButton, data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit }, false);
 	    if (qrvdata[i].route.id7.length > 0||qrvdata[i].route.id5.length > 0 ||qrvdata[i].route.id9.length > 0||qrvdata[i].route.id6.length > 0||qrvdata[i].route.id8.length > 0){ 
    	    var elm = document.getElementById("abt_"+i);
-   		elm.addEventListener("click",clickAPRSButton,false);
-		elm.eventParam = { data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit };
+   		elm.addEventListener("click",{ handleEvent: clickAPRSButton, data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit }, false);
 	    };
 	};
 	if (first_draw && qdata.length > 0) {
