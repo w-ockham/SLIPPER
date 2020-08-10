@@ -35,6 +35,7 @@ debug = False
 #debug = True
 
 sotawatch_url = KEYS['SOTA_URL']
+sotalive_url = KEYS['SOTALIVE_URL']
 sotawatch_json_url = KEYS['SOTAWATCH_JSON_URL']
 output_json_file = KEYS['OUTPUT_JSON_FILE']
 output_json_jafile = KEYS['OUTPUT_JSON_JAFILE']
@@ -54,6 +55,7 @@ update_alerts_every = KEYS['UPDATE_ALERTS_EVERY']
 update_spots_every = KEYS['UPDATE_SPOTS_EVERY']
 latestSpot = {}
 tweet_api = None
+tweet_api_debug = None
 target_ssids = ['7','9','5','6','8']
 aprs_filter = ""
 aprs_beacon = None
@@ -109,8 +111,8 @@ def tweet(api, txt):
     if debug:
         print(txt)
     else:
-        if len(txt) > 140:
-            txt = txt[0:140]
+        if len(txt) > 255:
+            txt = txt[0:255]
         try:
             api.update_status(status=txt)
         except Exception as e:
@@ -632,10 +634,9 @@ def update_json_data():
     q = "attach database '" + association_db + "' as assoc"
     cur.execute(q);
 
-    q = 'select O.operator,O.callsign,O.summit,C.association,C.continent,A.operator,A.time,A.summit_info,A.lat_dest,A.lng_dest,A.alert_freq,A.alert_comment,B.lat,B.lng,B.dist,S.time,S.callsign,S.summit,S.summit_info,S.lat,S.lng,S.spot_freq,S.spot_mode,S.spot_comment,S.spot_color,S.poster from oprts as O  left outer join assoc.associations as C on (O.summit=C.code) left outer join alerts as A on (O.callsign=A.callsign and O.summit=A.summit) left outer join spots as S on (O.callsign=S.callsign and O.summit = S.summit) left outer join beacons AS B on (O.operator=B.operator and O.summit = B.summit)'
+    q = 'select distinct O.operator,O.callsign,O.summit,C.association,C.continent,A.time,A.summit_info,A.lat_dest,A.lng_dest,A.alert_freq,A.alert_comment,B.lat,B.lng,B.dist,S.time,S.summit,S.summit_info,S.lat,S.lng,S.spot_freq,S.spot_mode,S.spot_comment,S.spot_color,S.poster from oprts as O  left outer join assoc.associations as C on (O.summit=C.code) left outer join alerts as A on (O.operator=A.operator and O.summit=A.summit) left outer join spots as S on (O.operator=S.operator and O.summit = S.summit) left outer join beacons AS B on (O.operator=B.operator and O.summit = B.summit)'
     cur.execute(q);
     rows = cur.fetchall()
-    j = []
 
     now = int(datetime.utcnow().strftime("%s"))
     alert_start = now + 3600 * KEYS['ALERT_FROM']
@@ -646,8 +647,9 @@ def update_json_data():
     spot_count = 0
     aprs_count = 0
     beacon_count = 0
-    
-    for (op,call,summit,assoc,conti,aop,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,scall,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
+    entry_db = {}
+
+    for (op,call,summit,assoc,conti,atime,ainfo,alatdest,alngdest,afreq,acomment,blat,blng,bdist,stime,ssummit,sinfo,slat,slng,sfreq,smode,scomment,scolor,sposter) in rows:
 
         if atime:
             at = datetime.fromtimestamp(int(atime)).strftime("%m/%d %H:%M")
@@ -718,27 +720,25 @@ def update_json_data():
         #smoothed[0] = smooth_route(route[0])
         #smoothed[1] = smooth_route(route[1])
 
-        e = (time,{'op':call,
-                   'opid':op,
-                   'summit':summit,'summit_info':ainfo,
-                   'association':assoc,'continent':conti,
-                   'summit_latlng':[float(alatdest),float(alngdest)],
-                   'alert_time':at,
-                   'alert_freq':afreq,
-                   'alert_comment':acomment,
-                   'spot_time':st,
-                   'spot_freq':sfreq.strip(' '),
-                   'spot_mode':smode,
-                   'spot_comment':scomment,
-                   'spot_color':scolor,
-                   'aprs_message':"",
-                   'route':route,
-                   #'smoothed':smoothed,
-                   'spot_type':spot_type
-        })
-        j.append(e)
-        
-    js = sorted(j,key=lambda x: x[0])
+        entry_db[op+summit] = (time,{'op':call,
+                              'opid':op,
+                              'summit':summit,'summit_info':ainfo,
+                              'association':assoc,'continent':conti,
+                              'summit_latlng':[float(alatdest),float(alngdest)],
+                              'alert_time':at,
+                              'alert_freq':afreq,
+                              'alert_comment':acomment,
+                              'spot_time':st,
+                              'spot_freq':sfreq.strip(' '),
+                              'spot_mode':smode,
+                              'spot_comment':scomment,
+                              'spot_color':scolor,
+                              'aprs_message':"",
+                              'route':route,
+                              #'smoothed':smoothed,
+                              'spot_type':spot_type})
+
+    js = sorted(entry_db.values(),key=lambda x: x[0])
 
     dxl = []
     jal = []
@@ -852,10 +852,12 @@ def update_spots():
         cur2.execute(q,(spot_time,spot_end,op,activator,summit,item['summitDetails'],lat,lng,item['frequency'],item['mode'],item['comments'],item['highlightColor'],item['callsign']))
         last_tweetat = read_params('last_tweetat')
         if spot_time >= last_tweetat:
+            st = datetime.fromtimestamp(int(spot_time)).strftime("%H:%M")
+            mesg = st +' ' + activator + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
+            mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(activator.encode('utf8') + '+' + summit.encode('utf8') , '')
             if re.search(KEYS['JASummits'],summit):
-                st = datetime.fromtimestamp(int(spot_time)).strftime("%H:%M")
-                mesg = st +' ' + activator + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
                 tweet(tweet_api,mesg)
+            tweet(tweet_api_debug,mesg)
 
     update_params('last_tweetat',int(datetime.utcnow().strftime("%s")))
     conn2.commit()
@@ -1025,6 +1027,7 @@ def tweet_alerts():
     for (tm,_,_,_,call,summit,info,lat,lng,freq,comment,poster) in rows:
         tm = datetime.fromtimestamp(int(tm)).strftime("%H:%M")
         mesg = tm + " " + call + " on\n" + summit + " " + freq + "\n" + info + "\n" + comment + " " + poster
+        mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(call + '+' + summit, '')
         if summit != 'JA/TT-TEST':
             tweet(tweet_api,mesg)
     conn.close()
@@ -1303,7 +1306,11 @@ def check_user_status(callfrom):
         mesg = mesg +"LatestActivation: " + str(r['LastActAt']) + " " +  str(r['LastActOn']) + ": "  
     if r['LastSpotOn']:
         mesg = mesg + "LatestSpot: " + str(r['LastSpotAt']) + " " +  str(r['LastSpotOn']) + ": "  
-    return unicode(mesg,'utf-8')
+    try:
+	res = unicode(mesg,'utf-8')
+    except Exception as e:
+        return mesg
+    return res
 
 def do_command(callfrom,mesg):
     print >>sys.stderr, 'SLIPPER Command: ' + callfrom + ':' + mesg 
@@ -1586,10 +1593,20 @@ def setup_db():
     
 def main():
     global tweet_api
+    global tweet_api_debug
+
     try:
         auth = tweepy.OAuthHandler(KEYS['ConsumerkeySOTAwatch'], KEYS['ConsumersecretSOTAwatch'])
         auth.set_access_token(KEYS['AccesstokenSOTAwatch'], KEYS['AccesstokensecretSOTAwatch'])
         tweet_api = tweepy.API(auth)
+    except Exception as e:
+        print >>sys.stderr, 'access error: %s' % e
+        sys.exit(1)
+
+    try:
+        auth = tweepy.OAuthHandler(KEYS['ConsumerkeySOTAwatch2'], KEYS['ConsumersecretSOTAwatch2'])
+        auth.set_access_token(KEYS['AccesstokenSOTAwatch2'], KEYS['AccesstokensecretSOTAwatch2'])
+        tweet_api_debug = tweepy.API(auth)
     except Exception as e:
         print >>sys.stderr, 'access error: %s' % e
         sys.exit(1)
