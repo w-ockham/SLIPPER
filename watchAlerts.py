@@ -854,7 +854,7 @@ def update_spots():
         if spot_time >= last_tweetat:
             st = datetime.fromtimestamp(int(spot_time)).strftime("%H:%M")
             mesg = st +' ' + activator + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
-            mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(activator.encode('utf8') + '+' + summit.encode('utf8') , '')
+            mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(op.encode('utf8') + '+' + summit.encode('utf8') , '')
             if re.search(KEYS['JASummits'],summit):
                 tweet(tweet_api,mesg)
             tweet(tweet_api_debug,mesg)

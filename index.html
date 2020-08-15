@@ -225,7 +225,7 @@ i.semantic-ui-custom {
 <!-- plugin -->
     <link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
     <script src="js/leaflet.extra-markers.min.js"></script>
-    <script src="js/jquery.cookie.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
     <link rel="stylesheet" href="css/L.Icon.Pulse.css" />
     <script src="js/L.Icon.Pulse.js"></script>
@@ -373,11 +373,14 @@ function drawObj(lg,data) {
     }
 };
 
+      
 function clickApplyButton(){
     const time_range = document.getElementById("select-time").value;
     const area = document.getElementById("select-area").value;
-    $.cookie('area',area);
-    $.cookie('range',time_range);
+    Cookies.set('area',area, {expires: 14, sameSite:'lax'});
+    Cookies.set('range',time_range, {expires: 14, sameSite:'lax'});
+    history.pushState('', '', '/');
+    first_draw = true;
     update();  
 };
 $('.ApplyButton').on('click',function() { clickApplyButton();});
@@ -457,18 +460,35 @@ function clock() {
 function update() {
     $('#qrvinfo').html('');
 
-    area = $.cookie('area')
-    range = $.cookie('range')
+    lh = location.hash;
+    if (lh != '') {
+//	console.log('has location.hash')
+	var pat = /%2BJA\d*/g;
+	if (lh.match(pat))
+	    area = "JA"
+	else
+	    area = "WW"
+	retry_range = Cookies.get('retry_range');
+	if (retry_range != '') {
+	    first_draw = true;
+	    range = retry_range;
+//	    console.log("search retry")
+	}
+	else
+	    range = "6";
+    } else {
+	area = Cookies.get('area')    
+	if (area == null ) {
+	    area = "WW";
+	    Cookies.set('area', area, {expires:14, sameSite:'lax' });
+	}
+	range = Cookies.get('range')
+	if (range == null) {
+	    range = "6";
+	    Cookies.set('range', range, {expires:14, sameSite:'lax' });
+	}
+    }
     
-    if (area == null )
-	area = "WW";
-	
-    if (range == null) 
-	range = "6";
-
-    $.cookie('area', area, { expires:14 });
-    $.cookie('range', range, { expires:14 });
-
     sel_t = document.getElementById("select-time");
     sel_a = document.getElementById("select-area");
 
@@ -524,14 +544,18 @@ function update() {
 	sel_a.selectedIndex = 4;
 
     $.getJSON("https://www.sotalive.tk/json/"+fname,{ts:new Date().getTime()},function(qrvdata) {
+//	console.log('Process json')
 	if (lg != null) {
 	    map.removeLayer(lg);
 	    lg = L.layerGroup();
 	} else
 	    lg = L.layerGroup();
 	map.addLayer(lg);
+
 	current="before";
-	current_latlng = -1;
+	current_latlng = {}
+	current_op = ''
+	
 	qdata = [];
 	for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	    cont = qrvdata[i].continent;
@@ -575,7 +599,6 @@ function update() {
     		badge = '&nbsp<button id="abt_' +i + '" type="button" class="btn btn-raised btn-amber"><i class="fas fa-map-marker-alt"></i></button>'
 	    else
     		badge = '';
-	    
 	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' +
 		qrvdata[i].op +'</h5>'+'<i class="fas fa-map-marked-alt"></i>&nbsp'+
     		'<a href="https://maps.google.co.jp/maps?t=p&ll='+ qrvdata[i].summit_latlng[0]+','+qrvdata[i].summit_latlng[1]+'&z=15" target=" blank">'+
@@ -594,25 +617,25 @@ function update() {
 	    }
 	    
 	    button = '<div class="align-self-center ">'+badge +'&nbsp <button id="sbt_' + i + '" type="button" class="btn btn-raised btn-primary">'+qrvdata[i].summit + '</button></div>';
+
+	    opname = '#'+ encodeURIComponent(qrvdata[i].opid.toUpperCase()+'+'+qrvdata[i].summit.toUpperCase())   
+	    if (current_latlng[opname] == undefined)
+		current_latlng[opname] = qrvdata[i].summit_latlng;
+
 	    if (current == "before" && qrvdata[i].spot_type=="after") {
 		current = "after";
 		idstr = 'id="current_data"';
-		current_latlng = qrvdata[i].summit_latlng;
+		current_op = opname
 			    
 	    } else if ( i == qrvdata.length && curent == "before") {
 		idstr = 'id="current_data"';
-		current_latlng = qrvdata[i].summit_latlng;
+		current_op = opname
 	    } else {
 		idstr = '';
 	    }
-
-	    if ( i % 2 == 0)
-		bgcolor = ""
-	    else
-		bgcolor = " bg-light"
-
-   	    $('#qrvinfo').append('<div class="media"'+idstr+'>' + body + button + '</div><hr/>');
 	    
+	    idstr = idstr +' name="'+ opname +'"'
+   	    $('#qrvinfo').append('<div class="media"'+idstr+'>' + body + button + '</div><hr/>');
    	    var elm = document.getElementById("sbt_"+i);
    	    elm.addEventListener("click",{ handleEvent:clickSummitButton, data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit }, false);
 	    if (qrvdata[i].route.id7.length > 0||qrvdata[i].route.id5.length > 0 ||qrvdata[i].route.id9.length > 0||qrvdata[i].route.id6.length > 0||qrvdata[i].route.id8.length > 0){ 
@@ -620,24 +643,40 @@ function update() {
    		elm.addEventListener("click",{ handleEvent: clickAPRSButton, data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit }, false);
 	    };
 	};
-	if (first_draw && qdata.length > 0) {
-	    d = document.getElementById("current_data");
-	    if (d!=null) {
+	if (qdata.length > 0) {
+	    if (location.hash != '')
+		current_op = location.hash
+	    
+	    d = document.getElementsByName(current_op)[0]
+	    
+	    if (d != null) {
 		d.scrollIntoView(true);
-		if (current_latlng[0]!=0 && current_latlng[1]!=0)
-		    map.setView(current_latlng,15);
-	    } else if (current_latlng[0]!=0 && current_latlng[1]!=0)
-		    map.setView(qdata[0].summit_latlng,15);
+		if (first_draw &&(current_latlng[current_op][0]!=0 &&
+				 current_latlng[current_op][1]!=0))
+		    map.setView(current_latlng[current_op],15);
+//		console.log('success')
+	    } else {
+		retry = Cookies.get('retry_range')
+		if (location.hash != '' && retry == '') {
+		    Cookies.set('retry_range',"48",{sameSite:'lax'});
+//		    console.log('invoke update')
+		    update();
+//		    console.log('retry done')
+		    return;
+  		} else {
+		    if (qdata[0].summit_latlng[0]!=0 &&
+			qdata[0].summit_latlng[1]!=0)
+			map.setView(qdata[0].summit_latlng,15);
+//		    console.log('not found')
+		}
+	    }
+	    Cookies.set('retry_range','', { sameSite:'lax' });
 	    first_draw = false;
-	} else if (qdata.length == 0){
+	} else {
 	    map.setView([35.362853,138.730910],15);
 	    $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No alerts or spots found.</h5></div><hr/></div>');
-	} else {
-	    d = document.getElementById("current_data");
-	    if (d!=null)
-		d.scrollIntoView(true);
-	};
-
+	}
+//	console.log('getJSON done')
     });
 };
 </script>
