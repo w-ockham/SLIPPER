@@ -93,7 +93,8 @@ def sys_clearstat():
     _sys_stat['SPOTS'] = 0
     _sys_stat['TRACKS'] = 0
     _sys_stat['PACKETS'] = 0
-
+    _sys_stat['TWEET'] = 0
+    
 def sys_updatestat(facility, val):
     _sys_stat[facility] = val
     with open("/var/tmp/sotalive-stat.json","w") as f:
@@ -115,9 +116,13 @@ def tweet(api, txt):
             txt = txt[0:255]
         try:
             api.update_status(status=txt)
-        except Exception as e:
+        except tweepy.TweepError as e:
             print >>sys.stderr, 'tweet error: %s ' % e
             print >>sys.stderr, 'txt = %s ' % txt
+            if e.message[0]['code'] != 187:
+                sys_updatestat('TWEET',E_FATAL)
+            else:
+                sys_updatestat('TWEET',E_INFO)
             return
 
 def tweet_with_media(api, fname, txt):
@@ -128,9 +133,13 @@ def tweet_with_media(api, fname, txt):
             txt = txt[0:110]
         try:
             api.update_with_media(fname, status=txt)
-        except Exception as e:
+        except tweepy.TweepError as e:
             print >>sys.stderr, 'tweet error %s ' % e
             print >>sys.stderr, 'txt = %s ' % txt
+            if e.message[0]['code'] != 187:
+                sys_updatestat('TWEET',E_FATAL)
+            else:
+                sys_updatestat('TWEET',E_INFO)
 	    return
 
 def parse_callsign(call):
@@ -1024,10 +1033,10 @@ def tweet_alerts():
     mesg = mesg + today + "."
     tweet(tweet_api,mesg)
     
-    for (tm,_,_,_,call,summit,info,lat,lng,freq,comment,poster) in rows:
+    for (tm,_,_,op,call,summit,info,lat,lng,freq,comment,poster) in rows:
         tm = datetime.fromtimestamp(int(tm)).strftime("%H:%M")
         mesg = tm + " " + call + " on\n" + summit + " " + freq + "\n" + info + "\n" + comment + " " + poster
-        mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(call + '+' + summit, '')
+        mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(op.encode('utf8') + '+' + summit.encode('utf8'), '')
         if summit != 'JA/TT-TEST':
             tweet(tweet_api,mesg)
     conn.close()

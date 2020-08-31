@@ -654,29 +654,31 @@ function update() {
 		if (first_draw &&(current_latlng[current_op][0]!=0 &&
 				 current_latlng[current_op][1]!=0))
 		    map.setView(current_latlng[current_op],15);
-//		console.log('success')
 	    } else {
 		retry = Cookies.get('retry_range')
 		if (location.hash != '' && retry == '') {
 		    Cookies.set('retry_range',"48",{sameSite:'lax'});
-//		    console.log('invoke update')
 		    update();
-//		    console.log('retry done')
 		    return;
   		} else {
 		    if (qdata[0].summit_latlng[0]!=0 &&
 			qdata[0].summit_latlng[1]!=0)
 			map.setView(qdata[0].summit_latlng,15);
-//		    console.log('not found')
 		}
 	    }
 	    Cookies.set('retry_range','', { sameSite:'lax' });
 	    first_draw = false;
-	} else {
-	    map.setView([35.362853,138.730910],15);
-	    $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No alerts or spots found.</h5></div><hr/></div>');
-	}
-//	console.log('getJSON done')
+	  } else {
+	      retry = Cookies.get('retry_range')
+	      if (location.hash != '' && retry == '') {
+		  Cookies.set('retry_range',"48",{sameSite:'lax'});
+		  update();
+		  return;
+	      } else {
+		  map.setView([35.362853,138.730910],15);
+		  $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No alerts or spots found.</h5></div><hr/></div>');
+	      }
+	  }
     });
 };
 </script>
