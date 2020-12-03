@@ -35,12 +35,12 @@
 @media screen and (max-width: 767px){
 #map {
  width: auto;
- height: calc(50vh - 30px);
+ height: calc(var(--vh, 1vh)*50 - 30px);
  border:1px solid #aaa;
 }
 #qrvinfo {
  width: auto;
- height: calc(50vh - 30px);
+ height: calc(var(--vh, 1vh)*50 - 30px);
  overflow:auto;
  border:1px solid #aaa;
  -webkit-overflow-scrolling:touch;
@@ -49,12 +49,12 @@
 @media screen and (min-width: 768px) {
 #map {
  width: auto;
- height:calc(100vh - 56px);
+ height:calc(var(--vh, 1vh)*100 - 56px);
  border:1px solid #aaa;
  }
 #qrvinfo {
  width: auto;
- height: calc(100vh - 56px);
+ height: calc(var(--vh, 1vh)*100 - 56px);
  overflow:auto;
  border:1px solid #aaa;
  -webkit-overflow-scrolling:touch;
@@ -128,8 +128,9 @@ i.semantic-ui-custom {
 	  </select>
 	</div>
 	<div class="form-group">
-	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton" onClick="clickApplyButton"><i class="fas fa-check"></i></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton" onClick="clickApplyButton()"><i class="fas fa-check"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt"> QTH</i></button>
 	</div>
       </div>
     </div>
@@ -238,6 +239,13 @@ i.semantic-ui-custom {
 </style>
 
 <script>
+let vh = window.innerHeight * 0.01;
+document.documentElement.style.setProperty('--vh', `${vh}px`);
+window.addEventListener('resize',()=> {
+  let vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+});
+
 $(function () {
   $('[data-toggle="tooltip"]').tooltip()
 })
@@ -266,9 +274,9 @@ map.on('click', function(e) {
 	}
 	accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
 	if (res['type'] == 'JCC') 
-	    popup.setContent('JCC'+res['jcc']+ ' ' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL: ' + res['maidenhead'] + '<br> 標高' + res['elevation'] + 'm '+ accu);
+	    popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm '+ accu);
 	else
-	    popup.setContent('JCG'+res['jcg']+ ' ' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL: ' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm ' + accu);
+	    popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm ' + accu);
     });
     popup.setLatLng(e.latlng).openOn(this);
 });
@@ -394,6 +402,72 @@ function clickSummitButton(event) {
 	    break;
      	};
     };
+};
+
+function callbkQTHOk(arg) {
+    console.log("GPS Done");
+    zm = 15;
+    latlng = [arg.coords.latitude, arg.coords.longitude];
+    options = {
+        prefix: 'icon'
+        ,icon: 'user outline'
+        ,shape: 'circle'
+        ,markerColor: 'yellow'
+        ,extraClasses: 'semantic-ui-custom'
+    };
+    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+arg.coords.latitude+'&lon='+arg.coords.longitude,function(res) {
+	if (res['errors'] == 'OUTSIDE_JA') {
+	    mesg = 'GL: '+res['maidenhead'];
+        }
+	if (res['errors'] != 'OK') {
+ 	    mesg = 'Parameter out of range.';
+	} else {
+	    if (res['type'] == 'JCC') 
+		mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm</h4> ';
+	    else
+		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm</h4>';
+	    var marker = L.marker(latlng,
+				  {icon: L.ExtraMarkers.icon(options)});
+	    marker.addTo(map);
+	    map.setView(latlng,zm);
+	    marker.bindPopup(mesg).openPopup();
+	}
+    });
+};
+
+function callbkQTHNG(arg) {
+    var emsg = "エラーが発生しました"
+    switch(arg.code) {
+    case 1:
+	emesg = "位置情報の利用が許可されていません";
+	break;
+    case 2:
+	emesg = "端末位置がわかりませんでした";
+	break;
+    case 3:
+	emesg = "タイムアウトしました";
+	break;
+    }
+    window .alert(emesg)
+};
+
+function clickQTHButton () {
+    console.log("GPS Start");
+    
+    if (typeof navigator.geolocation === 'undefined') {
+	window . alert('ブラウザが位置情報取得に対応していません');
+	return false;
+    }
+
+    var options = {
+	"enableHighAccuracy": true,
+	"timeout": 10000,
+	"maximumAge": 0
+    }
+
+    navigator.geolocation.getCurrentPosition(callbkQTHOk,
+					     callbkQTHNG,
+					     options);
 };
 
 function clickAPRSButton (event) {
