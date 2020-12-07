@@ -128,7 +128,7 @@ i.semantic-ui-custom {
 	  </select>
 	</div>
 	<div class="form-group">
-	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton" onClick="clickApplyButton()"><i class="fas fa-check"></i></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton" onClick="clickApplyButton"><i class="fas fa-check"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt"> QTH</i></button>
 	</div>
@@ -230,6 +230,7 @@ i.semantic-ui-custom {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
     <link rel="stylesheet" href="css/L.Icon.Pulse.css" />
     <script src="js/L.Icon.Pulse.js"></script>
+    <script src="js/leaflet-arc.min.js"></script>
     <!-- plugin -->
 
 <style type="text/css">
@@ -295,6 +296,8 @@ function drawPoly(lg,data,ssid,cl,route) {
     dt = [];
     sm = [];
     for (var i = 0, len = route.length; i < len; ++i) {
+	if (route[i].latlng[1] < 0)
+	    route[i].latlng[1] += 360;
 	po.push(route[i].latlng);
 	tm.push(route[i].time);
 	dt.push(route[i].dist);
@@ -334,8 +337,11 @@ function drawPoly(lg,data,ssid,cl,route) {
 	marker.addTo(lg);
     }
 }
-					    
+
 function drawObj(lg,data) {
+    console.log(data.summit_latlng);
+    if (data.summit_latlng[1] < 0)
+	data.summit_latlng[1] += 360;
     options = {
         prefix: 'icon'
         ,icon: 'flag checkered'
@@ -345,10 +351,10 @@ function drawObj(lg,data) {
     };
     var marker = L.marker(data.summit_latlng,
 			  {icon: L.ExtraMarkers.icon(options)});
-    marker.bindPopup(data.summit + ' '+ data.summit_info +'<br>'
+    marker.bindPopup('<h6>'+ data.summit + '</h6>'+ data.summit_info +'<br>'
 		     + data.alert_time+ ' ' + data.op + ' ' + data.alert_freq + '<br>')
     marker.addTo(lg);
-
+    
     if (data.route.id7.length >0)
 	drawPoly(lg,data,0,"#0d47a1",data.route.id7)
     if (data.route.id5.length >0)
@@ -375,8 +381,8 @@ function drawObj(lg,data) {
 	else
 	    pulsingIcon = L.icon.pulse({iconSize:[20,20],color:'#ff4444',animate:false});
 	var marker = L.marker(data.summit_latlng,{icon: pulsingIcon});
-	marker.bindPopup(data.summit + '<br>'
-			 + data.spot_time + ' ' + data.op + ' ' + data.spot_freq + ' ' + data.spot_mode + '<br>' + data.spot_comment).openPopup();
+	marker.bindPopup('<h6>' + data.spot_time + ' ' + data.spot_freq + ' ' + data.spot_mode + '</h6>'
+			 + data.op + ' ' + data.summit + '<br>' + data.spot_comment).openPopup();
 	marker.addTo(lg);
     }
 };
@@ -404,8 +410,77 @@ function clickSummitButton(event) {
     };
 };
 
+direc_lg = null;
+my_qth = null;
+
+function draw_direction(qrvdata) {
+
+    if (my_qth == null)
+	return;
+    
+    var latlng = my_qth;
+ 
+    if (direc_lg != null) {
+	map.removeLayer(direc_lg);
+	direc_lg = L.layerGroup();
+    } else
+	direc_lg = L.layerGroup();
+
+    map.addLayer(direc_lg);
+    
+    area = Cookies.get('area')
+
+    for (var i = 0, len = qrvdata.length; i< len; ++i) {
+	var mesg = "";	
+	var data = qrvdata[i];
+	var cont = data.continent;
+	
+	if (area == "WW")
+	    continue;
+	if (area == "JA" && (cont != "AS" ||
+			     (data.summit.substr(0,2).indexOf('JA') == -1)))
+	    continue;
+	if (area == "AS" && (cont != "AS") && (cont != "OC"))
+	    continue;
+	if (area == "EU" && (cont != "EU") && (cont != "AF"))
+	    continue;
+	if (area == "NA" && (cont != "NA") && (cont != "SA"))
+	    continue;
+	
+	var my = L.latLng(latlng);
+	var his = L.latLng(data.summit_latlng)
+	var d = Math.round(my.distanceTo(his)/100)/10;
+	
+	if (data.spot_time != "") { 
+	    mesg = '<h6>' + data.summit + ' ' + d + 'km</h6>' + data.summit_info + '<br>' + data.spot_time + ' ' + data.op + ' ' + data.spot_freq + ' ' + data.spot_mode;
+	    if (data.spot_color == "red-blink") {
+		color = "#ff534f";
+		opacity = 1.0;
+	    } else if (data.spot_color == "red") {
+		color = "#d9534f";
+		opacity = 0.8
+	    }
+	    else if (data.spot_color == "orange") {
+		color = "#f0ad4e";
+		opacity = 0.6;
+	    } else {
+		color = "#0d47a1";
+		opacity = 0.3;
+	    }
+	} else {
+	    mesg = '<h6>' + data.summit + ' ' + d + 'km</h6>' + data.summit_info + '<br>' + data.alert_time + ' ' + data.op + ' ' + data.alert_freq;
+	    color = "#0d47a1";
+	    opacity = 0.6;
+	}
+	var line = L.Polyline.Arc(my, his,
+			      { "color":color,
+				"weight":10,
+				vertices:50,
+				"opacity":opacity}).bindPopup(mesg).addTo(direc_lg);
+    }
+}
+
 function callbkQTHOk(arg) {
-    console.log("GPS Done");
     zm = 15;
     latlng = [arg.coords.latitude, arg.coords.longitude];
     options = {
@@ -426,11 +501,16 @@ function callbkQTHOk(arg) {
 		mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm</h4> ';
 	    else
 		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm</h4>';
+	    
 	    var marker = L.marker(latlng,
 				  {icon: L.ExtraMarkers.icon(options)});
 	    marker.addTo(map);
 	    map.setView(latlng,zm);
 	    marker.bindPopup(mesg).openPopup();
+	    my_qth = latlng;
+	    $.getJSON("https://www.sotalive.tk/json/"+fname,{ts:new Date().getTime()},function(qrvdata) {
+		draw_direction(qrvdata);
+	    });
 	}
     });
 };
@@ -452,8 +532,6 @@ function callbkQTHNG(arg) {
 };
 
 function clickQTHButton () {
-    console.log("GPS Start");
-    
     if (typeof navigator.geolocation === 'undefined') {
 	window . alert('ブラウザが位置情報取得に対応していません');
 	return false;
@@ -551,7 +629,7 @@ function update() {
 	else
 	    range = "6";
     } else {
-	area = Cookies.get('area')    
+	area = Cookies.get('area')
 	if (area == null ) {
 	    area = "WW";
 	    Cookies.set('area', area, {expires:14, sameSite:'lax' });
@@ -618,7 +696,6 @@ function update() {
 	sel_a.selectedIndex = 4;
 
     $.getJSON("https://www.sotalive.tk/json/"+fname,{ts:new Date().getTime()},function(qrvdata) {
-//	console.log('Process json')
 	if (lg != null) {
 	    map.removeLayer(lg);
 	    lg = L.layerGroup();
@@ -631,6 +708,7 @@ function update() {
 	current_op = ''
 	
 	qdata = [];
+	
 	for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	    cont = qrvdata[i].continent;
 	    if (area != "WW") {
@@ -717,6 +795,9 @@ function update() {
    		elm.addEventListener("click",{ handleEvent: clickAPRSButton, data : qrvdata, op: qrvdata[i].op , summit: qrvdata[i].summit }, false);
 	    };
 	};
+
+	draw_direction(qrvdata);
+	
 	if (qdata.length > 0) {
 	    if (location.hash != '')
 		current_op = location.hash
@@ -742,7 +823,7 @@ function update() {
 	    }
 	    Cookies.set('retry_range','', { sameSite:'lax' });
 	    first_draw = false;
-	  } else {
+	} else {
 	      retry = Cookies.get('retry_range')
 	      if (location.hash != '' && retry == '') {
 		  Cookies.set('retry_range',"48",{sameSite:'lax'});
