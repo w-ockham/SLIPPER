@@ -296,9 +296,7 @@ function drawPoly(lg,data,ssid,cl,route) {
     dt = [];
     sm = [];
     for (var i = 0, len = route.length; i < len; ++i) {
-	if (route[i].latlng[1] < 0)
-	    route[i].latlng[1] += 360;
-	po.push(route[i].latlng);
+	po.push(calc_offset(route[i].latlng));
 	tm.push(route[i].time);
 	dt.push(route[i].dist);
 	sm.push(route[i].summit);
@@ -339,9 +337,6 @@ function drawPoly(lg,data,ssid,cl,route) {
 }
 
 function drawObj(lg,data) {
-    console.log(data.summit_latlng);
-    if (data.summit_latlng[1] < 0)
-	data.summit_latlng[1] += 360;
     options = {
         prefix: 'icon'
         ,icon: 'flag checkered'
@@ -349,6 +344,7 @@ function drawObj(lg,data) {
         ,markerColor: 'yellow'
         ,extraClasses: 'semantic-ui-custom'
     };
+    data.summit_latlng = calc_offset(data.summit_latlng);
     var marker = L.marker(data.summit_latlng,
 			  {icon: L.ExtraMarkers.icon(options)});
     marker.bindPopup('<h6>'+ data.summit + '</h6>'+ data.summit_info +'<br>'
@@ -386,8 +382,7 @@ function drawObj(lg,data) {
 	marker.addTo(lg);
     }
 };
-
-      
+    
 function clickApplyButton(){
     const time_range = document.getElementById("select-time").value;
     const area = document.getElementById("select-area").value;
@@ -404,7 +399,7 @@ function clickSummitButton(event) {
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	if (this.op == qrvdata[i].op && this.summit == qrvdata[i].summit) {
 	    if (qrvdata[i].summit_latlng[0]!=0 && qrvdata[i].summit_latlng[1]!=0)
-		map.setView(qrvdata[i].summit_latlng,15);
+		map.setView(calc_offset(qrvdata[i].summit_latlng),15);
 	    break;
      	};
     };
@@ -413,7 +408,25 @@ function clickSummitButton(event) {
 direc_lg = null;
 my_qth = null;
 
-function draw_direction(qrvdata) {
+function calc_offset(latlng) {
+    if (my_qth == null)
+	return latlng;
+    
+    if (my_qth[1] >= 0) {
+	if (latlng[1]<(my_qth[1]-180))
+	    lng = latlng[1] + 360;
+	else
+	    lng = latlng[1];
+    } else {
+	if (latlng[1]>(my_qth[1]+180))
+	    lng = latlng[1] - 360;
+	else
+	    lng = latlng[1];
+    }
+    return [ latlng[0], lng ]
+}
+
+function draw_direction(setfocus,qrvdata) {
 
     if (my_qth == null)
 	return;
@@ -427,7 +440,7 @@ function draw_direction(qrvdata) {
 	direc_lg = L.layerGroup();
 
     map.addLayer(direc_lg);
-    
+ 
     area = Cookies.get('area')
 
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
@@ -435,8 +448,6 @@ function draw_direction(qrvdata) {
 	var data = qrvdata[i];
 	var cont = data.continent;
 	
-	if (area == "WW")
-	    continue;
 	if (area == "JA" && (cont != "AS" ||
 			     (data.summit.substr(0,2).indexOf('JA') == -1)))
 	    continue;
@@ -448,7 +459,7 @@ function draw_direction(qrvdata) {
 	    continue;
 	
 	var my = L.latLng(latlng);
-	var his = L.latLng(data.summit_latlng)
+	var his = L.latLng(data.summit_latlng);
 	var d = Math.round(my.distanceTo(his)/100)/10;
 	
 	if (data.spot_time != "") { 
@@ -475,13 +486,15 @@ function draw_direction(qrvdata) {
 	var line = L.Polyline.Arc(my, his,
 			      { "color":color,
 				"weight":10,
+				"offset":10,
 				vertices:50,
 				"opacity":opacity}).bindPopup(mesg).addTo(direc_lg);
     }
+    if (setfocus)
+	map.setView(my_qth,15);
 }
 
 function callbkQTHOk(arg) {
-    zm = 15;
     latlng = [arg.coords.latitude, arg.coords.longitude];
     options = {
         prefix: 'icon'
@@ -505,12 +518,9 @@ function callbkQTHOk(arg) {
 	    var marker = L.marker(latlng,
 				  {icon: L.ExtraMarkers.icon(options)});
 	    marker.addTo(map);
-	    map.setView(latlng,zm);
-	    marker.bindPopup(mesg).openPopup();
 	    my_qth = latlng;
-	    $.getJSON("https://www.sotalive.tk/json/"+fname,{ts:new Date().getTime()},function(qrvdata) {
-		draw_direction(qrvdata);
-	    });
+	    marker.bindPopup(mesg).openPopup();
+	    update(true);
 	}
     });
 };
@@ -588,7 +598,7 @@ function clickAPRSButton (event) {
 	    else
 		zm = 5
 	  
-	    map.setView(r[r.length - 1].latlng,zm);
+	    map.setView(calc_offset(r[r.length - 1].latlng),zm);
 	    break;
      	};
     };
@@ -609,12 +619,11 @@ function clock() {
     document.getElementById("clock_time").innerHTML=now
 }
 
-function update() {
+function update(focusQTH = false) {
     $('#qrvinfo').html('');
 
     lh = location.hash;
     if (lh != '') {
-//	console.log('has location.hash')
 	var pat = /%2BJA\d*/g;
 	if (lh.match(pat))
 	    area = "JA"
@@ -624,7 +633,6 @@ function update() {
 	if (retry_range != '') {
 	    first_draw = true;
 	    range = retry_range;
-//	    console.log("search retry")
 	}
 	else
 	    range = "6";
@@ -796,8 +804,6 @@ function update() {
 	    };
 	};
 
-	draw_direction(qrvdata);
-	
 	if (qdata.length > 0) {
 	    if (location.hash != '')
 		current_op = location.hash
@@ -833,8 +839,12 @@ function update() {
 		  map.setView([35.362853,138.730910],15);
 		  $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No alerts or spots found.</h5></div><hr/></div>');
 	      }
-	  }
+	}	
+
+	draw_direction(focusQTH,qrvdata);
+
     });
+
 };
 </script>
 </body>
