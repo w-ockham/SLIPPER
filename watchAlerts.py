@@ -179,7 +179,7 @@ def lookup_from_op(call):
         r = cur_alert.fetchall()
         if r:
             mesg = "Out of notification time window. Upcoming Activation: "
-            for (time, _, _, _, _, summit, _, _, _, _) in r:
+            for (time, _, _, _, _, summit, _, _, _, _, _, _) in r:
                 tm = datetime.fromtimestamp(int(time)).strftime("%m/%d %H:%M")
                 mesg = mesg + tm + " " + summit + " "
                 break
@@ -866,7 +866,7 @@ def update_spots():
             mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(op.encode('utf8') + '+' + summit.encode('utf8') , '')
             if re.search(KEYS['JASummits'],summit):
                 tweet(tweet_api,mesg)
-            tweet(tweet_api_debug,mesg)
+            #tweet(tweet_api_debug,mesg)
 
     update_params('last_tweetat',int(datetime.utcnow().strftime("%s")))
     conn2.commit()
@@ -1017,7 +1017,7 @@ def tweet_alerts():
     conn = sqlite3.connect(alert_db)
     cur = conn.cursor()
     start = int(datetime.utcnow().strftime("%s")) + 3600 * KEYS['ALERT_FROM']
-    end = int(datetime.utcnow().strftime("%s")) + 3600 * KEYS['ALERT_TO']
+    end = int(datetime.utcnow().strftime("%s")) + 3600 * KEYS['TWEET_ALERT_TO']
     q = 'select * from alerts where time >= ? and time <= ? and summit like ?'
     cur.execute(q,(start,end,'JA%',))
     rows = cur.fetchall()
@@ -1325,47 +1325,47 @@ def do_command(callfrom,mesg):
     print >>sys.stderr, 'SLIPPER Command: ' + callfrom + ':' + mesg 
     for com in mesg.split(","):
         com = com.upper().strip()
-        if com in 'HELP' or com in '?':
+        if com in ['HELP','?']:
             res = 'ACT,DEACT,DX,JA,AS,OC,EU,AF,NA,SA,BC,ST,LOC,RET=<num>,HELP,?'
             send_long_message_with_ack(aprs_beacon,callfrom,res)
             break
-        if com in 'ACT':
+        if com in ['ACT']:
             update_user_param(callfrom,'Active',True)
             send_long_message_with_ack(aprs_beacon,callfrom,"Activate summit message.")
-        elif com in 'DEACT':
+        elif com in ['DEACT']:
                 update_user_param(callfrom,'Active',False)
                 send_long_message_with_ack(aprs_beacon,callfrom,"Deactivate summit message.")
-        elif com in 'DX':
+        elif com in ['DX']:
             res = readlast3('WW')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'JA':
+        elif com in ['JA']:
             res = readlast3('JA')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'AS':
+        elif com in ['AS']:
             res = readlast3('AS')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'OC':
+        elif com in ['OC']:
             res = readlast3('OC')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'EU':
+        elif com in ['EU']:
             res = readlast3('EU')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'AF':
+        elif com in ['AF']:
             res = readlast3('AF')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'NA':
+        elif com in ['NA']:
             res = readlast3('NA')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'SA':
+        elif com in ['SA']:
             res = readlast3('SA')
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'BC':
+        elif com in ['BC']:
             res = check_beacon_status()
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'ST':
+        elif com in ['ST']:
             res = check_user_status(callfrom)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
-        elif com in 'LOC':
+        elif com in ['LOC']:
             res = lookup_from_op(callfrom)
             send_long_message_with_ack(aprs_beacon,callfrom,res)
         else:
@@ -1394,13 +1394,15 @@ def do_command(callfrom,mesg):
                         (call,_,_) =parse_callsign(m2.group(1))
                         update_user_param(call,'Active',True)
                         send_long_message_with_ack(aprs_beacon,callfrom,'Activate = '+call)
-                    elif com in 'DUMP':
+                    elif com in ['DUMP']:
                         dump_userdb()
-                        send_long_message_with_ack(aprs_beacon,callfrom,"done.")
+                        send_long_message_with_ack(aprs_beacon,callfrom,"dump user_db done.")
                     else:
-                        send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
+                        res = readlast3('JA')
+                        send_long_message_with_ack(aprs_beacon,callfrom,'? ' + res)
                 else:
-                    send_long_message_with_ack(aprs_beacon,callfrom,'Unknown command: '+mesg)
+                    res = readlast3('JA')
+                    send_long_message_with_ack(aprs_beacon,callfrom,'? ' + res)
             break
     del mesg
         
