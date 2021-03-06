@@ -150,13 +150,14 @@ i.semantic-ui-custom {
     <div class="modal-dialog">
       <div class="modal-content text-light bg-dark">
         <div class="modal-header">
-          <h6>SOTA Activities</h6>
+          <h5>System status</h5>
           <button type="button" class="close" data-dismiss="modal">
 	    <h6><span aria-hidden="true">&#215;</span></h6>
           </button>
         </div><!-- /modal-header -->
 	<div class="modal-body">
 	  <iframe class="img-responsive" src="https://mackerel.io/embed/public/embed/yKtkCzMbywMqm4RnbfAxsfpgCz6U0aiZvqQCUrrF0jwNDR6A1nAyjG9lqTVSWcqK?period=1d" height="200" width="350" frameborder="0"></iframe>
+	    <a href="https://status.sota.org.uk/" target='_blank'> SOTA Service status </a>
 	</div>
       </div>
     </div>
@@ -498,7 +499,7 @@ function callbkQTHOk(arg) {
     latlng = [arg.coords.latitude, arg.coords.longitude];
     options = {
         prefix: 'icon'
-        ,icon: 'user outline'
+        ,icon: 'user'
         ,shape: 'circle'
         ,markerColor: 'yellow'
         ,extraClasses: 'semantic-ui-custom'
@@ -747,8 +748,8 @@ function update(focusQTH = false) {
     		spotstr ='<div class="'+
 		    color+'">'+'<i class="fas fa-wifi"></i>&nbsp'+
 		    qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq + ' '+
-		    qrvdata[i].spot_mode + 
-		    '</div>' +
+		    qrvdata[i].spot_mode +
+		    '</div>' + 				 
 		    '<div class="text-muted ml-4">'+
 		    qrvdata[i].spot_comment + '</div>';
 	    }
@@ -759,9 +760,20 @@ function update(focusQTH = false) {
     		badge = '&nbsp<button id="abt_' +i + '" type="button" class="btn btn-raised btn-amber"><i class="fas fa-map-marker-alt"></i></button>'
 	    else
     		badge = '';
+	    if (qrvdata[i].spot_mode.toUpperCase().search('CW')) {
+		op_rbn = qrvdata[i].op;
+	    } else {
+		
+		if (qrvdata[i].op.toUpperCase().indexOf('/P')>0)
+		    rbnq = qrvdata[i].opid + '*';
+		else
+		    rbnq = qrvdata[i].op;
+		
+		op_rbn  = '<a href="http://www.reversebeacon.net/dxsd1/dxsd1.php?f=0&c=' + rbnq + '&t=dx" target="_blank" rel="noreferrer">' + qrvdata[i].op + '</a>';
+	    }
 	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' +
-		qrvdata[i].op +'</h5>'+'<i class="fas fa-map-marked-alt"></i>&nbsp'+
-    		'<a href="https://maps.google.co.jp/maps?t=p&ll='+ qrvdata[i].summit_latlng[0]+','+qrvdata[i].summit_latlng[1]+'&z=15" target=" blank">'+
+		 op_rbn +'</h5>'+'<i class="fas fa-map-marked-alt"></i>&nbsp'+
+    		'<a href="https://maps.google.co.jp/maps?t=p&ll='+ qrvdata[i].summit_latlng[0]+','+qrvdata[i].summit_latlng[1]+'&z=15" target="_blank" rel="noreferrer">'+
 		qrvdata[i].summit +' '+ qrvdata[i].summit_info + '</a>, '+
 		qrvdata[i].association;
 	    if (qrvdata[i].alert_time!=""){
