@@ -744,12 +744,24 @@ function update(focusQTH = false) {
 		    color = 'text-primary'
 		else
 		    color = 'text-muted'
-		
-    		spotstr ='<div class="'+
+
+		if (qrvdata[i].spot_mode.toUpperCase().search('CW')) {
+		    spotpre = '';
+		    spotpost = '';
+		} else {
+		    if (qrvdata[i].op.toUpperCase().indexOf('/P')>0)
+			rbnq = qrvdata[i].opid + '*';
+		    else
+			rbnq = qrvdata[i].op;
+
+		    spotpre = '<u><a href="http://www.reversebeacon.net/dxsd1/dxsd1.php?f=0&c=' + rbnq + '&t=dx" target="_blank" rel="noreferrer">';
+		    spotpost = '</a></u>';
+		}
+    		spotstr = spotpre + '<div class="'+
 		    color+'">'+'<i class="fas fa-wifi"></i>&nbsp'+
 		    qrvdata[i].spot_time + ' ' + qrvdata[i].spot_freq + ' '+
 		    qrvdata[i].spot_mode +
-		    '</div>' + 				 
+		    '</div>' + spotpost +  				 
 		    '<div class="text-muted ml-4">'+
 		    qrvdata[i].spot_comment + '</div>';
 	    }
@@ -760,19 +772,9 @@ function update(focusQTH = false) {
     		badge = '&nbsp<button id="abt_' +i + '" type="button" class="btn btn-raised btn-amber"><i class="fas fa-map-marker-alt"></i></button>'
 	    else
     		badge = '';
-	    if (qrvdata[i].spot_mode.toUpperCase().search('CW')) {
-		op_rbn = qrvdata[i].op;
-	    } else {
-		
-		if (qrvdata[i].op.toUpperCase().indexOf('/P')>0)
-		    rbnq = qrvdata[i].opid + '*';
-		else
-		    rbnq = qrvdata[i].op;
-		
-		op_rbn  = '<a href="http://www.reversebeacon.net/dxsd1/dxsd1.php?f=0&c=' + rbnq + '&t=dx" target="_blank" rel="noreferrer">' + qrvdata[i].op + '</a>';
-	    }
+			    
 	    body = '<div class="media-body"> <h5 class="mt-0 mb-1">' +
-		 op_rbn +'</h5>'+'<i class="fas fa-map-marked-alt"></i>&nbsp'+
+		 qrvdata[i].op +'</h5>'+'<i class="fas fa-map-marked-alt"></i>&nbsp'+
     		'<a href="https://maps.google.co.jp/maps?t=p&ll='+ qrvdata[i].summit_latlng[0]+','+qrvdata[i].summit_latlng[1]+'&z=15" target="_blank" rel="noreferrer">'+
 		qrvdata[i].summit +' '+ qrvdata[i].summit_info + '</a>, '+
 		qrvdata[i].association;
