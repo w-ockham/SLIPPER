@@ -287,6 +287,9 @@ lg = null;
 first_draw = true;
 update_timer = null;
 countdown = 0;
+if (location.hash == '#aprs-info') {
+    $('#modal-aprs').modal({"show":true});
+}
 update();
 clock();
 setInterval(clock,1000);
@@ -624,7 +627,7 @@ function update(focusQTH = false) {
     $('#qrvinfo').html('');
 
     lh = location.hash;
-    if (lh != '') {
+    if (lh != '' && lh != '#aprs-info') {
 	var pat = /%2BJA\d*/g;
 	if (lh.match(pat))
 	    area = "JA"
