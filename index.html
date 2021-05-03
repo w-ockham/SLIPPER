@@ -507,17 +507,19 @@ function callbkQTHOk(arg) {
         ,markerColor: 'yellow'
         ,extraClasses: 'semantic-ui-custom'
     };
+    lat = Math.round(latlng[0]*1000000,4)/1000000
+    lng = Math.round(latlng[1]*1000000,4)/1000000
     $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+arg.coords.latitude+'&lon='+arg.coords.longitude,function(res) {
 	if (res['errors'] == 'OUTSIDE_JA') {
-	    mesg = 'GL: '+res['maidenhead'];
+	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
         }
 	if (res['errors'] != 'OK') {
  	    mesg = 'Parameter out of range.';
 	} else {
 	    if (res['type'] == 'JCC') 
-		mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm</h4> ';
+		mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
 	    else
-		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm</h4>';
+		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
 	    
 	    var marker = L.marker(latlng,
 				  {icon: L.ExtraMarkers.icon(options)});
