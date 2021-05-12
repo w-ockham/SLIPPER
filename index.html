@@ -157,7 +157,6 @@ i.semantic-ui-custom {
         </div><!-- /modal-header -->
 	<div class="modal-body">
 	  <iframe class="img-responsive" src="https://mackerel.io/embed/public/embed/yKtkCzMbywMqm4RnbfAxsfpgCz6U0aiZvqQCUrrF0jwNDR6A1nAyjG9lqTVSWcqK?period=1d" height="200" width="350" frameborder="0"></iframe>
-	    <a href="https://status.sota.org.uk/" target='_blank'> SOTA Service status </a>
 	</div>
       </div>
     </div>
@@ -187,7 +186,7 @@ i.semantic-ui-custom {
 		    <td> DX </td> <td> Send the latest three spots. <br>You can also specify areas with the following commands, NA,EU,OC,AS,AF,SA and JA.</td>
 		  </tr>
 		  <tr>
-		    <td> BC </td> <td> Show activator's beacon status. <br>'On:' On the summit. 'APR:' Approaching.<br> 'DESC:' Descending. 'RECV:' Beacon received. </td>
+		    <td> BC </td> <td> Show activators beacon status. <br>'On:' On the summit. 'APR:' Approaching.<br> 'DESC:' Descending. 'RECV:' Beacon received. </td>
 		  </tr>
 		  <tr>
 		    <td> LOC </td> <td> Locate your position. <br> <i>Nearest Summit(direction)</i><br> e.g. JA/NN-031:116m(78deg) </td>
@@ -241,6 +240,53 @@ i.semantic-ui-custom {
 </style>
 
 <script>
+var ContourLayer = L.GridLayer.extend({
+    initialize: function(url, elevation, options) {
+        L.Util.setOptions(this, options);
+        this._url = url;
+	this._elevation = elevation;
+    },
+
+    createTile: function(coords, done) {
+        var canvas = L.DomUtil.create("canvas", "leaflet-tile");
+        canvas.width = 256;
+        canvas.height = 256;
+	console.log(this._elevation);
+	var elev = this._elevation;
+        var xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+            var dem = xhr.responseText.split(/[,\n]/).map(function(a) {
+		return Math.floor((elev - parseFloat(a)) / 25);
+            });
+            var ctx = canvas.getContext("2d");
+            var img = ctx.createImageData(0x100, 0x100);
+            for (var i = 0; i <= 0xffff; i++) {
+		if (dem[i] >= 1 || dem[i] < 0 || (i & 0xff) === 0xff || (i & 0xff00) === 0xff00)
+		    continue;
+		if (dem[i] < 1 ) {
+		    console.log(dem[i]);
+		    img.data[i * 4 + 0] = 0xff;
+		    img.data[i * 4 + 1] = 0x00;
+		    img.data[i * 4 + 2] = 0x00;
+		    img.data[i * 4 + 3] = 0x60;
+		}
+            }
+            ctx.putImageData(img, 0, 0);
+            if (done) done(null, canvas);
+        };
+        xhr.onerror = function() {
+            if (done) done(null, canvas);
+        };
+        xhr.open('GET', L.Util.template(this._url, coords));
+        xhr.send();
+        return canvas;
+    }
+});
+
+L.contourLayer = function(url, height, options) {
+    return new ContourLayer(url, height, options);
+};
+
 let vh = window.innerHeight * 0.01;
 document.documentElement.style.setProperty('--vh', `${vh}px`);
 window.addEventListener('resize',()=> {
@@ -283,10 +329,12 @@ map.on('click', function(e) {
     popup.setLatLng(e.latlng).openOn(this);
 });
 
-lg = null;
-first_draw = true;
-update_timer = null;
-countdown = 0;
+var activation_zone = null;
+var lg = null;
+var first_draw = true;
+var update_timer = null;
+var countdown = 0;
+
 if (location.hash == '#aprs-info') {
     $('#modal-aprs').modal({"show":true});
 }
@@ -402,8 +450,26 @@ function clickSummitButton(event) {
     qrvdata = this.data;
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	if (this.op == qrvdata[i].op && this.summit == qrvdata[i].summit) {
-	    if (qrvdata[i].summit_latlng[0]!=0 && qrvdata[i].summit_latlng[1]!=0)
+	    lat = qrvdata[i].summit_latlng[0];
+	    lng = qrvdata[i].summit_latlng[1];
+	    if (lat != 0 && lng != 0) {
+		if (Cookies.get('area') =='JA') {
+		    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
+			if (res['errors'] != 'OK')
+			    return;
+			else {
+			    if (map && activation_zone) 
+				map.removeLayer(activation_zone);
+			    activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", res['elevation'],{
+				attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
+				minZoom: 14,
+				maxZoom: 18,
+				maxNativeZoom: 14
+			    }).addTo(map);
+			}
+		    })}
 		map.setView(calc_offset(qrvdata[i].summit_latlng),15);
+	    }
 	    break;
      	};
     };
@@ -444,8 +510,8 @@ function draw_direction(setfocus,qrvdata) {
 	direc_lg = L.layerGroup();
 
     map.addLayer(direc_lg);
- 
-    area = Cookies.get('area')
+
+     area = Cookies.get('area')
 
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
 	var mesg = "";	
