@@ -131,6 +131,7 @@ i.semantic-ui-custom {
 	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton" onClick="clickApplyButton"><i class="fas fa-check"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt"> QTH</i></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-prefs"><i class="fas fa-cog"></i></button>
 	</div>
       </div>
     </div>
@@ -209,6 +210,30 @@ i.semantic-ui-custom {
 	  </div> <!-- /.modal-content -->
 	</div> <!-- /.modal-dialog -->
   </div> <!-- /.modal -->
+
+  <div class="modal" id="modal-prefs" tabindex="-1" role="dialog" aria-labelledby="staticModalLabel" aria-hidden="true" data-show="true" data-keyboard="false" data-backdrop="static">
+	<div class="modal-dialog">
+	  <div class="modal-content">
+            <div class="modal-header">
+              <h4 class="modal-title">Preferences</h4>
+              <button type="button" class="close" data-dismiss="modal">
+		<span aria-hidden="true">&#215;</span>
+              </button>
+            </div><!-- /modal-header -->
+            <div class="modal-body">
+	      <div class="form-check">
+		<input class="form-check-input" type="checkbox" value="" id="enable_activation_zone" onclick="toggle_ActivationZone()">
+		<label class="form-check-label" for="flexCheckDefault">
+                Show Activation Zone (JA region only)
+		</label>
+	      </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+            </div>
+	  </div> <!-- /.modal-content -->
+	</div> <!-- /.modal-dialog -->
+  </div> <!-- /.modal -->
 </body>
 <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
@@ -270,12 +295,13 @@ var ContourLayer = L.GridLayer.extend({
 	var xhr = new XMLHttpRequest();
         xhr.onload = function() {
             var dem = xhr.responseText.split(/[,\n]/).map(function(a) {
-		return Math.floor((elev - parseFloat(a)) / 25);
+/*		return Math.floor((elev - parseFloat(a)) / 25);*/
+		return (elev - parseFloat(a)) / 25;
             });
             var ctx = canvas.getContext("2d");
             var img = ctx.createImageData(0x100, 0x100);
             for (var i = 0; i <= 0xffff; i++) {
-		if (dem[i] >= 1 || dem[i] < 0 || (i & 0xff) === 0xff || (i & 0xff00) === 0xff00)
+		if (dem[i] >= 1 || dem[i] < -0.5 || (i & 0xff) === 0xff || (i & 0xff00) === 0xff00)
 		    continue;
 		if (dem[i] < 1 ) {
 		    img.data[i * 4 + 0] = 0xff;
@@ -447,7 +473,25 @@ function drawObj(lg,data) {
 	marker.addTo(lg);
     }
 };
+
+var enable_activation_zone;
+
+function toggle_ActivationZone() {
+    fl = Cookies.get('prefs_act_zone');
+    if(fl == null) 
+	enable_activation_zone = "false";
     
+    if (fl == "true") {
+	enable_activation_zone = "false";
+	Cookies.set('prefs_act_zone',enable_activation_zone, {expires: 14, sameSite:'lax'});
+	if (map && activation_zone) 
+	    map.removeLayer(activation_zone);
+    } else {
+	enable_activation_zone = "true";
+	Cookies.set('prefs_act_zone',enable_activation_zone, {expires: 14, sameSite:'lax'});
+    }
+}
+
 function clickApplyButton(){
     const time_range = document.getElementById("select-time").value;
     const area = document.getElementById("select-area").value;
@@ -466,7 +510,7 @@ function clickSummitButton(event) {
 	    lat = qrvdata[i].summit_latlng[0];
 	    lng = qrvdata[i].summit_latlng[1];
 	    if (lat != 0 && lng != 0) {
-		if (Cookies.get('area') =='JA') {
+		if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
 		    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
 			if (res['errors'] != 'OK')
 			    return;
@@ -733,7 +777,16 @@ function update(focusQTH = false) {
 	    Cookies.set('range', range, {expires:14, sameSite:'lax' });
 	}
     }
-    
+
+    enable_activation_zone = Cookies.get('prefs_act_zone');
+    if(enable_activation_zone == null) 
+	enable_activation_zone = "false";
+    pref_act_zone = document.getElementById("enable_activation_zone");
+    if(enable_activation_zone== "true")
+	pref_act_zone.checked = true;
+    else
+	pref_act_zone.checked = false;
+
     sel_t = document.getElementById("select-time");
     sel_a = document.getElementById("select-area");
 
