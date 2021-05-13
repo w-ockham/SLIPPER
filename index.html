@@ -241,19 +241,33 @@ i.semantic-ui-custom {
 
 <script>
 var ContourLayer = L.GridLayer.extend({
-    initialize: function(url, elevation, options) {
+    initialize: function(url, lat, lon, elevation, options) {
         L.Util.setOptions(this, options);
         this._url = url;
 	this._elevation = elevation;
+	this._lat = lat;
+	this._lon = lon;
+	
     },
 
     createTile: function(coords, done) {
         var canvas = L.DomUtil.create("canvas", "leaflet-tile");
         canvas.width = 256;
         canvas.height = 256;
-	console.log(this._elevation);
-	var elev = this._elevation;
-        var xhr = new XMLHttpRequest();
+	const Lmax = 85.05112878;
+
+	var lat = this._lat;
+	var lon = this._lon;
+	var zoom = coords['z'];
+	var pX = parseInt(Math.pow(2, zoom + 7) * (lon / 180 + 1));
+	var tX = parseInt(pX / 256);
+	var pY = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))));
+	var tY = parseInt(pY / 256);
+	if (Math.abs(coords['x'] - tX) > 1 || Math.abs(coords['y'] - tY) > 1)
+	    return canvas;
+	
+	var elev = this._elevation;	
+	var xhr = new XMLHttpRequest();
         xhr.onload = function() {
             var dem = xhr.responseText.split(/[,\n]/).map(function(a) {
 		return Math.floor((elev - parseFloat(a)) / 25);
@@ -264,7 +278,6 @@ var ContourLayer = L.GridLayer.extend({
 		if (dem[i] >= 1 || dem[i] < 0 || (i & 0xff) === 0xff || (i & 0xff00) === 0xff00)
 		    continue;
 		if (dem[i] < 1 ) {
-		    console.log(dem[i]);
 		    img.data[i * 4 + 0] = 0xff;
 		    img.data[i * 4 + 1] = 0x00;
 		    img.data[i * 4 + 2] = 0x00;
@@ -283,8 +296,8 @@ var ContourLayer = L.GridLayer.extend({
     }
 });
 
-L.contourLayer = function(url, height, options) {
-    return new ContourLayer(url, height, options);
+L.contourLayer = function(url, lat, lon, height, options) {
+    return new ContourLayer(url, lat, lon, height, options);
 };
 
 let vh = window.innerHeight * 0.01;
@@ -460,7 +473,7 @@ function clickSummitButton(event) {
 			else {
 			    if (map && activation_zone) 
 				map.removeLayer(activation_zone);
-			    activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", res['elevation'],{
+			    activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", lat, lng, res['elevation'],{
 				attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
 				minZoom: 14,
 				maxZoom: 18,
