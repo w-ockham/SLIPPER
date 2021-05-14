@@ -216,15 +216,13 @@ i.semantic-ui-custom {
 	  <div class="modal-content">
             <div class="modal-header">
               <h4 class="modal-title">Preferences</h4>
-              <button type="button" class="close" data-dismiss="modal">
-		<span aria-hidden="true">&#215;</span>
-              </button>
             </div><!-- /modal-header -->
             <div class="modal-body">
 	      <div class="form-check">
 		<input class="form-check-input" type="checkbox" value="" id="enable_activation_zone" onclick="toggle_ActivationZone()">
 		<label class="form-check-label" for="flexCheckDefault">
-                Show Activation Zone (JA region only)
+                  Show Activation Zone (JA region only) <br>
+		  ※(テスト版)SOTAサミットを含む領域のみがアクティベーションゾーンとなります
 		</label>
 	      </div>
             </div>
@@ -268,10 +266,16 @@ i.semantic-ui-custom {
 var ContourLayer = L.GridLayer.extend({
     initialize: function(url, lat, lon, elevation, options) {
         L.Util.setOptions(this, options);
+	const Lmax = 85.05112878;
         this._url = url;
 	this._elevation = elevation;
 	this._lat = lat;
 	this._lon = lon;
+	var zoom = 14;
+	this._pX = parseInt(Math.pow(2, zoom + 7) * (lon / 180 + 1));
+	this._tX = parseInt(this._pX / 256);
+	this._pY = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))));
+	this._tY = parseInt(this._pY / 256);
 	
     },
 
@@ -279,29 +283,30 @@ var ContourLayer = L.GridLayer.extend({
         var canvas = L.DomUtil.create("canvas", "leaflet-tile");
         canvas.width = 256;
         canvas.height = 256;
-	const Lmax = 85.05112878;
 
 	var lat = this._lat;
 	var lon = this._lon;
-	var zoom = coords['z'];
-	var pX = parseInt(Math.pow(2, zoom + 7) * (lon / 180 + 1));
-	var tX = parseInt(pX / 256);
-	var pY = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))));
-	var tY = parseInt(pY / 256);
-	if (Math.abs(coords['x'] - tX) > 1 || Math.abs(coords['y'] - tY) > 1)
+	var pX = this._pX;
+	var pY = this._pY;
+
+	if (Math.abs(coords['x'] - this._tX) > 1 ||
+	    Math.abs(coords['y'] - this._tY) > 1)
 	    return canvas;
 	
 	var elev = this._elevation;	
 	var xhr = new XMLHttpRequest();
         xhr.onload = function() {
             var dem = xhr.responseText.split(/[,\n]/).map(function(a) {
-/*		return Math.floor((elev - parseFloat(a)) / 25);*/
 		return (elev - parseFloat(a)) / 25;
             });
             var ctx = canvas.getContext("2d");
             var img = ctx.createImageData(0x100, 0x100);
             for (var i = 0; i <= 0xffff; i++) {
-		if (dem[i] >= 1 || dem[i] < -0.5 || (i & 0xff) === 0xff || (i & 0xff00) === 0xff00)
+		if (dem[i] >= 1 || dem[i] < -0.5)
+		    continue;
+		xlen = pX-coords['x']*256-(i&0xff)
+		ylen = pY-coords['y']*256-(i>>>8);
+		if ((xlen*xlen + ylen * ylen)>1600)
 		    continue;
 		if (dem[i] < 1 ) {
 		    img.data[i * 4 + 0] = 0xff;
