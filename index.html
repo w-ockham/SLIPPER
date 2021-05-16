@@ -111,7 +111,7 @@ i.semantic-ui-custom {
       <div class="form-inline">
 	<div class="form-group">
 	  <label for="custom-select-time">&nbsp&nbsp&nbsp&nbsp<b>Last:</b>&nbsp</label>
-	  <select id="select-time" class="custom-select custom-select-sm" style="width:auto;">
+	  <select id="select-time" class="custom-select custom-select-sm" style="width:auto;" onChange="clickApplyButton()">
 	    <option value="6">4H+Alerts</option>
 	    <option value="24">24 hours</option>
 	    <option value="48">48 hours</option>
@@ -119,7 +119,7 @@ i.semantic-ui-custom {
 	</div>
 	<div class="form-group">
 	  <label for="custom-select-area">&nbsp<b>Area:</b>&nbsp</label>
-	  <select id="select-area" class="custom-select custom-select-sm" style="width:auto;">
+	  <select id="select-area" class="custom-select custom-select-sm" style="width:auto;" onChange="clickApplyButton()">
 	    <option value="WW">WW</option>
 	    <option value="JA">JA</option>
 	    <option value="AS">AS/OC</option>
@@ -128,10 +128,11 @@ i.semantic-ui-custom {
 	  </select>
 	</div>
 	<div class="form-group">
-	  &nbsp&nbsp<button type="button" class="btn btn-primary ApplyButton" onClick="clickApplyButton"><i class="fas fa-check"></i></button>
-	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary" onClick="clickApplyButton()"><i class="fas fa-redo"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt"> QTH</i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-prefs"><i class="fas fa-cog"></i></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
+
 	</div>
       </div>
     </div>
@@ -510,6 +511,27 @@ function clickApplyButton(){
 };
 $('.ApplyButton').on('click',function() { clickApplyButton();});
 
+function displayActivationZone(coords) {
+    var lat = coords[0];
+    var lng = coords[1];
+   
+    if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
+	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
+	    if (res['errors'] != 'OK')
+		return;
+	    else {
+		if (map && activation_zone) 
+		    map.removeLayer(activation_zone);
+		activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", lat, lng, res['elevation'],{
+		    attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
+		    minZoom: 14,
+		    maxZoom: 18,
+		    maxNativeZoom: 14
+		}).addTo(map);
+	    }
+	})}
+}
+	
 function clickSummitButton(event) {
     qrvdata = this.data;
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
@@ -517,21 +539,7 @@ function clickSummitButton(event) {
 	    lat = qrvdata[i].summit_latlng[0];
 	    lng = qrvdata[i].summit_latlng[1];
 	    if (lat != 0 && lng != 0) {
-		if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
-		    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
-			if (res['errors'] != 'OK')
-			    return;
-			else {
-			    if (map && activation_zone) 
-				map.removeLayer(activation_zone);
-			    activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", lat, lng, res['elevation'],{
-				attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
-				minZoom: 14,
-				maxZoom: 18,
-				maxNativeZoom: 14
-			    }).addTo(map);
-			}
-		    })}
+		displayActivationZone(qrvdata[i].summit_latlng);
 		map.setView(calc_offset(qrvdata[i].summit_latlng),15);
 	    }
 	    break;
@@ -971,8 +979,10 @@ function update(focusQTH = false) {
 	    if (d != null) {
 		d.scrollIntoView(true);
 		if (first_draw &&(current_latlng[current_op][0]!=0 &&
-				 current_latlng[current_op][1]!=0))
+				  current_latlng[current_op][1]!=0)) {
+		    displayActivationZone(current_latlng[current_op]);
 		    map.setView(current_latlng[current_op],15);
+		}
 	    } else {
 		retry = Cookies.get('retry_range')
 		if (location.hash != '' && retry == '') {
@@ -981,8 +991,10 @@ function update(focusQTH = false) {
 		    return;
   		} else {
 		    if (qdata[0].summit_latlng[0]!=0 &&
-			qdata[0].summit_latlng[1]!=0)
+			qdata[0].summit_latlng[1]!=0) {
+			displayActivationZone(qdata[0].summit_latlng);
 			map.setView(qdata[0].summit_latlng,15);
+		    }
 		}
 	    }
 	    Cookies.set('retry_range','', { sameSite:'lax' });
