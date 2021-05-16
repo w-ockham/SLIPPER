@@ -221,8 +221,7 @@ i.semantic-ui-custom {
 	      <div class="form-check">
 		<input class="form-check-input" type="checkbox" value="" id="enable_activation_zone" onclick="toggle_ActivationZone()">
 		<label class="form-check-label" for="flexCheckDefault">
-                  Show Activation Zone (JA region only) <br>
-		  ※(テスト版)SOTAサミットを含む領域のみがアクティベーションゾーンとなります
+    Show Activation Zone (Experimental, JA region only) <br>
 		</label>
 	      </div>
             </div>
@@ -254,6 +253,7 @@ i.semantic-ui-custom {
     <link rel="stylesheet" href="css/L.Icon.Pulse.css" />
     <script src="js/L.Icon.Pulse.js"></script>
     <script src="js/leaflet-arc.min.js"></script>
+    <script src="js/regionfill.js"></script>
     <!-- plugin -->
 
 <style type="text/css">
@@ -264,7 +264,7 @@ i.semantic-ui-custom {
 
 <script>
 var ContourLayer = L.GridLayer.extend({
-    initialize: function(url, lat, lon, elevation, options) {
+    initialize: function(url, lat, lon, elevation, color, options) {
         L.Util.setOptions(this, options);
 	const Lmax = 85.05112878;
         this._url = url;
@@ -276,7 +276,8 @@ var ContourLayer = L.GridLayer.extend({
 	this._tX = parseInt(this._pX / 256);
 	this._pY = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))));
 	this._tY = parseInt(this._pY / 256);
-	
+	this._region = new RegionFill(this._tX, this._tY, this._pX, this._pY);
+	this._color = color;
     },
 
     createTile: function(coords, done) {
@@ -288,9 +289,12 @@ var ContourLayer = L.GridLayer.extend({
 	var lon = this._lon;
 	var pX = this._pX;
 	var pY = this._pY;
-
-	if (Math.abs(coords['x'] - this._tX) > 1 ||
-	    Math.abs(coords['y'] - this._tY) > 1)
+	var tX = this._tX;
+	var tY = this._tY;
+	var region = this._region;
+	var color = this._color;
+	if (Math.abs(coords['x'] - tX) > 1 ||
+	    Math.abs(coords['y'] - tY) > 1)
 	    return canvas;
 	
 	var elev = this._elevation;	
@@ -301,21 +305,18 @@ var ContourLayer = L.GridLayer.extend({
             });
             var ctx = canvas.getContext("2d");
             var img = ctx.createImageData(0x100, 0x100);
+	    var opaque  = 0x01;
             for (var i = 0; i <= 0xffff; i++) {
 		if (dem[i] >= 1 || dem[i] < -0.5)
 		    continue;
-		xlen = pX-coords['x']*256-(i&0xff)
-		ylen = pY-coords['y']*256-(i>>>8);
-		if ((xlen*xlen + ylen * ylen)>1600)
-		    continue;
 		if (dem[i] < 1 ) {
-		    img.data[i * 4 + 0] = 0xff;
+		    img.data[i * 4 + 0] = 0x00;
 		    img.data[i * 4 + 1] = 0x00;
 		    img.data[i * 4 + 2] = 0x00;
-		    img.data[i * 4 + 3] = 0x60;
+		    img.data[i * 4 + 3] = opaque;
 		}
             }
-            ctx.putImageData(img, 0, 0);
+	    region.fillTile(ctx,img, coords['x'],coords['y'], opaque, color)
             if (done) done(null, canvas);
         };
         xhr.onerror = function() {
@@ -328,7 +329,8 @@ var ContourLayer = L.GridLayer.extend({
 });
 
 L.contourLayer = function(url, lat, lon, height, options) {
-    return new ContourLayer(url, lat, lon, height, options);
+    return new ContourLayer(url, lat, lon, height,
+			    [0xff,0x00,0x00,0x60],options);
 };
 
 let vh = window.innerHeight * 0.01;
