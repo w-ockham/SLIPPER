@@ -358,9 +358,13 @@ var map = L.map('map',{
 L.control.scale().addTo(map);
 var popup = L.popup();
 map.on('click', function(e) {
+    var lat = Math.round(e.latlng.lat * 1000000,4)/1000000
+    var lng = Math.round(e.latlng.lng * 1000000,4)/1000000
+
     $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+e.latlng.lat+'&lon='+e.latlng.lng,function(res) {
 	if (res['errors'] == 'OUTSIDE_JA') {
-	    popup.setContent('GL: '+res['maidenhead']);
+	    popup.setContent(
+		'Pos: ' + lat +','+ lng + '<br>GL: '+res['maidenhead']);
 	    return;
         }
 	if (res['errors'] != 'OK') {
@@ -368,10 +372,11 @@ map.on('click', function(e) {
 	    return;
 	}
 	accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
+	pos = '<br>位置: ' + lat + ',' + lng;
 	if (res['type'] == 'JCC') 
-	    popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm '+ accu);
+	    popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm '+ accu);
 	else
-	    popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + '<br> 標高:' + res['elevation'] + 'm ' + accu);
+	    popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm ' + accu);
     });
     popup.setLatLng(e.latlng).openOn(this);
 });
@@ -764,9 +769,12 @@ function clock() {
 }
 
 function update(focusQTH = false) {
+    var centerpos, czoom;
+    
     $('#qrvinfo').html('');
 
     lh = location.hash;
+    
     if (lh != '' && lh != '#aprs-info') {
 	var pat = /%2BJA\d*/g;
 	if (lh.match(pat))
@@ -845,16 +853,31 @@ function update(focusQTH = false) {
 	fname = 'spots' + postfix
     
 
-    if (area == "WW")
+    if (area == "WW") {
+	czoom  = 2;
+	centerpos = [30, 158];
 	sel_a.selectedIndex = 0;
-    else if (area == "JA")
+    }
+    else if (area == "JA") {
+	czoom  = 5;
+	centerpos = [35.36, 138.7];
 	sel_a.selectedIndex = 1;
-    else if (area == "AS")
+    }
+    else if (area == "AS") {
+	czoom  = 3;
+	centerpos = [19, 138.7];
 	sel_a.selectedIndex = 2;
-    else if (area == "EU")
-	sel_a.selectedIndex = 3;
-    else if (area == "NA")
+    }
+    else if (area == "EU") {
+	czoom  = 4;
+	centerpos = [37 , 12];
+	sel_a.selectedIndex = 3
+    }
+    else if (area == "NA") {
+	czoom  = 4;
+	centerpos = [41 , 260];
 	sel_a.selectedIndex = 4;
+    }
 
     $.getJSON("https://www.sotalive.tk/json/"+fname,{ts:new Date().getTime()},function(qrvdata) {
 	if (lg != null) {
@@ -1006,7 +1029,7 @@ function update(focusQTH = false) {
 		  update();
 		  return;
 	      } else {
-		  map.setView([35.362853,138.730910],15);
+		  map.setView(centerpos, czoom);
 		  $('#qrvinfo').append('<div class="media"><div class="media-body"> <h5 class="mt-0 mb-1"> No alerts or spots found.</h5></div><hr/></div>');
 	      }
 	}	
