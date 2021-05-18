@@ -308,9 +308,7 @@ var ContourLayer = L.GridLayer.extend({
             var img = ctx.createImageData(0x100, 0x100);
 	    var opaque  = 0x01;
             for (var i = 0; i <= 0xffff; i++) {
-		if (dem[i] >= 1 || dem[i] < -0.5)
-		    continue;
-		if (dem[i] < 1 ) {
+		if (dem[i] < 1 && dem[i] >= 0) {
 		    img.data[i * 4 + 0] = 0x00;
 		    img.data[i * 4 + 1] = 0x00;
 		    img.data[i * 4 + 2] = 0x00;
@@ -355,8 +353,15 @@ var map = L.map('map',{
     layers: [ gsi ]
 });
 
+var activation_zone = null;
+var lg = null;
+var first_draw = true;
+var update_timer = null;
+var countdown = 0;
+
 L.control.scale().addTo(map);
 var popup = L.popup();
+
 map.on('click', function(e) {
     var lat = Math.round(e.latlng.lat * 1000000,4)/1000000
     var lng = Math.round(e.latlng.lng * 1000000,4)/1000000
@@ -381,12 +386,11 @@ map.on('click', function(e) {
     popup.setLatLng(e.latlng).openOn(this);
 });
 
-var activation_zone = null;
-var lg = null;
-var first_draw = true;
-var update_timer = null;
-var countdown = 0;
+map.on('contextmenu', function(e) {
+    displayActivationZone([e.latlng.lat, e.latlng.lng]);
+});
 
+       
 if (location.hash == '#aprs-info') {
     $('#modal-aprs').modal({"show":true});
 }
@@ -506,6 +510,7 @@ function toggle_ActivationZone() {
 }
 
 function clickApplyButton(){
+    $('#navbarNav').collapse('hide');
     const time_range = document.getElementById("select-time").value;
     const area = document.getElementById("select-area").value;
     Cookies.set('area',area, {expires: 14, sameSite:'lax'});
@@ -691,6 +696,7 @@ function callbkQTHNG(arg) {
 };
 
 function clickQTHButton () {
+    $('#navbarNav').collapse('hide');
     if (typeof navigator.geolocation === 'undefined') {
 	window . alert('ブラウザが位置情報取得に対応していません');
 	return false;
