@@ -265,7 +265,7 @@ i.semantic-ui-custom {
 
 <script>
 var ContourLayer = L.GridLayer.extend({
-    initialize: function(url, lat, lon, elevation, color, options) {
+    initialize: function(url, lat, lon, elevation, color, uplmt, options) {
         L.Util.setOptions(this, options);
 	const Lmax = 85.05112878;
         this._url = url;
@@ -277,8 +277,10 @@ var ContourLayer = L.GridLayer.extend({
 	this._tX = parseInt(this._pX / 256);
 	this._pY = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))));
 	this._tY = parseInt(this._pY / 256);
+	this._upperlimit = uplmt;
 	this._region = new RegionFill(this._tX, this._tY, this._pX, this._pY);
 	this._color = color;
+
     },
 
     createTile: function(coords, done) {
@@ -294,10 +296,12 @@ var ContourLayer = L.GridLayer.extend({
 	var tY = this._tY;
 	var region = this._region;
 	var color = this._color;
+	var uplmt = this._upperlimit;
+	
 	if (Math.abs(coords['x'] - tX) > 1 ||
 	    Math.abs(coords['y'] - tY) > 1)
 	    return canvas;
-	
+
 	var elev = this._elevation;	
 	var xhr = new XMLHttpRequest();
         xhr.onload = function() {
@@ -308,7 +312,7 @@ var ContourLayer = L.GridLayer.extend({
             var img = ctx.createImageData(0x100, 0x100);
 	    var opaque  = 0x01;
             for (var i = 0; i <= 0xffff; i++) {
-		if (dem[i] < 1 && dem[i] >= 0) {
+		if (dem[i] < 1 && dem[i] >= uplmt) {
 		    img.data[i * 4 + 0] = 0x00;
 		    img.data[i * 4 + 1] = 0x00;
 		    img.data[i * 4 + 2] = 0x00;
@@ -327,9 +331,9 @@ var ContourLayer = L.GridLayer.extend({
     }
 });
 
-L.contourLayer = function(url, lat, lon, height, options) {
+L.contourLayer = function(url, lat, lon, height, uplmt,options) {
     return new ContourLayer(url, lat, lon, height,
-			    [0xff,0x00,0x00,0x60],options);
+			    [0xff,0x00,0x00,0x60], uplmt, options);
 };
 
 let vh = window.innerHeight * 0.01;
@@ -387,7 +391,7 @@ map.on('click', function(e) {
 });
 
 map.on('contextmenu', function(e) {
-    displayActivationZone([e.latlng.lat, e.latlng.lng]);
+    displayActivationZone([e.latlng.lat, e.latlng.lng], 0);
 });
 
        
@@ -521,18 +525,20 @@ function clickApplyButton(){
 };
 $('.ApplyButton').on('click',function() { clickApplyButton();});
 
-function displayActivationZone(coords) {
+function displayActivationZone(coords, uplmt) {
     var lat = coords[0];
     var lng = coords[1];
    
     if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
 	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
-	    if (res['errors'] != 'OK')
+	    if (res['errors'] != 'OK') {
+		console.log('DEM error');
 		return;
+	    }
 	    else {
 		if (map && activation_zone) 
 		    map.removeLayer(activation_zone);
-		activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", lat, lng, res['elevation'],{
+		activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", lat, lng, res['elevation'], uplmt,{
 		    attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
 		    minZoom: 14,
 		    maxZoom: 18,
@@ -549,7 +555,7 @@ function clickSummitButton(event) {
 	    lat = qrvdata[i].summit_latlng[0];
 	    lng = qrvdata[i].summit_latlng[1];
 	    if (lat != 0 && lng != 0) {
-		displayActivationZone(qrvdata[i].summit_latlng);
+		displayActivationZone(qrvdata[i].summit_latlng,-0.4);
 		map.setView(calc_offset(qrvdata[i].summit_latlng),15);
 	    }
 	    break;
@@ -1009,7 +1015,7 @@ function update(focusQTH = false) {
 		d.scrollIntoView(true);
 		if (first_draw &&(current_latlng[current_op][0]!=0 &&
 				  current_latlng[current_op][1]!=0)) {
-		    displayActivationZone(current_latlng[current_op]);
+		    displayActivationZone(current_latlng[current_op],-0.4);
 		    map.setView(current_latlng[current_op],15);
 		}
 	    } else {
@@ -1021,7 +1027,7 @@ function update(focusQTH = false) {
   		} else {
 		    if (qdata[0].summit_latlng[0]!=0 &&
 			qdata[0].summit_latlng[1]!=0) {
-			displayActivationZone(qdata[0].summit_latlng);
+			displayActivationZone(qdata[0].summit_latlng,-0.4);
 			map.setView(qdata[0].summit_latlng,15);
 		    }
 		}
