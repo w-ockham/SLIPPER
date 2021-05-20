@@ -255,6 +255,7 @@ i.semantic-ui-custom {
     <script src="js/L.Icon.Pulse.js"></script>
     <script src="js/leaflet-arc.min.js"></script>
     <script src="js/regionfill.js"></script>
+    <script src="js/getDEM.js"></script>
     <!-- plugin -->
 
 <style type="text/css">
@@ -302,11 +303,10 @@ var ContourLayer = L.GridLayer.extend({
 	    Math.abs(coords['y'] - tY) > 1)
 	    return canvas;
 
-	var elev = this._elevation;	
-	var xhr = new XMLHttpRequest();
-        xhr.onload = function() {
-            var dem = xhr.responseText.split(/[,\n]/).map(function(a) {
-		return (elev - parseFloat(a)) / 25;
+	var elev = this._elevation;
+	getDEM(coords,function(e) {
+            var dem = e.map(function(a) {
+		return (elev - a) / 25;
             });
             var ctx = canvas.getContext("2d");
             var img = ctx.createImageData(0x100, 0x100);
@@ -318,15 +318,10 @@ var ContourLayer = L.GridLayer.extend({
 		    img.data[i * 4 + 2] = 0x00;
 		    img.data[i * 4 + 3] = opaque;
 		}
-            }
+	    }
 	    region.fillTile(ctx,img, coords['x'],coords['y'], opaque, color)
             if (done) done(null, canvas);
-        };
-        xhr.onerror = function() {
-            if (done) done(null, canvas);
-        };
-        xhr.open('GET', L.Util.template(this._url, coords));
-        xhr.send();
+        });
         return canvas;
     }
 });
