@@ -271,10 +271,9 @@ i.semantic-ui-custom {
 
 <script>
 var ContourLayer = L.GridLayer.extend({
-    initialize: function(url, lat, lon, elevation, color, uplmt, dist, options) {
+    initialize: function(lat, lon, elevation, color, uplmt, dist, options) {
         L.Util.setOptions(this, options);
 	const Lmax = 85.05112878;
-        this._url = url;
 	this._elevation = elevation;
 	this._lat = lat;
 	this._lon = lon;
@@ -333,8 +332,8 @@ var ContourLayer = L.GridLayer.extend({
     }
 });
 
-L.contourLayer = function(url, lat, lon, height, uplmt, dist,options) {
-    return new ContourLayer(url, lat, lon, height,
+L.contourLayer = function(lat, lon, height, uplmt, dist,options) {
+    return new ContourLayer(lat, lon, height,
 			    [0xff,0x00,0x00,0x60], uplmt, dist,options);
 };
 
@@ -540,7 +539,7 @@ function displayActivationZone(coords, uplmt) {
 	    else {
 		if (map && activation_zone) 
 		    map.removeLayer(activation_zone);
-		activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", lat, lng, res['elevation'], uplmt, 1,{
+		activation_zone = L.contourLayer(lat, lng, res['elevation'], uplmt, 1,{
 		    attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
 		    minZoom: 14,
 		    maxZoom: 18,

@@ -1,6 +1,15 @@
 function getDEM(coords, done) { 
     var url_png = "https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png";
+    var url_png5a = "https://cyberjapandata.gsi.go.jp/xyz/dem5a_png/{z}/{x}/{y}.png";
 
+    var check_url = function(_url) {
+	var xhr;
+	xhr = new XMLHttpRequest();
+	xhr.open('HEAD', _url, false);
+	xhr.send(null);
+	return xhr.status;
+    }
+    
     var img = new Image();
 
     img.crossOrigin = 'anonymous';
@@ -24,6 +33,11 @@ function getDEM(coords, done) {
 	}
 	if (done) done(dem)
     }
-    url = L.Util.template(url_png, coords);
+    url = L.Util.template(url_png5a, coords);
+    if(check_url(url) == 404) {
+	//console.log("DEM5A not found")
+	url = L.Util.template(url_png, coords);
+    }
+    
     img.src = url;
 }
