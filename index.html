@@ -101,6 +101,32 @@ i.semantic-ui-custom {
 </style>
 </head>
 <body>
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
+<!---------------------------------------------------------------------->
+<!-- JQuery -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<!-- Bootstrap tooltips -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+<!-- Bootstrap core JavaScript -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.min.js"></script>
+<!-- MDB core JavaScript -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/js/mdb.min.js"></script>
+<!------------------------------------------------------------------------>
+<!-- plugin -->
+    <link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
+    <script src="js/leaflet.extra-markers.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
+    <link rel="stylesheet" href="css/L.Icon.Pulse.css" />
+    <script src="js/L.Icon.Pulse.js"></script>
+    <script src="js/leaflet-arc.min.js"></script>
+    <script src="js/regionfill.js"></script>
+    <script src="js/getDEM.js"></script>
+    <script src="js/search-summit.js"></script>
+    <!-- plugin -->
+
+
   <nav class="navbar navbar-expand-md navbar-dark bg-dark text-light">
     <span class="navbar-brand" style="cursor: hand;cursor: pointer;" data-toggle="modal" data-target="#modal-mackerel"><h4>SOTAwatch Live!</h4></span>
     <small><span id="clock_time" style="cursor: default;" ></span></small>
@@ -132,8 +158,11 @@ i.semantic-ui-custom {
 	  &nbsp&nbsp<button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt"> QTH</i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-prefs"><i class="fas fa-cog"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
-
 	</div>
+	<div id="search_summit"></div>
+	  <script>
+	    $("#search_summit").searchinput({candidates:15,done:function(s){showSummit(s)}})
+	  </script>
       </div>
     </div>
   </nav>
@@ -234,30 +263,6 @@ i.semantic-ui-custom {
   </div> <!-- /.modal -->
 </body>
 <!-- Optional JavaScript -->
-<!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    <script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
-<!---------------------------------------------------------------------->
-<!-- JQuery -->
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-<!-- Bootstrap tooltips -->
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
-<!-- Bootstrap core JavaScript -->
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.min.js"></script>
-<!-- MDB core JavaScript -->
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/js/mdb.min.js"></script>
-<!------------------------------------------------------------------------>
-<!-- plugin -->
-    <link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
-    <script src="js/leaflet.extra-markers.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
-    <link rel="stylesheet" href="css/L.Icon.Pulse.css" />
-    <script src="js/L.Icon.Pulse.js"></script>
-    <script src="js/leaflet-arc.min.js"></script>
-    <script src="js/regionfill.js"></script>
-    <script src="js/getDEM.js"></script>
-    <!-- plugin -->
-
 <style type="text/css">
     i.semantic-ui-custom {
         margin-top: 9px;
@@ -266,7 +271,7 @@ i.semantic-ui-custom {
 
 <script>
 var ContourLayer = L.GridLayer.extend({
-    initialize: function(url, lat, lon, elevation, color, uplmt, options) {
+    initialize: function(url, lat, lon, elevation, color, uplmt, dist, options) {
         L.Util.setOptions(this, options);
 	const Lmax = 85.05112878;
         this._url = url;
@@ -279,7 +284,8 @@ var ContourLayer = L.GridLayer.extend({
 	this._pY = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))));
 	this._tY = parseInt(this._pY / 256);
 	this._upperlimit = uplmt;
-	this._region = new RegionFill(this._tX, this._tY, this._pX, this._pY);
+	this._dist = dist;
+	this._region = new RegionFill(this._tX, this._tY, this._pX, this._pY, dist);
 	this._color = color;
 
     },
@@ -298,9 +304,10 @@ var ContourLayer = L.GridLayer.extend({
 	var region = this._region;
 	var color = this._color;
 	var uplmt = this._upperlimit;
+	var dist = this._dist;
 	
-	if (Math.abs(coords['x'] - tX) > 1 ||
-	    Math.abs(coords['y'] - tY) > 1)
+	if (Math.abs(coords['x'] - tX) > dist ||
+	    Math.abs(coords['y'] - tY) > dist )
 	    return canvas;
 
 	var elev = this._elevation;
@@ -326,9 +333,9 @@ var ContourLayer = L.GridLayer.extend({
     }
 });
 
-L.contourLayer = function(url, lat, lon, height, uplmt,options) {
+L.contourLayer = function(url, lat, lon, height, uplmt, dist,options) {
     return new ContourLayer(url, lat, lon, height,
-			    [0xff,0x00,0x00,0x60], uplmt, options);
+			    [0xff,0x00,0x00,0x60], uplmt, dist,options);
 };
 
 let vh = window.innerHeight * 0.01;
@@ -533,7 +540,7 @@ function displayActivationZone(coords, uplmt) {
 	    else {
 		if (map && activation_zone) 
 		    map.removeLayer(activation_zone);
-		activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", lat, lng, res['elevation'], uplmt,{
+		activation_zone = L.contourLayer("https://cyberjapandata.gsi.go.jp/xyz/dem/{z}/{x}/{y}.txt", lat, lng, res['elevation'], uplmt, 1,{
 		    attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
 		    minZoom: 14,
 		    maxZoom: 18,
@@ -542,7 +549,7 @@ function displayActivationZone(coords, uplmt) {
 	    }
 	})}
 }
-	
+
 function clickSummitButton(event) {
     qrvdata = this.data;
     for (var i = 0, len = qrvdata.length; i< len; ++i) {
@@ -645,6 +652,48 @@ function draw_direction(setfocus,qrvdata) {
     }
     if (setfocus)
 	map.setView(my_qth,15);
+}
+
+var show_summit_marker = null;
+
+function showSummit(s) {
+    latlng = s['coord']
+    options = {
+        prefix: 'icon'
+        ,icon: 'flag checkered'
+        ,shape: 'circle'
+        ,markerColor: 'yellow'
+        ,extraClasses: 'semantic-ui-custom'
+    };
+    $('#navbarNav').collapse('hide');
+    area = s['code'].substr(0,2);
+    sel_a = document.getElementById("select-area");
+    if (area == "JA") {
+	if(map.hasLayer(osm)) {
+	    map.removeLayer(osm);
+	    map.addLayer(gsi);
+	    sel_a.selectedIndex = 1;
+	}
+    }
+    else {
+	if(map.hasLayer(gsi)) {
+	    map.removeLayer(gsi);
+	    map.addLayer(osm);
+	    sel_a.selectedIndex = 0;
+	}
+    }
+    
+    mesg = '<h5>'+s['code']+' '+s['name']+'</h5>'+s['data']['elev']+'m, '+s['data']['pts']+'pts'
+
+    if (show_summit_marker)
+	map.removeLayer(show_summit_marker)
+    
+    var marker = L.marker(latlng,
+			  {icon: L.ExtraMarkers.icon(options)});
+    show_summit_marker = marker.addTo(map);
+    marker.bindPopup(mesg).openPopup();
+    displayActivationZone(latlng,-0.4);
+    map.setView(latlng,15);
 }
 
 function callbkQTHOk(arg) {
