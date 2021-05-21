@@ -161,7 +161,7 @@ i.semantic-ui-custom {
 	</div>
 	<div id="search_summit"></div>
 	  <script>
-	    $("#search_summit").searchinput({candidates:15,done:function(s){showSummit(s)}})
+	    $("#search_summit").searchinput({done:function(s){showSummit(s)}})
 	  </script>
       </div>
     </div>
@@ -671,17 +671,24 @@ function showSummit(s) {
 	if(map.hasLayer(osm)) {
 	    map.removeLayer(osm);
 	    map.addLayer(gsi);
-	    sel_a.selectedIndex = 1;
 	}
+	sel_a.selectedIndex = 1;
+	Cookies.set('area', area, {expires:14, sameSite:'lax' });
     }
     else {
 	if(map.hasLayer(gsi)) {
 	    map.removeLayer(gsi);
 	    map.addLayer(osm);
-	    sel_a.selectedIndex = 0;
 	}
+	sel_a.selectedIndex = 0;
+	Cookies.set('area', 'WW', {expires:14, sameSite:'lax' });
     }
-    
+    sel_t = document.getElementById("select-time");
+    clearInterval(update_timer)
+    countdown = 0;
+    sel_t.selectedIndex = 2;
+    update_timer = null;
+
     mesg = '<h5>'+s['code']+' '+s['name']+'</h5>'+s['data']['elev']+'m, '+s['data']['pts']+'pts'
 
     if (show_summit_marker)
