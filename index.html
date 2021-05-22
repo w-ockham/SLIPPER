@@ -122,7 +122,7 @@ i.semantic-ui-custom {
     <script src="js/L.Icon.Pulse.js"></script>
     <script src="js/leaflet-arc.min.js"></script>
     <script src="js/regionfill.js"></script>
-    <script src="js/getDEM.js"></script>
+    <script src="js/getDEM2.js"></script>
     <script src="js/search-summit.js"></script>
     <!-- plugin -->
 
@@ -556,7 +556,7 @@ function clickSummitButton(event) {
 	    lat = qrvdata[i].summit_latlng[0];
 	    lng = qrvdata[i].summit_latlng[1];
 	    if (lat != 0 && lng != 0) {
-		displayActivationZone(qrvdata[i].summit_latlng,-0.4);
+		displayActivationZone(qrvdata[i].summit_latlng,-0.8);
 		map.setView(calc_offset(qrvdata[i].summit_latlng),15);
 	    }
 	    break;
@@ -698,7 +698,7 @@ function showSummit(s) {
 			  {icon: L.ExtraMarkers.icon(options)});
     show_summit_marker = marker.addTo(map);
     marker.bindPopup(mesg).openPopup();
-    displayActivationZone(latlng,-0.4);
+    displayActivationZone(latlng,-0.8);
     map.setView(latlng,15);
 }
 
