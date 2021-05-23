@@ -33,8 +33,13 @@ function getDEM(coords, done) {
 	    
 	    if (is5a && h < 100) {
 		missing++;
-		if ((i && 0xff) != 0 && prevh >= 100) {
+ 		if ((i && 0xff) != 0 && prevh >= 100) {
 		    errpxl.push(i-1)
+		}
+	    } else if (is5a && prevh < 100) {
+		missing++;
+		if ((i && 0xff) != 0 && h >= 100) {
+		    errpxl.push(i)
 		}
 	    }
 	    prevh = h;
@@ -66,11 +71,11 @@ function getDEM(coords, done) {
 		sumd = dem5a[p] - dem[p]
 	    }
 	    delta = sumd/pts;
-//	    console.log("Original DEM5A:" + url5)
-//	    console.log(missingarea+"% of DEM5A is missing")
-//	    console.log("Interpolate by DEM10B:" + img.src)
-//	    console.log("Caculate " + pts + " points")
-//	    console.log("DEM5A is higher than dem by " + sumd/pts + "m")
+	    //console.log("Original DEM5A:" + url5)
+	    //console.log(missingarea+"% of DEM5A is missing")
+	    //console.log("Interpolate by DEM10B:" + img.src)
+	    //console.log("Caculate " + pts + " points")
+	    //console.log("DEM5A is higher than dem by " + sumd/pts + "m")
 	    for (var i = 0; i<= 0xffff; i++) {
 		if (dem5a[i] < 1.0)
 		    dem5a[i] = dem[i] -delta
