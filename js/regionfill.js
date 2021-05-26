@@ -95,6 +95,7 @@ class RegionFill {
 		    this.setTile(tx, ty, ctx, img);
 		    this.fillRegion(x, y, opaque, color);
 		    painted = true;
+		    break;
 		}
 	    }
 	    if (!painted) 
