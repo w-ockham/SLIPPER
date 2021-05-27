@@ -276,15 +276,18 @@ i.semantic-ui-custom {
     }
 </style>
 
-<script>
+ <script>
+var vertical_distance = 25;   
 $('#vertical-dist').slider({
     formatter: function(value) {
+	vertical_distance = value
 	return 'Vertical Distance: ' + value + 'm';
     }
 });
-
+var tile_size = 1;
 $('#tile-size').slider({
     formatter: function(value) {
+	tile_size = value
 	if (value == 1)
 	    size = '8'
 	else if (value == 2)
@@ -425,7 +428,7 @@ map.on('click', function(e) {
 });
 
 map.on('contextmenu', function(e) {
-    displayActivationZone([e.latlng.lat, e.latlng.lng],true,0);
+    displayActivationZone([e.latlng.lat, e.latlng.lng], true,0);
 });
 
        
@@ -562,8 +565,8 @@ $('.ApplyButton').on('click',function() { clickApplyButton();});
 function displayActivationZone(coords, popupfl, uplmt) {
     var lat = coords[0];
     var lng = coords[1];
-    var vdist = $('#vertical-dist').val();
-    var hdist = $('#tile-size').val();
+    var vdist = vertical_distance;
+    var hdist = tile_size;
     var popup = L.popup();
     //console.log("Vertical,Horizontal",vdist,hdist)
     
@@ -590,8 +593,11 @@ function displayActivationZone(coords, popupfl, uplmt) {
 		    popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm ' + accu);
 	    }
 	})
-	if (popupfl)
+	if (popupfl) {
+	    deleteSummitMarker();
+	    placeSummitMarkers(coords);
 	    popup.setLatLng(coords).openOn(map);
+	}
     }
 }
 
@@ -699,17 +705,8 @@ function draw_direction(setfocus,qrvdata) {
 	map.setView(my_qth,15);
 }
 
-var show_summit_marker = null;
-
 function showSummit(s) {
     latlng = s['coord']
-    options = {
-        prefix: 'icon'
-        ,icon: 'flag checkered'
-        ,shape: 'circle'
-        ,markerColor: 'yellow'
-        ,extraClasses: 'semantic-ui-custom'
-    };
     $('#navbarNav').collapse('hide');
     area = s['code'].substr(0,2);
     sel_a = document.getElementById("select-area");
@@ -736,16 +733,56 @@ function showSummit(s) {
     update_timer = null;
 
     mesg = '<h5>'+s['code']+' '+s['name']+'</h5>'+s['data']['elev']+'m, '+s['data']['pts']+'pts'
-
-    if (show_summit_marker)
-	map.removeLayer(show_summit_marker)
     
-    var marker = L.marker(latlng,
-			  {icon: L.ExtraMarkers.icon(options)});
-    show_summit_marker = marker.addTo(map);
-    marker.bindPopup(mesg).openPopup();
+    deleteSummitMarker();
+    placeSummitMarker(latlng, mesg, true);
+    if (area == "JA")
+	placeSummitMarkers(latlng);
     displayActivationZone(latlng, false, -0.8);
     map.setView(latlng,15);
+}
+
+var show_summit_marker = [];
+
+function deleteSummitMarker() {
+    while (show_summit_marker.length > 0) {
+	var m = show_summit_marker.pop()
+	map.removeLayer(m)
+    }
+
+}
+
+function placeSummitMarkers(coords) {
+    $.getJSON('https://www.sotalive.tk/api/sotasummits/ja?','lat='+coords[0]+'&lon='+coords[1]+'&range=50&flag=0',function(res) {
+	if (res['errors'] != 'OK')
+	    return;
+	var lat = coords[0],
+	    lng = coords[1];
+	
+	for(const s of res['summits']) {
+	    if (s['lat'] != lat || s['lng'] != lng) {
+		var mesg = '<h5>'+s['code']+' '+s['name_j']+'</h5>'+s['elev']+'m, '+s['pts']+'pts'
+		placeSummitMarker([s['lat'],s['lon']], mesg, false)
+	    }
+	}
+    })
+}
+
+function placeSummitMarker(coords, mesg, popupfl) {
+    var options = {
+        prefix: 'icon'
+        ,icon: 'certificate'
+        ,shape: 'circle'
+        ,markerColor: 'yellow'
+        ,extraClasses: 'semantic-ui-custom'
+    };
+    var marker = L.marker(coords,
+			  {icon: L.ExtraMarkers.icon(options)});
+    show_summit_marker.push(marker.addTo(map));
+    if (popupfl)
+	marker.bindPopup(mesg).openPopup();
+    else
+	marker.bindPopup(mesg)
 }
 
 function callbkQTHOk(arg) {
