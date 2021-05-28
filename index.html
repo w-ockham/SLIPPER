@@ -254,10 +254,18 @@ i.semantic-ui-custom {
             </div><!-- /modal-header -->
             <div class="modal-body">
 	      <div class="form-check">
+		<input class="form-check-input" type="checkbox" value="" id="enable_display_allsummit" onclick="toggle_displaySummit()">
+		<label class="form-check-label" for="flexCheckDefault">
+    Show All Summits (JA region only) <br>
+		</label>
+	      </div>
+	      <div class="form-check">
 		<input class="form-check-input" type="checkbox" value="" id="enable_activation_zone" onclick="toggle_ActivationZone()">
 		<label class="form-check-label" for="flexCheckDefault">
-    Show Activation Zone (Experimental, JA region only) <br>
+    Show Activation Zone (JA region only) <br>
 		</label>
+	      </div>
+	      <div class="form-group">
 		<input id="vertical-dist" data-slider-id='ex1Slider' type="text" data-slider-min="5" data-slider-max="150" data-slider-step="5" data-slider-value="25"/><br>
 		<input id="tile-size" data-slider-id='ex1Slider' type="text" data-slider-min="1" data-slider-max="5" data-slider-step="1" data-slider-value="1"/>
 	      </div>
@@ -431,7 +439,6 @@ map.on('contextmenu', function(e) {
     displayActivationZone([e.latlng.lat, e.latlng.lng], true,0);
 });
 
-       
 if (location.hash == '#aprs-info') {
     $('#modal-aprs').modal({"show":true});
 }
@@ -495,7 +502,8 @@ function drawObj(lg,data) {
     };
     data.summit_latlng = calc_offset(data.summit_latlng);
     var marker = L.marker(data.summit_latlng,
-			  {icon: L.ExtraMarkers.icon(options)});
+			  {zIndexOffset: 2000,
+			   icon: L.ExtraMarkers.icon(options)});
     marker.bindPopup('<h6>'+ data.summit + '</h6>'+ data.summit_info +'<br>'
 		     + data.alert_time+ ' ' + data.op + ' ' + data.alert_freq + '<br>')
     marker.addTo(lg);
@@ -533,6 +541,7 @@ function drawObj(lg,data) {
 };
 
 var enable_activation_zone;
+var display_all_summit;
 
 function toggle_ActivationZone() {
     fl = Cookies.get('prefs_act_zone');
@@ -547,6 +556,20 @@ function toggle_ActivationZone() {
     } else {
 	enable_activation_zone = "true";
 	Cookies.set('prefs_act_zone',enable_activation_zone, {expires: 14, sameSite:'lax'});
+    }
+}
+
+function toggle_displaySummit() {
+    fl = Cookies.get('prefs_all_summit');
+    if(fl == null) 
+	display_all_summit = "false";
+    
+    if (fl == "true") {
+	display_all_summit  = "false";
+	Cookies.set('prefs_all_summit',display_all_summit, {expires: 14, sameSite:'lax'});
+    } else {
+	display_all_summit = "true";
+	Cookies.set('prefs_all_summit',display_all_summit, {expires: 14, sameSite:'lax'});
     }
 }
 
@@ -594,8 +617,6 @@ function displayActivationZone(coords, popupfl, uplmt) {
 	    }
 	})
 	if (popupfl) {
-	    deleteSummitMarker();
-	    placeSummitMarkers(coords);
 	    popup.setLatLng(coords).openOn(map);
 	}
     }
@@ -705,6 +726,8 @@ function draw_direction(setfocus,qrvdata) {
 	map.setView(my_qth,15);
 }
 
+var shown_summit = null;
+
 function showSummit(s) {
     latlng = s['coord']
     $('#navbarNav').collapse('hide');
@@ -733,14 +756,37 @@ function showSummit(s) {
     update_timer = null;
 
     mesg = '<h5>'+s['code']+' '+s['name']+'</h5>'+s['data']['elev']+'m, '+s['data']['pts']+'pts'
-    
-    deleteSummitMarker();
-    placeSummitMarker(latlng, mesg, true);
-    if (area == "JA")
-	placeSummitMarkers(latlng);
+    if (shown_summit)
+	map.removeLayer(shown_summit)
+    shown_summit = placeSummitMarker(latlng, mesg, true);
     displayActivationZone(latlng, false, -0.8);
     map.setView(latlng,15);
 }
+
+map.on('moveend',function(e) {
+    area = Cookies.get('area')
+    draw = Cookies.get('prefs_all_summit')
+    if (area != 'JA' || draw != 'true')
+	return
+    
+    deleteSummitMarker()
+    z = map.getZoom()
+    b = map.getBounds();
+    placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
+		       [b['_southWest']['lat'], b['_northEast']['lng']],z)
+    
+});
+
+
+map.on('zoomend',function(e) {
+/*
+    deleteSummitMarker()
+    z = map.getZoom()
+    b = map.getBounds();
+    console.log("ZeBounds:",b,"ZeZoom",z)
+    placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
+		       [b['_southWest']['lat'], b['_northEast']['lng']],z)
+*/});
 
 var show_summit_marker = [];
 
@@ -752,18 +798,23 @@ function deleteSummitMarker() {
 
 }
 
-function placeSummitMarkers(coords) {
-    $.getJSON('https://www.sotalive.tk/api/sotasummits/ja?','lat='+coords[0]+'&lon='+coords[1]+'&range=50&flag=0',function(res) {
-	if (res['errors'] != 'OK')
+function placeSummitMarkers(nw ,se, z) {
+    if (z > 10) {
+	elev = 0;
+    }else if (z > 9)
+	elev = 1000;
+    else
+	elev = 1500;
+    
+    $.getJSON('https://www.sotalive.tk/api/sotasummits/ja?','lat='+nw[0]+'&lon='+nw[1]+'&lat2='+se[0]+'&lon2='+se[1]+'&elevation='+elev+'&flag=0',function(res) {
+	if (res['errors'] != 'OK') {
 	    return;
-	var lat = coords[0],
-	    lng = coords[1];
-	
+	}
 	for(const s of res['summits']) {
-	    if (s['lat'] != lat || s['lng'] != lng) {
-		var mesg = '<h5>'+s['code']+' '+s['name_j']+'</h5>'+s['elev']+'m, '+s['pts']+'pts'
-		placeSummitMarker([s['lat'],s['lon']], mesg, false)
-	    }
+	    var mesg = '<h5>'+s['code']+' '+s['name_j']+'</h5>'+s['elev']+'m, '+s['pts']+'pts'
+	    show_summit_marker.push(
+		placeSummitMarker([s['lat'],s['lon']], mesg, false))
+	    
 	}
     })
 }
@@ -775,14 +826,19 @@ function placeSummitMarker(coords, mesg, popupfl) {
         ,shape: 'circle'
         ,markerColor: 'yellow'
         ,extraClasses: 'semantic-ui-custom'
+	,zIndexOffset: -200
     };
     var marker = L.marker(coords,
 			  {icon: L.ExtraMarkers.icon(options)});
-    show_summit_marker.push(marker.addTo(map));
+    var m = marker.addTo(map);
+    m.on('click',function(e) {
+	displayActivationZone([e['latlng']['lat'],e['latlng']['lng']],
+			      false, -0.8)})
     if (popupfl)
 	marker.bindPopup(mesg).openPopup();
     else
 	marker.bindPopup(mesg)
+    return m;
 }
 
 function callbkQTHOk(arg) {
@@ -946,6 +1002,7 @@ function update(focusQTH = false) {
 	}
     }
 
+
     enable_activation_zone = Cookies.get('prefs_act_zone');
     if(enable_activation_zone == null) 
 	enable_activation_zone = "false";
@@ -954,6 +1011,13 @@ function update(focusQTH = false) {
 	pref_act_zone.checked = true;
     else
 	pref_act_zone.checked = false;
+
+    display_all_summit = Cookies.get('prefs_all_summit');
+    pref_all_summit = document.getElementById("enable_display_allsummit");
+    if(display_all_summit == "true")
+	pref_all_summit.checked = true;
+    else
+	pref_all_summit.checked = false;
 
     sel_t = document.getElementById("select-time");
     sel_a = document.getElementById("select-area");
