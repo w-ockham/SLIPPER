@@ -503,6 +503,7 @@ function drawObj(lg,data) {
     data.summit_latlng = calc_offset(data.summit_latlng);
     var marker = L.marker(data.summit_latlng,
 			  {zIndexOffset: 2000,
+			   opacity: 0.8,
 			   icon: L.ExtraMarkers.icon(options)});
     marker.bindPopup('<h6>'+ data.summit + '</h6>'+ data.summit_info +'<br>'
 		     + data.alert_time+ ' ' + data.op + ' ' + data.alert_freq + '<br>')
@@ -826,10 +827,9 @@ function placeSummitMarker(coords, mesg, popupfl) {
         ,shape: 'circle'
         ,markerColor: 'yellow'
         ,extraClasses: 'semantic-ui-custom'
-	,zIndexOffset: -200
     };
     var marker = L.marker(coords,
-			  {icon: L.ExtraMarkers.icon(options)});
+			  {opacity:0.8, zIndefOffset:-200, icon: L.ExtraMarkers.icon(options)});
     var m = marker.addTo(map);
     m.on('click',function(e) {
 	displayActivationZone([e['latlng']['lat'],e['latlng']['lng']],
@@ -1088,7 +1088,7 @@ function update(focusQTH = false) {
 	sel_a.selectedIndex = 4;
     }
 
-    $.getJSON("https://www.sotalive.tk/json/"+fname,{ts:new Date().getTime()},function(qrvdata) {
+    $.getJSON("https://www.sotalive.tk/api/sotalive-json/"+fname,function(qrvdata) {
 	if (lg != null) {
 	    map.removeLayer(lg);
 	    lg = L.layerGroup();
