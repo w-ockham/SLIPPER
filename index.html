@@ -126,7 +126,7 @@ i.semantic-ui-custom {
     <link rel="stylesheet" href="css/L.Icon.Pulse.css" />
     <script src="js/L.Icon.Pulse.js"></script>
     <script src="js/leaflet-arc.min.js"></script>
-    <script src="js/regionfill2.js"></script>
+    <script src="js/regionfill.js"></script>
     <script src="js/getDEM.js"></script>
     <script src="js/search-summit.js"></script>
     <!-- plugin -->
@@ -759,7 +759,7 @@ function showSummit(s) {
     mesg = '<h5>'+s['code']+' '+s['name']+'</h5>'+s['data']['elev']+'m, '+s['data']['pts']+'pts'
     if (shown_summit)
 	map.removeLayer(shown_summit)
-    shown_summit = placeSummitMarker(latlng, mesg, true);
+    shown_summit = placeSummitMarker(latlng, 15, mesg, true);
     displayActivationZone(latlng, false, -0.8);
     map.setView(latlng,15);
 }
@@ -812,15 +812,15 @@ function placeSummitMarkers(nw ,se, z) {
 	    return;
 	}
 	for(const s of res['summits']) {
-	    var mesg = '<h5>'+s['code']+' '+s['name_j']+'</h5>'+s['elev']+'m, '+s['pts']+'pts'
+	    var mesg = '<h5>'+s['code']+' '+s['name']+'</h5>'+s['elev']+'m, '+s['pts']+'pts'
 	    show_summit_marker.push(
-		placeSummitMarker([s['lat'],s['lon']], mesg, false))
+		placeSummitMarker([s['lat'],s['lon']], z, mesg, false))
 	    
 	}
     })
 }
 
-function placeSummitMarker(coords, mesg, popupfl) {
+function placeSummitMarker(coords, zoom, mesg, popupfl) {
     var options = {
         prefix: 'icon'
         ,icon: 'certificate'
@@ -828,8 +828,27 @@ function placeSummitMarker(coords, mesg, popupfl) {
         ,markerColor: 'yellow'
         ,extraClasses: 'semantic-ui-custom'
     };
-    var marker = L.marker(coords,
-			  {opacity:0.8, zIndefOffset:-200, icon: L.ExtraMarkers.icon(options)});
+    var rad;
+    if (z > 14)
+	rad = 12
+    else if (z > 12)
+	rad = 10
+    else if (z > 10)
+	rad = 8
+    else
+	rad = 4
+    
+    var marker =
+	L.circleMarker(coords,
+		       {color:"#f0f0f0",
+			fillColor:"#0000ff",
+			radius:rad,
+			fillOpacity:0.6,
+			Opacity:1
+		       });
+	/*
+	  L.marker(coords,
+	  {opacity:0.8, zIndefOffset:-200, icon: L.ExtraMarkers.icon(options)});*/
     var m = marker.addTo(map);
     m.on('click',function(e) {
 	displayActivationZone([e['latlng']['lat'],e['latlng']['lng']],

@@ -9,7 +9,7 @@
 
 (function($){
     $.fn.searchinput=function(options){
-	var options=$.extend({width:100,height:20,candidates:20, done:null},options);
+	var options=$.extend({width:100,height:20,candidates:30, done:null},options);
 	var ele=this;
 	var query=''
 	var num_param=''
@@ -19,17 +19,16 @@
 	var done=null
 	var target={
 	    init:function(){
-		wquery = 'https://www.sotalive.tk/api/sotasummits/ww?'
-		jquery = 'https://www.sotalive.tk/api/sotasummits/ja?'
-		num_param='flag=2&code='
-		list_param='flag=0&code='
+		query = 'https://www.sotalive.tk/api/sotasummits/all?'
+		num_param='flag=2&ambg='
+		list_param='flag=0&ambg='
 		done = options['done']
 	    },
 	    markup:function(){
 		var input=document.createElement("INPUT");
 		input.setAttribute('list',"__sota_summit_list")
 		input.setAttribute('oninput',"station_input();")
-		input.setAttribute('placeholder',"Summit Code")
+		input.setAttribute('placeholder',"Name or Code")
 		input.style.width=options.width+"px";
 		input.style.height="20px";
 		input.style.margin="0px 0px 0px 5px";
@@ -57,7 +56,7 @@
 	
 	function station_query(text) {
 	    $(ele).find("span").each(function(index, s) { s.innerHTML = '';});
-	    if (text.length > 2){
+	    if (text.length > 0){
 		str = text.split(' ')
 		for (var s of data_list) {
 		    if (str[0] != undefined ) {
@@ -65,6 +64,7 @@
 			if (s['code'] == smt)
 			    if (done) {
 				$('input').val('')
+				$('datalist').empty()
 				done(s)
 			    }
 		    }
@@ -73,26 +73,18 @@
 		    dl = $('datalist')
 		    dl.empty()
 		    data_list = []
-		    $.getJSON(wquery, num_param + text,function(res) {
+		    $.getJSON(query, num_param + text,function(res) {
 			number = res['summits']['totalCount']
-			$(ele).find("span").each(function(index, s) { s.innerHTML = number+'mts';});
+			$(ele).find("span").each(function(index, s) { s.innerHTML = number+'summits';});
 			if (number < options.candidates ) {
-			    var prfx = text.substr(0,2).toUpperCase()
-			    if(prfx == 'JA')
-				q = jquery
-			    else
-				q = wquery
-			    $.getJSON(q, list_param + text,function(res){
+			    $.getJSON(query, list_param + text,function(res){
 				summits = res['summits']
 				if (summits) {
 				    for (var s of summits) {
 					code = s['code']
 					lat = s['lat']
 					lng = s['lon']
-					if (prfx == 'JA')
-					    name = s['name_j']
-					else
-					    name = s['name']
+					name = s['name']
 					data = s
 					var opt = document.createElement("OPTION")
 					opt.value= code + ' ' + name 
