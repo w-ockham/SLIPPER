@@ -9,26 +9,28 @@
 
 (function($){
     $.fn.searchinput=function(options){
-	var options=$.extend({width:100,height:20,candidates:30, done:null},options);
+	var options=$.extend({width:100,height:20,candidates:300, done:null},options);
 	var ele=this;
 	var query=''
 	var num_param=''
 	var list_param=''
 	var data_list= []
-	var selected = 0;
+	var selected = 0
 	var done=null
+	var initiated = false
 	var target={
 	    init:function(){
 		query = 'https://www.sotalive.tk/api/sotasummits/all?'
 		num_param='flag=2&ambg='
 		list_param='flag=0&ambg='
 		done = options['done']
+		initiated = false
 	    },
 	    markup:function(){
 		var input=document.createElement("INPUT");
 		input.setAttribute('list',"__sota_summit_list")
 		input.setAttribute('oninput',"station_input();")
-		input.setAttribute('placeholder',"Name or Code")
+		input.setAttribute('placeholder',"Summit")
 		input.style.width=options.width+"px";
 		input.style.height="20px";
 		input.style.margin="0px 0px 0px 5px";
@@ -44,6 +46,7 @@
 		ele.append(span);
 		var datalist=document.createElement("DATALIST")
 		datalist.id="__sota_summit_list";
+		datalist.style ="max-height:300px !important; overflow-y: auto !important;";
 		ele.append(datalist);
 	    }
 	};
@@ -76,32 +79,34 @@
 		    $.getJSON(query, num_param + text,function(res) {
 			number = res['summits']['totalCount']
 			$(ele).find("span").each(function(index, s) { s.innerHTML = number+'summits';});
-			if (number < options.candidates ) {
-			    $.getJSON(query, list_param + text,function(res){
-				summits = res['summits']
-				if (summits) {
-				    for (var s of summits) {
-					code = s['code']
-					lat = s['lat']
-					lng = s['lon']
-					name = s['name']
-					data = s
-					var opt = document.createElement("OPTION")
-					opt.value= code + ' ' + name 
-					dl.append(opt)
-					data_list.push({
-					    'code': code,
-					    'coord':[lat ,lng],
-					    'name': name,
-					    'data': data})
-				    }
-				}
-			    })
+			if (number < options.candidates && !initiated) {
+			    initiated = true;
+			    $.getJSON(query,list_param + text,
+				      function(res){
+					  summits = res['summits']
+					  if (summits) {
+					      for (var s of summits) {
+						  code = s['code']
+						  lat = s['lat']
+						  lng = s['lon']
+						  name = s['name']
+						  data = s
+						  var opt = document.createElement("OPTION")
+						  opt.value= code + ' ' + name 
+						  dl.append(opt)
+						  data_list.push({
+						      'code': code,
+						      'coord':[lat ,lng],
+						      'name': name,
+						      'data': data})
+					      }
+					  }
+					  initiated = false;
+				      })
 			}
 		    })
 		}
 	    }
 	}
-	
     };
 }(jQuery));

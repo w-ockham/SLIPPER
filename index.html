@@ -24,9 +24,9 @@
 <!-- Bootstrap core CSS -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
 <!-- Material Design Bootstrap -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css" rel="stylesheet">
 
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/11.0.2/css/bootstrap-slider.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/11.0.2/css/bootstrap-slider.min.css" rel="stylesheet">
 <!------------------------------------------------------------------>
 <link rel="shortcut icon" href="favicon.ico">
 <link href="font/css/open-iconic-bootstrap.css" rel="stylesheet">
@@ -111,26 +111,26 @@ i.semantic-ui-custom {
 <!-- Bootstrap tooltips -->
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
 <!-- Bootstrap core JavaScript -->
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.min.js"></script>
 <!-- MDB core JavaScript -->
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/js/mdb.min.js"></script>
-
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/11.0.2/bootstrap-slider.min.js"></script>
 
 <!------------------------------------------------------------------------>
 <!-- plugin -->
-    <link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
-    <script src="js/leaflet.extra-markers.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
-    <link rel="stylesheet" href="css/L.Icon.Pulse.css" />
-    <script src="js/L.Icon.Pulse.js"></script>
-    <script src="js/leaflet-arc.min.js"></script>
-    <script src="js/regionfill.js"></script>
-    <script src="js/getDEM.js"></script>
-    <script src="js/search-summit.js"></script>
-    <!-- plugin -->
-
+<link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
+<script src="js/leaflet.extra-markers.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
+<link rel="stylesheet" href="css/L.Icon.Pulse.css" />
+<script src="js/L.Icon.Pulse.js"></script>
+<script src="js/leaflet-arc.min.js"></script>
+<link rel="stylesheet" href="js/L.Control.ZoomLabel.css">
+<script src="js/L.Control.ZoomLabel.js"></script>
+<script src="js/regionfill.js"></script>
+<script src="js/getDEM.js"></script>
+<script src="js/search-summit.js"></script>
+<!-- plugin -->
 
   <nav class="navbar navbar-expand-md navbar-dark bg-dark text-light">
     <span class="navbar-brand" style="cursor: hand;cursor: pointer;" data-toggle="modal" data-target="#modal-mackerel"><h4>SOTAwatch Live!</h4></span>
@@ -409,6 +409,7 @@ var update_timer = null;
 var countdown = 0;
 
 L.control.scale().addTo(map);
+L.control.zoomLabel().addTo(map);
 var popup = L.popup();
 
 map.on('click', function(e) {
@@ -567,6 +568,7 @@ function toggle_displaySummit() {
     
     if (fl == "true") {
 	display_all_summit  = "false";
+	deleteSummitMarker();
 	Cookies.set('prefs_all_summit',display_all_summit, {expires: 14, sameSite:'lax'});
     } else {
 	display_all_summit = "true";
@@ -604,7 +606,7 @@ function displayActivationZone(coords, popupfl, uplmt) {
 		if (map && activation_zone) 
 		    map.removeLayer(activation_zone);
 		activation_zone = L.contourLayer(lat, lng, res['elevation'], uplmt, vdist, hdist,{
-		    attribution: "<a href='http://maps.gsi.go.jp/development/ichiran.html'>地理院タイル</a>",
+		    attribution: "<a href='https://little-ctc.com/sota_hp/' target='_blank'>JCC/JCGデータ</a>",
 		    minZoom: 14,
 		    maxZoom: 18,
 		    maxNativeZoom: 14
@@ -729,6 +731,18 @@ function draw_direction(setfocus,qrvdata) {
 
 var shown_summit = null;
 
+function escapeStr(str) {
+    var escstr;
+    if (!str)
+	escstr = ""
+    else
+	escstr = str
+    var replacement = [[/&/g, "&amp;"],[/</g, "&lt;"],[/>/g, "&gt;<br>"],[/"/g, "&quot;"]]
+    for(var e in replacement)
+	escstr = escstr.replace(replacement[e][0],replacement[e][1]);
+    return escstr;
+}
+
 function showSummit(s) {
     latlng = s['coord']
     $('#navbarNav').collapse('hide');
@@ -755,8 +769,9 @@ function showSummit(s) {
     countdown = 0;
     sel_t.selectedIndex = 2;
     update_timer = null;
-
-    mesg = '<h5>'+s['code']+' '+s['name']+'</h5>'+s['data']['elev']+'m, '+s['data']['pts']+'pts'
+    s = s['data']
+    mesg = '<b>'+s['code']+' '+s['name']+'</b>&nbsp;'+s['elev']+'m,'+s['pts']+'pts' + '<br>' + escapeStr(s['desc']) + 'GL:' + s['maidenhead']
+    
     if (shown_summit)
 	map.removeLayer(shown_summit)
     shown_summit = placeSummitMarker(latlng, 15, mesg, true);
@@ -778,17 +793,6 @@ map.on('moveend',function(e) {
     
 });
 
-
-map.on('zoomend',function(e) {
-/*
-    deleteSummitMarker()
-    z = map.getZoom()
-    b = map.getBounds();
-    console.log("ZeBounds:",b,"ZeZoom",z)
-    placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
-		       [b['_southWest']['lat'], b['_northEast']['lng']],z)
-*/});
-
 var show_summit_marker = [];
 
 function deleteSummitMarker() {
@@ -800,10 +804,12 @@ function deleteSummitMarker() {
 }
 
 function placeSummitMarkers(nw ,se, z) {
-    if (z > 10) {
-	elev = 0;
-    }else if (z > 9)
-	elev = 1000;
+    if (z > 10) 
+	elev = 0
+    else if (z > 9)
+	elev = 800
+    else if (z > 8)
+	elev = 1000
     else
 	elev = 1500;
     
@@ -812,7 +818,7 @@ function placeSummitMarkers(nw ,se, z) {
 	    return;
 	}
 	for(const s of res['summits']) {
-	    var mesg = '<h5>'+s['code']+' '+s['name']+'</h5>'+s['elev']+'m, '+s['pts']+'pts'
+	    var mesg = '<b>'+s['code']+' '+s['name']+'</b>&nbsp;'+s['elev']+'m,'+s['pts']+'pts'+'<br>'+escapeStr(s['desc']) + 'GL:' + s['maidenhead']
 	    show_summit_marker.push(
 		placeSummitMarker([s['lat'],s['lon']], z, mesg, false))
 	    
@@ -840,19 +846,17 @@ function placeSummitMarker(coords, zoom, mesg, popupfl) {
     
     var marker =
 	L.circleMarker(coords,
-		       {color:"#f0f0f0",
+		       {color:"#ff2020",
 			fillColor:"#0000ff",
 			radius:rad,
 			fillOpacity:0.6,
 			Opacity:1
 		       });
-	/*
-	  L.marker(coords,
-	  {opacity:0.8, zIndefOffset:-200, icon: L.ExtraMarkers.icon(options)});*/
     var m = marker.addTo(map);
     m.on('click',function(e) {
-	displayActivationZone([e['latlng']['lat'],e['latlng']['lng']],
-			      false, -0.8)})
+	if (map.getZoom() > 14)
+	    displayActivationZone([e['latlng']['lat'],e['latlng']['lng']],
+				  false, -0.8)})
     if (popupfl)
 	marker.bindPopup(mesg).openPopup();
     else
