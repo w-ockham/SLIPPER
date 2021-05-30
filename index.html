@@ -770,7 +770,8 @@ function showSummit(s) {
     sel_t.selectedIndex = 2;
     update_timer = null;
     s = s['data']
-    mesg = '<b>'+s['code']+' '+s['name']+'</b>&nbsp;'+s['elev']+'m,'+s['pts']+'pts' + '<br>' + escapeStr(s['desc']) + 'GL:' + s['maidenhead']
+    console.log(s)
+    mesg = '<b>'+s['code']+' '+s['name']+'</b>&nbsp'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts' + '<br>GL:' + s['maidenhead'] + '<br>'+ escapeStr(s['desc'])
     
     if (shown_summit)
 	map.removeLayer(shown_summit)
@@ -818,7 +819,7 @@ function placeSummitMarkers(nw ,se, z) {
 	    return;
 	}
 	for(const s of res['summits']) {
-	    var mesg = '<b>'+s['code']+' '+s['name']+'</b>&nbsp;'+s['elev']+'m,'+s['pts']+'pts'+'<br>'+escapeStr(s['desc']) + 'GL:' + s['maidenhead']
+	    var mesg = '<b>'+s['code']+' '+s['name']+'</b>&nbsp;'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts'+'<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])  
 	    show_summit_marker.push(
 		placeSummitMarker([s['lat'],s['lon']], z, mesg, false))
 	    
@@ -826,7 +827,7 @@ function placeSummitMarkers(nw ,se, z) {
     })
 }
 
-function placeSummitMarker(coords, zoom, mesg, popupfl) {
+function placeSummitMarker(coords, z, mesg, popupfl) {
     var options = {
         prefix: 'icon'
         ,icon: 'certificate'
