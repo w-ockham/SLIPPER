@@ -462,7 +462,7 @@ function drawPoly(lg,data,ssid,cl,route) {
 	L.polyline(po,{color: cl, wight:6}).addTo(lg);
 
     for (var i = 0, len = po.length; i < len; ++i)
-	L.circleMarker(po[i],{color:"#ff4444", radius:2}).addTo(lg);
+	L.circleMarker(po[i],{color:"#ff1744", radius:2}).addTo(lg);
 
     if (po.length > 0 ) {
 	if (ssid == 0) {
@@ -470,7 +470,7 @@ function drawPoly(lg,data,ssid,cl,route) {
 		prefix: 'icon'
 		,icon: 'user outline'
 		,shape: 'star'
-		,markerColor: 'orange'
+		,markerColor: 'yellow'
 		,extraClasses: 'semantic-ui-custom'
 	    };
 	} else {
@@ -478,7 +478,7 @@ function drawPoly(lg,data,ssid,cl,route) {
 		prefix: 'icon'
 		,icon: 'car'
 		,shape: 'star'
-		,markerColor: 'orange'
+		,markerColor: 'yellow'
 		,extraClasses: 'semantic-ui-custom'
 	    };
 	};	    
@@ -504,7 +504,7 @@ function drawObj(lg,data) {
     data.summit_latlng = calc_offset(data.summit_latlng);
     var marker = L.marker(data.summit_latlng,
 			  {zIndexOffset: 2000,
-			   opacity: 0.8,
+			   opacity: 0.9,
 			   icon: L.ExtraMarkers.icon(options)});
     marker.bindPopup('<h6>'+ data.summit + '</h6>'+ data.summit_info +'<br>'
 		     + data.alert_time+ ' ' + data.op + ' ' + data.alert_freq + '<br>')
@@ -775,7 +775,7 @@ function showSummit(s) {
     
     if (shown_summit)
 	map.removeLayer(shown_summit)
-    shown_summit = placeSummitMarker(latlng, 15, mesg, true);
+    shown_summit = placeSummitMarker(latlng, 15, s['elev'], mesg, true);
     displayActivationZone(latlng, false, -0.8);
     map.setView(latlng,15);
 }
@@ -821,13 +821,13 @@ function placeSummitMarkers(nw ,se, z) {
 	for(const s of res['summits']) {
 	    var mesg = '<b>'+s['code']+' '+s['name']+'</b>&nbsp;'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts'+'<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])  
 	    show_summit_marker.push(
-		placeSummitMarker([s['lat'],s['lon']], z, mesg, false))
+		placeSummitMarker([s['lat'],s['lon']], z, s['elev'], mesg, false))
 	    
 	}
     })
 }
 
-function placeSummitMarker(coords, z, mesg, popupfl) {
+function placeSummitMarker(coords, z, elev, mesg, popupfl) {
     var options = {
         prefix: 'icon'
         ,icon: 'certificate'
@@ -837,21 +837,38 @@ function placeSummitMarker(coords, z, mesg, popupfl) {
     };
     var rad;
     if (z > 14)
-	rad = 12
-    else if (z > 12)
 	rad = 10
-    else if (z > 10)
+    else if (z > 12)
 	rad = 8
+    else if (z > 10)
+	rad = 6
     else
 	rad = 4
+
+    var fillc,
+	border = "#4e342e"
+
+    if (elev > 1500)
+	fillc ="#c62828"
+    else if (elev > 1100)
+	fillc = "#ef6c00"
+    else if (elev > 850)
+	fillc = "#f9a825"
+    else if (elev > 650)
+	fillc = "#9e9d24"
+    else if (elev > 500)
+	fillc = "#558b2f"
+    else
+	fillc = "#1b5e20"
     
     var marker =
 	L.circleMarker(coords,
-		       {color:"#ff2020",
-			fillColor:"#0000ff",
+		       {color: border,
+			fillColor: fillc /*"#1565c0"*/,
 			radius:rad,
-			fillOpacity:0.6,
-			Opacity:1
+			weight:2,
+			fillOpacity:0.8,
+			opacity:1
 		       });
     var m = marker.addTo(map);
     m.on('click',function(e) {
