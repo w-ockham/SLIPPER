@@ -311,14 +311,15 @@ $('#tile-size').slider({
 });
 
 var ContourLayer = L.GridLayer.extend({
-    initialize: function(lat, lon, elevation, color, uplmt,
+    initialize: function(lat, lon, zoom, elevation, color, uplmt,
 			 vdist, hdist, options) {
         L.Util.setOptions(this, options);
 	const Lmax = 85.05112878;
+	if (zoom > 14)
+	    zoom = 14
 	this._elevation = elevation;
 	this._lat = lat;
 	this._lon = lon;
-	var zoom = 14;
 	this._pX = parseInt(Math.pow(2, zoom + 7) * (lon / 180 + 1));
 	this._tX = parseInt(this._pX / 256);
 	this._pY = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))));
@@ -375,8 +376,8 @@ var ContourLayer = L.GridLayer.extend({
     }
 });
 
-L.contourLayer = function(lat, lon, height, uplmt, vdist, hdist ,options) {
-    return new ContourLayer(lat, lon, height,
+L.contourLayer = function(lat, lon, zoom, height, uplmt, vdist, hdist ,options) {
+    return new ContourLayer(lat, lon, zoom, height,
 			    [0xff,0x00,0x00,0x60], uplmt,
 			    vdist, hdist, options);
 };
@@ -572,6 +573,11 @@ function toggle_displaySummit() {
 	Cookies.set('prefs_all_summit',display_all_summit, {expires: 14, sameSite:'lax'});
     } else {
 	display_all_summit = "true";
+	var z = map.getZoom()
+	var b = map.getBounds();
+	placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
+			   [b['_southWest']['lat'], b['_northEast']['lng']],z)
+
 	Cookies.set('prefs_all_summit',display_all_summit, {expires: 14, sameSite:'lax'});
     }
 }
@@ -594,6 +600,7 @@ function displayActivationZone(coords, popupfl, uplmt) {
     var vdist = vertical_distance;
     var hdist = tile_size;
     var popup = L.popup();
+    var zoom = map.getZoom();
     //console.log("Vertical,Horizontal",vdist,hdist)
     
     if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
@@ -605,9 +612,9 @@ function displayActivationZone(coords, popupfl, uplmt) {
 	    else {
 		if (map && activation_zone) 
 		    map.removeLayer(activation_zone);
-		activation_zone = L.contourLayer(lat, lng, res['elevation'], uplmt, vdist, hdist,{
+		activation_zone = L.contourLayer(lat, lng, zoom, res['elevation'], uplmt, vdist, hdist,{
 		    attribution: "<a href='https://little-ctc.com/sota_hp/' target='_blank'>JCC/JCGデータ</a>",
-		    minZoom: 14,
+		    minZoom: 12,
 		    maxZoom: 18,
 		    maxNativeZoom: 14
 		}).addTo(map);
