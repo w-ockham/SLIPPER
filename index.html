@@ -860,8 +860,7 @@ map.on('moveend',function(e) {
     z = map.getZoom()
     b = map.getBounds();
     placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
-		       [b['_southWest']['lat'], b['_northEast']['lng']],z)
-    
+		       [b['_southWest']['lat'], b['_northEast']['lng']],z)    
 });
 
 var show_summit_marker = [];
@@ -871,7 +870,6 @@ function deleteSummitMarker() {
 	var m = show_summit_marker.pop()
 	map.removeLayer(m)
     }
-
 }
 
 _popupMarker = null
@@ -892,7 +890,6 @@ function placeSummitMarkers(nw ,se, z) {
     else
 	elev = 1500;
     
-    
     $.getJSON('https://www.sotalive.tk/api/sotasummits/ja?','lat='+nw[0]+'&lon='+nw[1]+'&lat2='+se[0]+'&lon2='+se[1]+'&elevation='+elev+'&flag=0',function(res) {
 	if (res['errors'] != 'OK') {
 	    return;
@@ -904,8 +901,6 @@ function placeSummitMarkers(nw ,se, z) {
 		s['lat'] == _popupMarker[0] &&
 		s['lon'] == _popupMarker[1]) {
 		popup = true
-		_popupMarker = null
-		console.log(s)
 	    }
 	    show_summit_marker.push(
 		placeSummitMarker([s['lat'],s['lon']], z, s['elev'], mesg, popup))
@@ -959,6 +954,8 @@ function placeSummitMarker(coords, z, elev, mesg, popupfl) {
 		       });
     var m = marker.addTo(map);
     m.on('click',function(e) {
+	var l = e['target']['_latlng']
+	popupSummitMarker([l['lat'],l['lng']])
 	if (map.getZoom() > 13)
 	    displayActivationZone([e['latlng']['lat'],e['latlng']['lng']],
 				  false, -0.8)})
