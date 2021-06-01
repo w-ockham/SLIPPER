@@ -880,7 +880,7 @@ function popupSummitMarker(latlng) {
 }
     
 function placeSummitMarkers(nw ,se, z) {
-    var popup = false
+    var popup;
     var elev;
     
     if (z > 10) 
@@ -899,11 +899,13 @@ function placeSummitMarkers(nw ,se, z) {
 	}
 	for(const s of res['summits']) {
 	    var mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts'+'<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])
+	    popup = false
 	    if (_popupMarker &&
 		s['lat'] == _popupMarker[0] &&
 		s['lon'] == _popupMarker[1]) {
 		popup = true
 		_popupMarker = null
+		console.log(s)
 	    }
 	    show_summit_marker.push(
 		placeSummitMarker([s['lat'],s['lon']], z, s['elev'], mesg, popup))
