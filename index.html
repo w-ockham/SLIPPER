@@ -310,20 +310,31 @@ $('#tile-size').slider({
     }
 });
 
+function latlonToPxl(lat, lon, zoom) {
+    const Lmax = 85.05112878;
+    var px = parseInt(Math.pow(2, zoom + 7) * (lon / 180 + 1))
+    var tx = parseInt(px / 256)
+    var py = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))))
+    var ty = parseInt(py / 256)
+    return {px:px,tx:tx,py:py,ty:ty}
+}
+
+function pxlTolatlon(px, py, zoom) {
+    const Lmax = 85.05112878;
+    var lon = 180 * (px / Math.pow(2, zoom + 7) - 1);
+    var lat = (180 / Math.PI) * (Math.asin(Math.tanh((-1 * Math.PI / Math.pow(2, zoom + 7) * py) + Math.atanh(Math.sin(Math.PI / 180 * Lmax)))));
+    return {lat:lat, lon:lon}
+}
+
 var ContourLayer = L.GridLayer.extend({
-    initialize: function(lat, lon, zoom, elevation, color, uplmt,
+    initialize: function(pxl, zoom, elevation, color, uplmt,
 			 vdist, hdist, options) {
         L.Util.setOptions(this, options);
-	const Lmax = 85.05112878;
-	if (zoom > 14)
-	    zoom = 14
 	this._elevation = elevation;
-	this._lat = lat;
-	this._lon = lon;
-	this._pX = parseInt(Math.pow(2, zoom + 7) * (lon / 180 + 1));
-	this._tX = parseInt(this._pX / 256);
-	this._pY = parseInt((Math.pow(2, zoom + 7) / Math.PI) * ((-1 * Math.atanh(Math.sin((Math.PI / 180) * lat))) + Math.atanh(Math.sin((Math.PI / 180) * Lmax))));
-	this._tY = parseInt(this._pY / 256);
+	this._pX = pxl['px']
+	this._tX = pxl['tx']
+	this._pY = pxl['py']
+	this._tY = pxl['ty']
 	this._upperlimit = uplmt;
 	this._vdist = vdist;
 	this._hdist = hdist;
@@ -337,8 +348,6 @@ var ContourLayer = L.GridLayer.extend({
         canvas.width = 256;
         canvas.height = 256;
 
-	var lat = this._lat;
-	var lon = this._lon;
 	var pX = this._pX;
 	var pY = this._pY;
 	var tX = this._tX;
@@ -353,7 +362,7 @@ var ContourLayer = L.GridLayer.extend({
 	    Math.abs(coords['y'] - tY) > hdist )
 	    return canvas;
 
-	var elev = this._elevation;
+        var elev = this._elevation;
 	getDEM(coords,function(e) {
             var dem = e.map(function(a) {
 		return (elev - a) / vdist;
@@ -376,11 +385,38 @@ var ContourLayer = L.GridLayer.extend({
     }
 });
 
-L.contourLayer = function(lat, lon, zoom, height, uplmt, vdist, hdist ,options) {
-    return new ContourLayer(lat, lon, zoom, height,
-			    [0xff,0x00,0x00,0x60], uplmt,
-			    vdist, hdist, options);
-};
+L.contourLayer = function(lat, lon, zoom, height, uplmt, vdist, hdist ,options,done) {
+    if (zoom > 14)
+	zoom = 14
+    pxl = latlonToPxl(lat,lon,zoom)
+    p = getDEM({x:pxl['tx'], y:pxl['ty'], z:zoom},e => {
+	var px = pxl['px'] % 256,
+	    py = pxl['py'] % 256,
+	    peak  = 0,
+	    cx = px,cy = py,
+	    moved = false;
+	
+	for (var i = -3; i < 4; i++) 
+	    for (var j = -3; j < 4; j++) {
+		pos = (py + j) * 256 + px + i
+		if (pos >=0 && pos <= 65535)
+		    if (e[pos] > peak) {
+			cx = px + i
+			cy = py + j
+			peak = e[pos]
+			moved = true
+		    }
+	    }
+	//console.log(px,",",py,"vs",cx,",",cy,"p=",peak)
+	pxl['px'] = pxl['tx']*256+cx
+	pxl['py'] = pxl['ty']*256+cy
+	latlon = pxlTolatlon(pxl['px'],pxl['py'],zoom)
+	if (done)
+	    done(new ContourLayer(pxl, zoom, peak,
+			     [0xff,0x00,0x00,0x60], uplmt,
+				  vdist, hdist, options),latlon,moved)
+    })
+}
 
 let vh = window.innerHeight * 0.01;
 document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -594,6 +630,17 @@ function clickApplyButton(){
 };
 $('.ApplyButton').on('click',function() { clickApplyButton();});
 
+function setupPopupMsg(popup, lat, lng, res) {
+    lat = Math.round(lat*1000000,4)/1000000
+    lng = Math.round(lng*1000000,4)/1000000
+    var accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
+    var pos = '<br>位置: ' + lat + ',' + lng;
+    if (res['type'] == 'JCC') 
+	popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm '+ accu);
+    else
+	popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm ' + accu);
+}
+
 function displayActivationZone(coords, popupfl, uplmt) {
     var lat = coords[0];
     var lng = coords[1];
@@ -606,29 +653,41 @@ function displayActivationZone(coords, popupfl, uplmt) {
     if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
 	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
 	    if (res['errors'] != 'OK') {
-		console.log('DEM error');
+		console.log('DEM error',res);
 		return;
 	    }
 	    else {
-		if (map && activation_zone) 
-		    map.removeLayer(activation_zone);
-		activation_zone = L.contourLayer(lat, lng, zoom, res['elevation'], uplmt, vdist, hdist,{
+		L.contourLayer(lat, lng, zoom, res['elevation'], uplmt, vdist, hdist,{
 		    attribution: "<a href='https://little-ctc.com/sota_hp/' target='_blank'>JCC/JCGデータ</a>",
 		    minZoom: 12,
 		    maxZoom: 18,
 		    maxNativeZoom: 14
-		}).addTo(map);
-		var accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
-		var pos = '<br>位置: ' + lat + ',' + lng;
-		if (res['type'] == 'JCC') 
-		    popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm '+ accu);
-		else
-		    popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm ' + accu);
+		},function (l,latlon,moved) {
+		    if (map && activation_zone) 
+			map.removeLayer(activation_zone);
+		    activation_zone = l
+		    l.addTo(map)
+		    var lat = latlon['lat'],
+			lng = latlon['lon']
+		    if (moved) {
+	   		$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
+			    if (res['errors'] != 'OK') {
+				console.log('DEM error2',res);
+				return;
+			    }
+			    setupPopupMsg(popup, lat, lng,res)
+			    if (popupfl) 
+				popup.setLatLng([lat,lng]).openOn(map);
+			})
+		    } else {
+			setupPopupMsg(popup, lat, lng,res)
+		    	if (popupfl) 
+			    popup.setLatLng([lat,lng]).openOn(map);
+
+		    }
+		})
 	    }
 	})
-	if (popupfl) {
-	    popup.setLatLng(coords).openOn(map);
-	}
     }
 }
 
@@ -754,6 +813,8 @@ function showSummit(s) {
     latlng = s['coord']
     $('#navbarNav').collapse('hide');
     area = s['code'].substr(0,2);
+    draw_all = Cookies.get('prefs_all_summit')
+
     sel_a = document.getElementById("select-area");
     if (area == "JA") {
 	if(map.hasLayer(osm)) {
@@ -777,12 +838,15 @@ function showSummit(s) {
     sel_t.selectedIndex = 2;
     update_timer = null;
     s = s['data']
-    console.log(s)
     mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts' + '<br>GL:' + s['maidenhead'] + '<br>'+ escapeStr(s['desc'])
     
-    if (shown_summit)
-	map.removeLayer(shown_summit)
-    shown_summit = placeSummitMarker(latlng, 15, s['elev'], mesg, true);
+    if (area == "JA" && draw_all == "true") {
+	popupSummitMarker(latlng)
+    } else {
+	if (shown_summit)
+	    map.removeLayer(shown_summit)
+	shown_summit = placeSummitMarker(latlng, 15, s['elev'], mesg, true);
+    }
     displayActivationZone(latlng, false, -0.8);
     map.setView(latlng,15);
 }
@@ -792,7 +856,6 @@ map.on('moveend',function(e) {
     draw = Cookies.get('prefs_all_summit')
     if (area != 'JA' || draw != 'true')
 	return
-    
     deleteSummitMarker()
     z = map.getZoom()
     b = map.getBounds();
@@ -811,7 +874,15 @@ function deleteSummitMarker() {
 
 }
 
+_popupMarker = null
+function popupSummitMarker(latlng) {
+    _popupMarker = latlng
+}
+    
 function placeSummitMarkers(nw ,se, z) {
+    var popup = false
+    var elev;
+    
     if (z > 10) 
 	elev = 0
     else if (z > 9)
@@ -821,14 +892,21 @@ function placeSummitMarkers(nw ,se, z) {
     else
 	elev = 1500;
     
+    
     $.getJSON('https://www.sotalive.tk/api/sotasummits/ja?','lat='+nw[0]+'&lon='+nw[1]+'&lat2='+se[0]+'&lon2='+se[1]+'&elevation='+elev+'&flag=0',function(res) {
 	if (res['errors'] != 'OK') {
 	    return;
 	}
 	for(const s of res['summits']) {
-	    var mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts'+'<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])  
+	    var mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts'+'<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])
+	    if (_popupMarker &&
+		s['lat'] == _popupMarker[0] &&
+		s['lon'] == _popupMarker[1]) {
+		popup = true
+		_popupMarker = null
+	    }
 	    show_summit_marker.push(
-		placeSummitMarker([s['lat'],s['lon']], z, s['elev'], mesg, false))
+		placeSummitMarker([s['lat'],s['lon']], z, s['elev'], mesg, popup))
 	    
 	}
     })
@@ -879,7 +957,7 @@ function placeSummitMarker(coords, z, elev, mesg, popupfl) {
 		       });
     var m = marker.addTo(map);
     m.on('click',function(e) {
-	if (map.getZoom() > 14)
+	if (map.getZoom() > 13)
 	    displayActivationZone([e['latlng']['lat'],e['latlng']['lng']],
 				  false, -0.8)})
     if (popupfl)
@@ -1260,8 +1338,8 @@ function update(focusQTH = false) {
 		d.scrollIntoView(true);
 		if (first_draw &&(current_latlng[current_op][0]!=0 &&
 				  current_latlng[current_op][1]!=0)) {
-		    displayActivationZone(current_latlng[current_op],false ,-0.4);
 		    map.setView(current_latlng[current_op],15);
+		    displayActivationZone(current_latlng[current_op],false ,-0.4);
 		}
 	    } else {
 		retry = Cookies.get('retry_range')
@@ -1272,8 +1350,9 @@ function update(focusQTH = false) {
   		} else {
 		    if (qdata[0].summit_latlng[0]!=0 &&
 			qdata[0].summit_latlng[1]!=0) {
-			displayActivationZone(qdata[0].summit_latlng,false, -0.4);
 			map.setView(qdata[0].summit_latlng,15);
+			displayActivationZone(qdata[0].summit_latlng,false, -0.4);
+
 		    }
 		}
 	    }
