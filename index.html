@@ -156,9 +156,9 @@ i.semantic-ui-custom {
 	    <option value="NA">NA/SA</option>
 	  </select>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary" onClick="clickApplyButton()"><i class="fas fa-redo"></i></button>
+	  &nbsp&nbsp<button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt"> QTH</i></button>
 	</div>
 	<div class="form-group">
-	  &nbsp&nbsp<button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt"> QTH</i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-prefs"><i class="fas fa-cog"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
 	</div>
@@ -905,6 +905,7 @@ function deleteSummitMarker() {
 
 _popupMarker = null
 function popupSummitMarker(latlng) {
+    userChange = true
     _popupMarker = latlng
 }
     
