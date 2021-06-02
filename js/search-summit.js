@@ -92,7 +92,9 @@
 						  name = s['name']
 						  data = s
 						  var opt = document.createElement("OPTION")
-						  opt.value= code + ' ' + name 
+						  if (text.indexOf('"') != -1)
+						      sname = '"'+name+'"'
+						  opt.value= code + ' ' + sname 
 						  dl.append(opt)
 						  data_list.push({
 						      'code': code,

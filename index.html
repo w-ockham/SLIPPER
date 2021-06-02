@@ -147,8 +147,6 @@ i.semantic-ui-custom {
 	    <option value="24">24 hours</option>
 	    <option value="48">48 hours</option>
 	  </select>
-	</div>
-	<div class="form-group">
 	  <label for="custom-select-area">&nbsp<b>Area:</b>&nbsp</label>
 	  <select id="select-area" class="custom-select custom-select-sm" style="width:auto;" onChange="clickApplyButton()">
 	    <option value="WW">WW</option>
@@ -157,17 +155,19 @@ i.semantic-ui-custom {
 	    <option value="EU">EU/AF</option>
 	    <option value="NA">NA/SA</option>
 	  </select>
+	  &nbsp&nbsp<button type="button" class="btn btn-primary" onClick="clickApplyButton()"><i class="fas fa-redo"></i></button>
 	</div>
 	<div class="form-group">
-	  &nbsp&nbsp<button type="button" class="btn btn-primary" onClick="clickApplyButton()"><i class="fas fa-redo"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt"> QTH</i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-prefs"><i class="fas fa-cog"></i></button>
 	  &nbsp&nbsp<button type="button" class="btn btn-primary InfoButton" data-toggle="modal" data-target="#modal-aprs"><i class="fas fa-info"></i></button>
 	</div>
-	<div id="search_summit"></div>
+	<div class="form-group">
+	  <div id="search_summit"></div>
 	  <script>
 	    $("#search_summit").searchinput({done:function(s){showSummit(s)}})
 	  </script>
+	</div>
       </div>
     </div>
   </nav>
@@ -265,6 +265,12 @@ i.semantic-ui-custom {
     Show Activation Zone (JA region only) <br>
 		</label>
 	      </div>
+	      <div class="form-check">
+		<input class="form-check-input" type="checkbox" value="" id="enable_activation_zone" onclick="toggleSOTASummitCheck()">
+		<label class="form-check-label" for="flexCheckDefault">
+    SOTA Summit Check<br>
+		</label>
+	      </div>
 	      <div class="form-group">
 		<input id="vertical-dist" data-slider-id='ex1Slider' type="text" data-slider-min="5" data-slider-max="150" data-slider-step="5" data-slider-value="25"/><br>
 		<input id="tile-size" data-slider-id='ex1Slider' type="text" data-slider-min="1" data-slider-max="5" data-slider-step="1" data-slider-value="1"/>
@@ -309,6 +315,19 @@ $('#tile-size').slider({
 	return 'Tile Size: ' + size;
     }
 });
+
+var summit_check_mode = false;
+function toggleSOTASummitCheck() {
+    if (!summit_check_mode) {
+	$('#vertical-dist').slider('setValue',150);
+	$('#tile-size').slider('setValue',5);
+	summit_check_mode = true;
+    } else {
+	$('#vertical-dist').slider('setValue',25);
+	$('#tile-size').slider('setValue',1);
+	summit_check_mode = false;
+    }	
+}
 
 function latlonToPxl(lat, lon, zoom) {
     const Lmax = 85.05112878;
@@ -851,16 +870,28 @@ function showSummit(s) {
     map.setView(latlng,15);
 }
 
+userChange = false;
+
+map.on('dragend',function(e) {
+    userChange = true
+})
+
+map.on('zoomend',function(e) {
+    userChange = true
+})
+       
 map.on('moveend',function(e) {
-    area = Cookies.get('area')
-    draw = Cookies.get('prefs_all_summit')
-    if (area != 'JA' || draw != 'true')
-	return
-    deleteSummitMarker()
-    z = map.getZoom()
-    b = map.getBounds();
-    placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
-		       [b['_southWest']['lat'], b['_northEast']['lng']],z)    
+    if(userChange) {
+	userChange = false;
+	area = Cookies.get('area')
+	draw = Cookies.get('prefs_all_summit')
+	if (area != 'JA' || draw != 'true')
+	    return
+	deleteSummitMarker()
+	z = map.getZoom()
+	b = map.getBounds();
+	placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
+			   [b['_southWest']['lat'], b['_northEast']['lng']],z)    }
 });
 
 var show_summit_marker = [];
