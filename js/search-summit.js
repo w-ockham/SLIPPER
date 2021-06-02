@@ -94,6 +94,8 @@
 						  var opt = document.createElement("OPTION")
 						  if (text.indexOf('"') != -1)
 						      sname = '"'+name+'"'
+						  else
+						      sname = name
 						  opt.value= code + ' ' + sname 
 						  dl.append(opt)
 						  data_list.push({
