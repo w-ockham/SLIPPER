@@ -513,7 +513,7 @@ function displayPopup(latlng, popupfl, response) {
         }
 	else if (res['errors'] != 'OK') {
  	    popup.setContent('Parameter out of range.');
-	    return;
+	    popup.setLatLng(latlng)
 	} else {
 	    accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
 	    pos = '<br>位置:<a href="'+gsi+latlng.lat+'/'+latlng.lng+'" target="_blank">' + lat + ',' + lng +'</a>';
@@ -538,6 +538,7 @@ map.on('click', function(e) {
 });
 
 map.on('contextmenu', function(e) {
+    clearSummitMarker()
     displayActivationZone(e.latlng, true, 0);
     map.panTo(e.latlng)
 });
