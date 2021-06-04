@@ -447,16 +447,48 @@ window.addEventListener('resize',()=> {
 $(function () {
   $('[data-toggle="tooltip"]').tooltip()
 })
-
+/**********************************************************
+ * OpenWeatherMap 
+ **********************************************************/	
+/*
+var pf = new  L.tileLayer(
+	'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=9a7965220fb24d5084f44454d90d8b0c',
+	{
+	    attribution: '<a href="">降水予測<a>',
+	    opacity:0.8
+	});
+	
+var cf = new  L.tileLayer(
+	'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=9a7965220fb24d5084f44454d90d8b0c',
+	{
+	    attribution: '<a href="">雲の予測</a>',
+	    opacity:0.8
+	});
+*/
+// OWN end	
+var overlayMaps = {
+/*
+    "Clouds": cf,
+    "Precipitation": pf,
+*/
+};
+	
 var osm = L.tileLayer('https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=767750c193e54ceeb3aee08d880bdb90',{
     attribution: "<a href='https://www.thunderforest.com/'>Thunderforest</a>"});
 var gsi = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
     attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
 });
 
+var basemap = {
+    "GSI": gsi,
+    "OSM": osm
+}
+
 var map = L.map('map',{
     layers: [ gsi ]
 });
+L.control.layers(basemap,overlayMaps).addTo(map);
+	   
 
 var activation_zone = null;
 var lg = null;
@@ -468,32 +500,46 @@ L.control.scale().addTo(map);
 L.control.zoomLabel().addTo(map);
 var popup = L.popup();
 
-map.on('click', function(e) {
-    var lat = Math.round(e.latlng.lat * 1000000,4)/1000000
-    var lng = Math.round(e.latlng.lng * 1000000,4)/1000000
+function displayPopup(latlng, popupfl, response) {
+    var lat = Math.round(latlng.lat * 1000000,4)/1000000
+    var lng = Math.round(latlng.lng * 1000000,4)/1000000
+    var gsi= 'https://maps.gsi.go.jp/#15/'
 
-    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+e.latlng.lat+'&lon='+e.latlng.lng,function(res) {
+    var resfun = function(res) {
 	if (res['errors'] == 'OUTSIDE_JA') {
 	    popup.setContent(
 		'Pos: ' + lat +','+ lng + '<br>GL: '+res['maidenhead']);
-	    return;
+	    popup.setLatLng(latlng)
         }
-	if (res['errors'] != 'OK') {
+	else if (res['errors'] != 'OK') {
  	    popup.setContent('Parameter out of range.');
 	    return;
+	} else {
+	    accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
+	    pos = '<br>位置:<a href="'+gsi+latlng.lat+'/'+latlng.lng+'" target="_blank">' + lat + ',' + lng +'</a>';
+	    if (res['type'] == 'JCC') 
+		popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm '+ accu);
+	    else
+		popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm ' + accu);
 	}
-	accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
-	pos = '<br>位置: ' + lat + ',' + lng;
-	if (res['type'] == 'JCC') 
-	    popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm '+ accu);
-	else
-	    popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm ' + accu);
-    });
-    popup.setLatLng(e.latlng).openOn(this);
+	if (popupfl) 
+	    popup.setLatLng(latlng).openOn(map)
+    }
+
+    if (!response) {
+	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+latlng.lat+'&lon='+latlng.lng,resfun);
+    }
+    else
+	resfun(response)
+}
+
+map.on('click', function(e) {
+    displayPopup(e.latlng, true, null)
 });
 
 map.on('contextmenu', function(e) {
-    displayActivationZone([e.latlng.lat, e.latlng.lng], true,0);
+    displayActivationZone(e.latlng, true, 0);
+    map.panTo(e.latlng)
 });
 
 if (location.hash == '#aprs-info') {
@@ -649,25 +695,14 @@ function clickApplyButton(){
 };
 $('.ApplyButton').on('click',function() { clickApplyButton();});
 
-function setupPopupMsg(popup, lat, lng, res) {
-    lat = Math.round(lat*1000000,4)/1000000
-    lng = Math.round(lng*1000000,4)/1000000
-    var accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
-    var pos = '<br>位置: ' + lat + ',' + lng;
-    if (res['type'] == 'JCC') 
-	popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm '+ accu);
-    else
-	popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm ' + accu);
-}
-
-function displayActivationZone(coords, popupfl, uplmt) {
-    var lat = coords[0];
-    var lng = coords[1];
+function displayActivationZone(latlng, popupfl, uplmt) {
+    var lat = latlng.lat;
+    var lng = latlng.lng;
     var vdist = vertical_distance;
     var hdist = tile_size;
-    var popup = L.popup();
     var zoom = map.getZoom();
-    //console.log("Vertical,Horizontal",vdist,hdist)
+
+    userChange = true
     
     if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
 	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
@@ -686,23 +721,13 @@ function displayActivationZone(coords, popupfl, uplmt) {
 			map.removeLayer(activation_zone);
 		    activation_zone = l
 		    l.addTo(map)
-		    var lat = latlon['lat'],
-			lng = latlon['lon']
-		    if (moved) {
-	   		$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
-			    if (res['errors'] != 'OK') {
-				console.log('DEM error2',res);
-				return;
-			    }
-			    setupPopupMsg(popup, lat, lng,res)
-			    if (popupfl) 
-				popup.setLatLng([lat,lng]).openOn(map);
-			})
-		    } else {
-			setupPopupMsg(popup, lat, lng,res)
-		    	if (popupfl) 
-			    popup.setLatLng([lat,lng]).openOn(map);
-
+		    if (popupfl) {
+			var lat = latlon['lat'],
+			    lng = latlon['lon']
+			if (moved) 
+			    displayPopup({lat:lat, lng:lng}, popupfl, null)
+			else 
+			    displayPopup({lat:lat, lng:lng}, popupfl, res)
 		    }
 		})
 	    }
@@ -717,13 +742,14 @@ function clickSummitButton(event) {
 	    lat = qrvdata[i].summit_latlng[0];
 	    lng = qrvdata[i].summit_latlng[1];
 	    if (lat != 0 && lng != 0) {
-		displayActivationZone(qrvdata[i].summit_latlng, false, -0.8);
-		map.setView(calc_offset(qrvdata[i].summit_latlng),15);
+		map.setView(calc_offset([lat, lng]),15);
+		displayActivationZone({lat:lat, lng:lng}, false, -0.8);
+
 	    }
 	    break;
-     	};
-    };
-};
+     	}
+    }
+}
 
 direc_lg = null;
 my_qth = null;
@@ -866,7 +892,7 @@ function showSummit(s) {
 	    map.removeLayer(shown_summit)
 	shown_summit = placeSummitMarker(latlng, 15, s['elev'], mesg, true);
     }
-    displayActivationZone(latlng, false, -0.8);
+    displayActivationZone({lat:latlng[0],lng:latlng[1]}, false, -0.8);
     map.setView(latlng,15);
 }
 
@@ -903,7 +929,13 @@ function deleteSummitMarker() {
     }
 }
 
-_popupMarker = null
+var _popupMarker = null
+
+function clearSummitMarker() {
+    userChange = true
+    _popupMarker = null
+}
+
 function popupSummitMarker(latlng) {
     userChange = true
     _popupMarker = latlng
@@ -989,8 +1021,7 @@ function placeSummitMarker(coords, z, elev, mesg, popupfl) {
 	var l = e['target']['_latlng']
 	popupSummitMarker([l['lat'],l['lng']])
 	if (map.getZoom() > 13)
-	    displayActivationZone([e['latlng']['lat'],e['latlng']['lng']],
-				  false, -0.8)})
+	    displayActivationZone(e['latlng'],false, -0.8)})
     if (popupfl)
 	marker.bindPopup(mesg).openPopup();
     else
@@ -1370,7 +1401,9 @@ function update(focusQTH = false) {
 		if (first_draw &&(current_latlng[current_op][0]!=0 &&
 				  current_latlng[current_op][1]!=0)) {
 		    map.setView(current_latlng[current_op],15);
-		    displayActivationZone(current_latlng[current_op],false ,-0.4);
+		    latlng = {lat:current_latlng[current_op][0],
+			      lng:current_latlng[current_op][1]}
+		    displayActivationZone(latlng, false, -0.4);
 		}
 	    } else {
 		retry = Cookies.get('retry_range')
@@ -1382,7 +1415,9 @@ function update(focusQTH = false) {
 		    if (qdata[0].summit_latlng[0]!=0 &&
 			qdata[0].summit_latlng[1]!=0) {
 			map.setView(qdata[0].summit_latlng,15);
-			displayActivationZone(qdata[0].summit_latlng,false, -0.4);
+			latlng = {lat:qdata[0].summit_latlng,
+				  lng:qdata[0].summit_latlng}
+			displayActivationZone(latlng,false, -0.4);
 
 		    }
 		}
