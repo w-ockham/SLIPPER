@@ -277,7 +277,7 @@ i.semantic-ui-custom {
 	      </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-default" data-dismiss="modal" onClick="closePrefs()">Close</button>
             </div>
 	  </div> <!-- /.modal-content -->
 	</div> <!-- /.modal-dialog -->
@@ -298,6 +298,11 @@ $('#vertical-dist').slider({
 	return 'Vertical Distance: ' + value + 'm';
     }
 });
+
+function closePrefs() {
+    redoActivationZone()
+}
+
 var tile_size = 1;
 $('#tile-size').slider({
     formatter: function(value) {
@@ -447,17 +452,13 @@ window.addEventListener('resize',()=> {
 $(function () {
   $('[data-toggle="tooltip"]').tooltip()
 })
-/**********************************************************
- * OpenWeatherMap 
- **********************************************************/	
-/*
-var pf = new  L.tileLayer(
-	'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=9a7965220fb24d5084f44454d90d8b0c',
+var pf = new  L.imageOverlay(
+    'https://www.sotalive.tk/img/cloud.png',[[22.4,121.1],[47.6,151.1]],
 	{
-	    attribution: '<a href="">降水予測<a>',
-	    opacity:0.8
+	    attribution: '<a href="">雲量<a>',
+	    opacity:0.5
 	});
-	
+/*
 var cf = new  L.tileLayer(
 	'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=9a7965220fb24d5084f44454d90d8b0c',
 	{
@@ -465,10 +466,12 @@ var cf = new  L.tileLayer(
 	    opacity:0.8
 	});
 */
-// OWN end	
+// OWN end
+
 var overlayMaps = {
+    "Clouds": pf
 /*
-    "Clouds": cf,
+    ,
     "Precipitation": pf,
 */
 };
@@ -487,7 +490,7 @@ var basemap = {
 var map = L.map('map',{
     layers: [ gsi ]
 });
-L.control.layers(basemap,overlayMaps).addTo(map);
+//L.control.layers(basemap,overlayMaps).addTo(map);
 	   
 
 var activation_zone = null;
@@ -694,7 +697,17 @@ function clickApplyButton(){
     first_draw = true;
     update();  
 };
-$('.ApplyButton').on('click',function() { clickApplyButton();});
+$('.ApplyButton').on('click',function() { clickApplyButton();})
+
+var _azone_laststate = null
+function redoActivationZone() {
+    if (_azone_laststate) {
+	var latlng = _azone_laststate[0],
+	    popupfl = _azone_laststate[1],
+	    uplmt = _azone_laststate[2];
+	displayActivationZone(latlng, popupfl, uplmt)
+    }
+}
 
 function displayActivationZone(latlng, popupfl, uplmt) {
     var lat = latlng.lat;
@@ -703,6 +716,8 @@ function displayActivationZone(latlng, popupfl, uplmt) {
     var hdist = tile_size;
     var zoom = map.getZoom();
 
+    _azone_laststate = [ latlng, popupfl, uplmt ]
+    
     userChange = true
     
     if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
