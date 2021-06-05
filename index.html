@@ -542,6 +542,7 @@ map.on('click', function(e) {
 
 map.on('contextmenu', function(e) {
     clearSummitMarker()
+    userChange = false
     displayActivationZone(e.latlng, true, 0);
     map.panTo(e.latlng)
 });
@@ -700,11 +701,18 @@ function clickApplyButton(){
 $('.ApplyButton').on('click',function() { clickApplyButton();})
 
 var _azone_laststate = null
+
 function redoActivationZone() {
     if (_azone_laststate) {
 	var latlng = _azone_laststate[0],
 	    popupfl = _azone_laststate[1],
-	    uplmt = _azone_laststate[2];
+	    uplmt = _azone_laststate[2],
+	    b = map.getBounds();
+	if (latlng.lat > b['_northEast']['lat'] || latlng.lat < b['_southWest']['lat'])
+	    return
+	if (latlng.lng > b['_northEast']['lng'] || latlng.lng < b['_southWest']['lng'])
+	    return
+
 	displayActivationZone(latlng, popupfl, uplmt)
     }
 }
@@ -717,9 +725,7 @@ function displayActivationZone(latlng, popupfl, uplmt) {
     var zoom = map.getZoom();
 
     _azone_laststate = [ latlng, popupfl, uplmt ]
-    
-    userChange = true
-    
+
     if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
 	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
 	    if (res['errors'] != 'OK') {
@@ -758,9 +764,9 @@ function clickSummitButton(event) {
 	    lat = qrvdata[i].summit_latlng[0];
 	    lng = qrvdata[i].summit_latlng[1];
 	    if (lat != 0 && lng != 0) {
+		userChange = true;
 		map.setView(calc_offset([lat, lng]),15);
 		displayActivationZone({lat:lat, lng:lng}, false, -0.8);
-
 	    }
 	    break;
      	}
@@ -908,6 +914,7 @@ function showSummit(s) {
 	    map.removeLayer(shown_summit)
 	shown_summit = placeSummitMarker(latlng, 15, s['elev'], mesg, true);
     }
+    userChange = true
     displayActivationZone({lat:latlng[0],lng:latlng[1]}, false, -0.8);
     map.setView(latlng,15);
 }
@@ -932,6 +939,7 @@ map.on('moveend',function(e) {
 	deleteSummitMarker()
 	z = map.getZoom()
 	b = map.getBounds();
+	redoActivationZone();
 	placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
 			   [b['_southWest']['lat'], b['_northEast']['lng']],z)    }
 });
@@ -1419,6 +1427,7 @@ function update(focusQTH = false) {
 		    map.setView(current_latlng[current_op],15);
 		    latlng = {lat:current_latlng[current_op][0],
 			      lng:current_latlng[current_op][1]}
+		    userChange = true;
 		    displayActivationZone(latlng, false, -0.4);
 		}
 	    } else {
@@ -1433,6 +1442,7 @@ function update(focusQTH = false) {
 			map.setView(qdata[0].summit_latlng,15);
 			latlng = {lat:qdata[0].summit_latlng,
 				  lng:qdata[0].summit_latlng}
+			userChange = true;
 			displayActivationZone(latlng,false, -0.4);
 
 		    }
