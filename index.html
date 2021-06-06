@@ -1440,8 +1440,8 @@ function update(focusQTH = false) {
 		    if (qdata[0].summit_latlng[0]!=0 &&
 			qdata[0].summit_latlng[1]!=0) {
 			map.setView(qdata[0].summit_latlng,15);
-			latlng = {lat:qdata[0].summit_latlng,
-				  lng:qdata[0].summit_latlng}
+			latlng = {lat:qdata[0].summit_latlng[0],
+				  lng:qdata[0].summit_latlng[1]}
 			userChange = true;
 			displayActivationZone(latlng,false, -0.4);
 
