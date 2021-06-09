@@ -231,7 +231,7 @@ i.semantic-ui-custom {
 		    <td> RET=<i>num</i></td> <td> Set retry count for APRS message to <i>num</i>.<br> The default value is 3.</td>
 		  </tr>
 		  <tr>
-		    <td> ST </td> <td> Show your status.<br> e.g. JL1NIE: Message=Active: Max.Retry=3: LatestSpot: 07/20 13:51 JA/OY-113</td>
+		    <td> ST </td> <td> Show your status.<br> e.g. JL1NIE: Message=Active: Max.Retry=3: Lates]tSpot: 07/20 13:51 JA/OY-113</td>
 		  </tr>
 		  <tr>
 		    <td> HELP <i>or</i> &#x3f </td> <td> Show help message. </td>
@@ -903,42 +903,52 @@ function showSummit(s) {
     clearInterval(update_timer)
     countdown = 0;
     sel_t.selectedIndex = 2;
-    update_timer = null;
-    s = s['data']
-    mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts' + '<br>GL:' + s['maidenhead'] + '<br>'+ escapeStr(s['desc'])
-    
-    if (area == "JA" && draw_all == "true") {
-	popupSummitMarker(latlng)
-    } else {
-	if (shown_summit)
-	    map.removeLayer(shown_summit)
-	shown_summit = placeSummitMarker(latlng, 15, s['elev'], mesg, true);
+    update_timer = null
+    var popupfl = true
+    if (s['data'] === undefined)
+	mesg ='<b>Unkown</b><br>'+s['coord'][0]+','+s['coord'][1]
+    else {
+	var s = s['data']
+	mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts' + '<br>GL:' + s['maidenhead'] + '<br>'+ escapeStr(s['desc'])
+	popupfl = false
+	if (area == "JA" && draw_all == "true") {
+	    popupSummitMarker(latlng)
+	} else {
+	    if (shown_summit)
+		map.removeLayer(shown_summit)
+	    shown_summit = placeSummitMarker(latlng, 15, s['elev'], mesg, true);
+	}
     }
     userChange = true
-    displayActivationZone({lat:latlng[0],lng:latlng[1]}, false, -0.8);
+    displayActivationZone({lat:latlng[0],lng:latlng[1]}, popupfl, -0.8);
     map.setView(latlng,15);
 }
 
 userChange = false;
+prevZoom = 0;
 
 map.on('dragend',function(e) {
     userChange = true
 })
 
 map.on('zoomend',function(e) {
-    userChange = true
+//    var z = map.getZoom()
+//    if (z < prevZoom) {
+	userChange = true
+//	prevZoom = z;
+//    }
 })
        
 map.on('moveend',function(e) {
     if(userChange) {
 	userChange = false;
-	area = Cookies.get('area')
-	draw = Cookies.get('prefs_all_summit')
+	var area = Cookies.get('area')
+	var draw = Cookies.get('prefs_all_summit')
 	if (area != 'JA' || draw != 'true')
 	    return
 	deleteSummitMarker()
-	z = map.getZoom()
-	b = map.getBounds();
+	var z = map.getZoom()
+	var b = map.getBounds();
 	redoActivationZone();
 	placeSummitMarkers([b['_northEast']['lat'], b['_southWest']['lng']],
 			   [b['_southWest']['lat'], b['_northEast']['lng']],z)    }

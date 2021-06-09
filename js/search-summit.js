@@ -60,6 +60,21 @@
 	function station_query(text) {
 	    $(ele).find("span").each(function(index, s) { s.innerHTML = '';});
 	    if (text.length > 0){
+		if (text.length > 14) {
+		    latlng = text.replace(',',' ').split(' ')
+		    if (latlng[0].match(/\d+\.\d+/) != null &&
+			latlng[1].match(/\d+\.\d+/) != null) {
+			if (done) {
+			    $('input').val('')
+			    $('datalist').empty()
+			    done({
+				'code' : 'JA/Unknown Summit',
+				'coord':[latlng[0] , latlng[1]],
+				'name' : 'Unknown',
+				'data' : undefined})
+			}
+		    } 
+		}
 		str = text.split(' ')
 		for (var s of data_list) {
 		    if (str[0] != undefined ) {
