@@ -662,10 +662,22 @@ def update_json_data():
 
         if atime:
             at = datetime.fromtimestamp(int(atime)).strftime("%m/%d %H:%M")
+            delta = atime - now
+            if delta < 0:
+                acolor = 'muted'
+            elif delta <= 3600 * 3:
+                acolor = 'red'
+            elif delta <= 3600 * 12:
+                acolor = 'green'
+            elif delta <= 3600 * 24:
+                acolor = 'blue'
+            else:
+                acolor = 'muted'
         else:
             at =""
             afreq = ""
             acomment = ""
+            acolor = ""
             
         if stime:
             st = datetime.fromtimestamp(int(stime)).strftime("%m/%d %H:%M")
@@ -683,6 +695,7 @@ def update_json_data():
             else:
                 scolor = 'obsolete'
             ainfo = sinfo
+            acolor = 'muted'
         else:
             st = ""
             sfreq = ""
@@ -730,22 +743,23 @@ def update_json_data():
         #smoothed[1] = smooth_route(route[1])
 
         entry_db[op+summit] = (time,{'op':call,
-                              'opid':op,
-                              'summit':summit,'summit_info':ainfo,
-                              'association':assoc,'continent':conti,
-                              'summit_latlng':[float(alatdest),float(alngdest)],
-                              'alert_time':at,
-                              'alert_freq':afreq,
-                              'alert_comment':acomment,
-                              'spot_time':st,
-                              'spot_freq':sfreq.strip(' '),
-                              'spot_mode':smode,
-                              'spot_comment':scomment,
-                              'spot_color':scolor,
-                              'aprs_message':"",
-                              'route':route,
-                              #'smoothed':smoothed,
-                              'spot_type':spot_type})
+                                     'opid':op,
+                                     'summit':summit,'summit_info':ainfo,
+                                     'association':assoc,'continent':conti,
+                                     'summit_latlng':[float(alatdest),float(alngdest)],
+                                     'alert_time':at,
+                                     'alert_color': acolor,
+                                     'alert_freq':afreq,
+                                     'alert_comment':acomment,
+                                     'spot_time':st,
+                                     'spot_freq':sfreq.strip(' '),
+                                     'spot_mode':smode,
+                                     'spot_comment':scomment,
+                                     'spot_color':scolor,
+                                     'aprs_message':"",
+                                     'route':route,
+                                     #'smoothed':smoothed,
+                                     'spot_type':spot_type})
 
     js = sorted(entry_db.values(),key=lambda x: x[0])
 

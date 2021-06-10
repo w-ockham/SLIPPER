@@ -1385,8 +1385,17 @@ function update(focusQTH = false) {
 		qrvdata[i].summit +' '+ qrvdata[i].summit_info + '</a>, '+
 		qrvdata[i].association;
 	    if (qrvdata[i].alert_time!=""){
+		if (qrvdata[i].alert_color == "muted")
+		    color = 'text-muted'
+		else if (qrvdata[i].alert_color == "red")
+		    color = 'text-info'
+		else if (qrvdata[i].alert_color == "green")
+		    color = 'text-info'
+		else
+		    color = 'text-secondary'
+		
 		body = body +
-		    '<br><div class="text-muted mt-1"><i class="far fa-calendar-alt"></i>&nbsp'+
+		    '<br><div class="'+color+' mt-1"><i class="far fa-calendar-alt"></i>&nbsp'+
 		    qrvdata[i].alert_time + ' ' +
 		    qrvdata[i].alert_freq  + ' '+
 		    qrvdata[i].alert_comment + '</div>'+
@@ -1434,12 +1443,14 @@ function update(focusQTH = false) {
 		d.scrollIntoView(true);
 		if (first_draw &&(current_latlng[current_op][0]!=0 &&
 				  current_latlng[current_op][1]!=0)) {
+		    console.log(current_latlng[current_op])
 		    map.setView(current_latlng[current_op],15);
 		    latlng = {lat:current_latlng[current_op][0],
 			      lng:current_latlng[current_op][1]}
 		    userChange = true;
 		    displayActivationZone(latlng, false, -0.4);
-		}
+		} else
+		    map.setView(centerpos, czoom);
 	    } else {
 		retry = Cookies.get('retry_range')
 		if (location.hash != '' && retry == '') {
@@ -1455,7 +1466,8 @@ function update(focusQTH = false) {
 			userChange = true;
 			displayActivationZone(latlng,false, -0.4);
 
-		    }
+		    }else
+			map.setView(centerpos, czoom);
 		}
 	    }
 	    Cookies.set('retry_range','', { sameSite:'lax' });
