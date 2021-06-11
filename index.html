@@ -1441,14 +1441,15 @@ function update(focusQTH = false) {
 	    
 	    if (d != null) {
 		d.scrollIntoView(true);
-		if (first_draw &&(current_latlng[current_op][0]!=0 &&
-				  current_latlng[current_op][1]!=0)) {
-		    console.log(current_latlng[current_op])
-		    map.setView(current_latlng[current_op],15);
-		    latlng = {lat:current_latlng[current_op][0],
-			      lng:current_latlng[current_op][1]}
-		    userChange = true;
-		    displayActivationZone(latlng, false, -0.4);
+		if (current_latlng[current_op][0]!=0 &&
+		    current_latlng[current_op][1]!=0) {
+		    if (first_draw) {
+			map.setView(current_latlng[current_op],15);
+			latlng = {lat:current_latlng[current_op][0],
+				  lng:current_latlng[current_op][1]}
+			userChange = true;
+			displayActivationZone(latlng, false, -0.4);
+		    }
 		} else
 		    map.setView(centerpos, czoom);
 	    } else {
@@ -1466,7 +1467,7 @@ function update(focusQTH = false) {
 			userChange = true;
 			displayActivationZone(latlng,false, -0.4);
 
-		    }else
+		    } else
 			map.setView(centerpos, czoom);
 		}
 	    }
