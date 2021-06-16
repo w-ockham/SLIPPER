@@ -552,7 +552,7 @@ map.on('contextmenu', function(e) {
     clearSummitMarker()
     userChange = false
     displayActivationZone(e.latlng, true, 0);
-    map.panTo(e.latlng)
+    //map.panTo(e.latlng)
 });
 
 if (location.hash == '#aprs-info') {
@@ -932,7 +932,7 @@ function showSummit(s) {
     map.setView(latlng,15);
 }
 
-userChange = false;
+userChange = true;
 
 map.on('dragend',function(e) {
     userChange = true
@@ -943,7 +943,7 @@ map.on('zoomend',function(e) {
 })
        
 map.on('moveend',function(e) {
-    if(userChange) {
+    if (userChange) {
 	userChange = false;
 	var area = Cookies.get('area')
 	var draw = Cookies.get('prefs_all_summit')
@@ -1004,6 +1004,7 @@ function placeSummitMarkers(nw ,se, z) {
 		s['lat'] == _popupMarker[0] &&
 		s['lon'] == _popupMarker[1]) {
 		popup = true
+		_popupMarker = null
 	    }
 	    show_summit_marker.push(
 		placeSummitMarker([s['lat'],s['lon']], z, s['elev'], mesg, popup))
