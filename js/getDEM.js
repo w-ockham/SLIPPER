@@ -1,7 +1,7 @@
 function getDEM(coords, done) { 
     var url_png = "https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png";
     var url_png5a = "https://cyberjapandata.gsi.go.jp/xyz/dem5a_png/{z}/{x}/{y}.png";
-    var threshold = 4000;
+    var threshold = 1000;
     var img = new Image();
     var dem;
     var dem5a;
