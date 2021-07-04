@@ -1069,8 +1069,18 @@ function placeSummitMarker(coords, z, elev, mesg, popupfl) {
     return m;
 }
 
+qth_marker = null
+
 function callbkQTHOk(arg) {
-    latlng = [arg.coords.latitude, arg.coords.longitude];
+    var lat = Cookies.get('my_qth_lat')
+    var lng = Cookies.get('my_qth_lng')
+
+    if (lat) {
+	latlng = [parseFloat(lat), parseFloat(lng)]
+    }
+    else 
+	latlng = [arg.coords.latitude, arg.coords.longitude];
+
     options = {
         prefix: 'icon'
         ,icon: 'user'
@@ -1092,12 +1102,21 @@ function callbkQTHOk(arg) {
 	    else
 		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
 	    
-	    var marker = L.marker(latlng,
-				  {icon: L.ExtraMarkers.icon(options)});
-	    marker.addTo(map);
+	    if (qth_marker != null)
+		map.removeLayer(qth_marker)
+	    
+	    qth_marker = L.marker(latlng,
+				  {draggable:true, icon: L.ExtraMarkers.icon(options)});
+	    qth_marker.addTo(map);
 	    my_qth = latlng;
-	    marker.bindPopup(mesg).openPopup();
+	    qth_marker.bindPopup(mesg).openPopup();
 	    update(true);
+	    qth_marker.on('dragend', function(e) {
+		my_qth = e.target.getLatLng()
+		Cookies.set('my_qth_lat',String(my_qth[0]))
+		Cookies.set('my_qth_lng',String(my_qth[1]))
+		update(true)
+	    })
 	}
     });
 };
@@ -1130,10 +1149,23 @@ function clickQTHButton () {
 	"timeout": 10000,
 	"maximumAge": 0
     }
-
-    navigator.geolocation.getCurrentPosition(callbkQTHOk,
-					     callbkQTHNG,
-					     options);
+    lat = Cookies.get('my_qth_lat')
+    lng = Cookies.get('my_qth_lng')
+    if (lat) {
+	var confirm = window.confirm('位置情報を更新しますか？')
+	if (confirm) {
+	    Cookies.remove('my_qth_lat')
+	    Cookies.remove('my_qth_lng')
+ 	    navigator.geolocation.getCurrentPosition(callbkQTHOk,
+						     callbkQTHNG,
+						     options);
+	} else
+	    update(true)
+    }
+    else 
+	navigator.geolocation.getCurrentPosition(callbkQTHOk,
+						 callbkQTHNG,
+						 options);
 };
 
 function clickAPRSButton (event) {
