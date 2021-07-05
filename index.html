@@ -1071,6 +1071,27 @@ function placeSummitMarker(coords, z, elev, mesg, popupfl) {
 
 qth_marker = null
 
+function QTHdragend(e) {
+    my_qth = e.target.getLatLng()
+    Cookies.set('my_qth_lat',String(my_qth['lat']))
+    Cookies.set('my_qth_lng',String(my_qth['lng']))
+    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+my_qth['lat']+'&lon='+my_qth['lng'],function(res) {
+	if (res['errors'] == 'OUTSIDE_JA') {
+	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
+        }
+	if (res['errors'] != 'OK') {
+ 	    mesg = 'Parameter out of range.';
+	} else {
+	    if (res['type'] == 'JCC') 
+		mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+	    else
+		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
+	}
+	qth_marker.bindPopup(mesg).openPopup();
+	update(true)
+    })
+}
+
 function callbkQTHOk(arg) {
     var lat = Cookies.get('my_qth_lat')
     var lng = Cookies.get('my_qth_lng')
@@ -1111,12 +1132,7 @@ function callbkQTHOk(arg) {
 	    my_qth = latlng;
 	    qth_marker.bindPopup(mesg).openPopup();
 	    update(true);
-	    qth_marker.on('dragend', function(e) {
-		my_qth = e.target.getLatLng()
-		Cookies.set('my_qth_lat',String(my_qth[0]))
-		Cookies.set('my_qth_lng',String(my_qth[1]))
-		update(true)
-	    })
+	    qth_marker.on('dragend', QTHdragend)
 	}
     });
 };
