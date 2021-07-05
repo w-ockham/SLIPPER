@@ -1073,9 +1073,13 @@ qth_marker = null
 
 function QTHdragend(e) {
     my_qth = e.target.getLatLng()
-    Cookies.set('my_qth_lat',String(my_qth['lat']))
-    Cookies.set('my_qth_lng',String(my_qth['lng']))
-    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+my_qth['lat']+'&lon='+my_qth['lng'],function(res) {
+    var lat = String(Math.round(my_qth['lat']*1000000,4)/1000000),
+	lng = String(Math.round(my_qth['lng']*1000000,4)/1000000);
+    
+    Cookies.set('my_qth_lat',lat)
+    Cookies.set('my_qth_lng',lng)
+
+    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
 	if (res['errors'] == 'OUTSIDE_JA') {
 	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
         }
