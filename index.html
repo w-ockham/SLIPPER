@@ -100,6 +100,14 @@ i.semantic-ui-custom {
 .btn {
  margin: 0.1rem !important ; padding: 0.4rem 0.5rem !important;
 }
+
+.my-tooltip-label {
+    color: white;	
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    font-size: 8px;
+}
 </style>
 </head>
 <body>
@@ -120,7 +128,7 @@ i.semantic-ui-custom {
 <!-- plugin -->
 <link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
 <script src="js/leaflet.extra-markers.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/js-cookie@rc/dist/js.cookie.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
 <link rel="stylesheet" href="css/L.Icon.Pulse.css" />
 <script src="js/L.Icon.Pulse.js"></script>
@@ -256,7 +264,7 @@ i.semantic-ui-custom {
 	      <div class="form-check">
 		<input class="form-check-input" type="checkbox" value="" id="enable_display_allsummit" onclick="toggle_displaySummit()">
 		<label class="form-check-label" for="flexCheckDefault">
-    Show All Summits (JA region only) <br>
+    Show Summits<br>
 		</label>
 	      </div>
 	      <div class="form-check">
@@ -268,7 +276,7 @@ i.semantic-ui-custom {
 	      <div class="form-check">
 		<input class="form-check-input" type="checkbox" value="" id="enable_activation_zone" onclick="toggleSOTASummitCheck()">
 		<label class="form-check-label" for="flexCheckDefault">
-    SOTA Summit Check<br>
+    SOTA Summit Check (JA region only)<br>
 		</label>
 	      </div>
 	      <div class="form-group">
@@ -618,7 +626,7 @@ function drawObj(lg,data) {
     };
     data.summit_latlng = calc_offset(data.summit_latlng);
     var marker = L.marker(data.summit_latlng,
-			  {zIndexOffset: 2000,
+			  {/*zIndexOffset: 2000,*/
 			   opacity: 0.9,
 			   icon: L.ExtraMarkers.icon(options)});
     marker.bindPopup('<h6>'+ data.summit + '</h6>'+ data.summit_info +'<br>'
@@ -679,7 +687,7 @@ function toggle_ActivationZone() {
 function toggle_displaySummit() {
     fl = Cookies.get('prefs_all_summit');
     if(fl == null) 
-	display_all_summit = "false";
+	display_all_summit = "true";
     
     if (fl == "true") {
 	display_all_summit  = "false";
@@ -881,6 +889,7 @@ function escapeStr(str) {
     var replacement = [[/&/g, "&amp;"],[/</g, "&lt;"],[/>/g, "&gt;<br>"],[/"/g, "&quot;"]]
     for(var e in replacement)
 	escstr = escstr.replace(replacement[e][0],replacement[e][1]);
+    escstr = escstr.replace(/<br>$/,'');
     return escstr;
 }
 
@@ -918,13 +927,17 @@ function showSummit(s) {
     else {
 	var s = s['data']
 	mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts' + '<br>GL:' + s['maidenhead'] + '<br>'+ escapeStr(s['desc'])
+	mesg += '<br>Activations: ' + s['actcnt']
+	if (s['actcnt']!= 0)
+	    mesg += '<br>Last Activation: ' + s['lastact'] + '(' + s['lastcall'] + ')'
+	console.log(mesg)
 	popupfl = false
-	if (area == "JA" && draw_all == "true") {
+	if (draw_all == "true") {
 	    popupSummitMarker(latlng)
 	} else {
 	    if (shown_summit)
 		map.removeLayer(shown_summit)
-	    shown_summit = placeSummitMarker(latlng, 15, s['elev'], mesg, true);
+	    shown_summit = placeSummitMarker(latlng, 15, s['elev'], s['actcnt'], mesg, true);
 	}
     }
     userChange = true
@@ -944,11 +957,11 @@ map.on('zoomend',function(e) {
        
 map.on('moveend',function(e) {
     if (userChange) {
-	userChange = false;
+	userChange = false
 	var area = Cookies.get('area')
 	var draw = Cookies.get('prefs_all_summit')
 	if (area != 'JA')
-	    return
+	    return;
 	redoActivationZone();
 	if (draw) {
 	    deleteSummitMarker()
@@ -981,8 +994,8 @@ function popupSummitMarker(latlng) {
 }
     
 function placeSummitMarkers(nw ,se, z) {
-    var popup;
-    var elev;
+    var popup,elev,prefix;
+    var area = Cookies.get('area')
     
     if (z > 10) 
 	elev = 0
@@ -990,15 +1003,32 @@ function placeSummitMarkers(nw ,se, z) {
 	elev = 800
     else if (z > 8)
 	elev = 1000
-    else
+    else if (z > 6)
 	elev = 1500;
+    else
+	elev = 4000;
+
+    if (area == 'JA')
+	prefix = 'ja?'
+    else
+	prefix = 'ww?'
     
-    $.getJSON('https://www.sotalive.tk/api/sotasummits/ja?','lat='+nw[0]+'&lon='+nw[1]+'&lat2='+se[0]+'&lon2='+se[1]+'&elevation='+elev+'&flag=0',function(res) {
+    $.getJSON('https://www.sotalive.tk/api/sotasummits/'+prefix,'lat='+nw[0]+'&lon='+nw[1]+'&lat2='+se[0]+'&lon2='+se[1]+'&elevation='+elev+'&flag=0',function(res) {
 	if (res['errors'] != 'OK') {
 	    return;
 	}
 	for(const s of res['summits']) {
-	    var mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts'+'<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])
+	    var sname;
+	    if (area == 'JA')
+		sname = s['name_k']
+	    else
+		sname = s['name']
+	    
+	    var mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+sname+'&nbsp'+s['elev']+'m,'+s['pts']+'pts'+'<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])
+	    mesg += '<br>Activations: ' + s['actcnt']
+	    if (s['actcnt']!= 0)
+		mesg += '<br>Last Activation: ' + s['lastact'] + '(' + s['lastcall'] + ')'
+	    console.log(mesg)
 	    popup = false
 	    if (_popupMarker &&
 		s['lat'] == _popupMarker[0] &&
@@ -1007,13 +1037,13 @@ function placeSummitMarkers(nw ,se, z) {
 		_popupMarker = null
 	    }
 	    show_summit_marker.push(
-		placeSummitMarker([s['lat'],s['lon']], z, s['elev'], mesg, popup))
+		placeSummitMarker([s['lat'],s['lon']], z, s['elev'], s['actcnt'],mesg, popup))
 	    
 	}
     })
 }
 
-function placeSummitMarker(coords, z, elev, mesg, popupfl) {
+function placeSummitMarker(coords, z, elev, actcnt, mesg, popupfl) {
     var options = {
         prefix: 'icon'
         ,icon: 'certificate'
@@ -1056,6 +1086,10 @@ function placeSummitMarker(coords, z, elev, mesg, popupfl) {
 			fillOpacity:0.8,
 			opacity:1
 		       });
+    if (z > 11) {
+	marker.bindTooltip(String(actcnt),
+			   {permanent: true, direction: 'center', className: 'my-tooltip-label',offset:[0,0]})
+    }
     var m = marker.addTo(map);
     m.on('click',function(e) {
 	var l = e['target']['_latlng']
