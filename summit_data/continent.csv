@@ -16,6 +16,10 @@ CU,Azores,EU
 CX,Uruguay,SA
 DL,"Germany (Alpine)",EU
 DM,"Germany (Low Mountains)",EU
+DU2,"Philippines - North Luzon",OC
+DU3,"Philippines - Central Luzon",OC
+DU4,"Philippines - Bicol",OC
+DUC,"Philippines - Calabarzon",OC
 E5,"Cook Islands",OC
 E7,"Bosnia and Herzegovina",EU
 EA1,"Spain - North West",EU
@@ -100,6 +104,7 @@ PT2,"Brazil - Federal District",SA
 PY1,"Brazil - Rio de Janeiro",SA
 PY2,"Brazil - Sao Paulo",SA
 PY3,"Brazil - Rio Grande do Sol",SA
+PY4,"Brazil - Minas Gerais",SA
 PY5,"Brazil - Paraná",SA
 PYF,"Brazil - Fernado de Noronha",SA
 PYT,"Brazil - Trindade & Martim Vaz Is.",SA

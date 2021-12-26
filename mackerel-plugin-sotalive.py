@@ -9,29 +9,33 @@ if os.environ.get('MACKEREL_AGENT_PLUGIN_META','') == '1':
     meta = {
         'graphs': {
             'sotawatchlive': {
-                'Label': 'SOTAwatch Live!',
-                'Unit' : 'integer',
-                'Metrics': [
+                'label': 'SOTAwatch Live Status',
+                'unit' : 'float',
+                'metrics': [
                     {
-                        'Name':'SOTAwatch3 Status',
-                        'Label':'SOTAwatch3 Status'
+                        'name':'SOTAwatch3_Status',
+                        'label':'SOTAwatch3_Status'
                     },
                     {
-                        'Name':'Alerts',
-                        'Label':'Alerts'
+                        'name':'Alerts',
+                        'label':'Alerts'
                     },
                     {
-                        'Name':'Spots',
-                        'Label':'Sposts'
+                        'name':'Spots',
+                        'label':'Sposts'
                     },
                     {
-                        'Name':'APRS Stations',
-                        'Label':'APRS Stations'
+                        'name':'APRS_Stations',
+                        'label':'APRS_Stations'
                     },
                     {
-                        'Name':'APRS Packets',
-                        'Label':'APRS Packets'
-                    }
+                        'name':'APRS_packets10',
+                        'label':'APRS_packets10'
+                    },
+                    {
+                        'name':'Twitter_API',
+                        'label':'twitter'
+                    }                    
                 ]
             }
         }
@@ -46,5 +50,6 @@ else:
         print("sotawatchlive.Alerts\t{}\t{}".format(jd.get('ALERTS',0),now))
         print("sotawatchlive.Spots\t{}\t{}".format(jd.get('SPOTS',0),now))
         print("sotawatchlive.APRS_Stations\t{}\t{}".format(jd.get('TRACKS',0),now))
-        print("sotawatchlive.APRS_packets\t{}\t{}".format(jd.get('PACKETS',0),now))
+        print("sotawatchlive.APRS_packets10\t{}\t{}".format(jd.get('PACKETS',0)/10,now))
+        print("sotawatchlive.Twitter_API\t{}\t{}".format(jd.get('TWEET',0)/10,now))
 
