@@ -4,6 +4,11 @@ KEYS = {
     'ConsumersecretSOTAwatch': '',
     'AccesstokenSOTAwatch': '',
     'AccesstokensecretSOTAwatch': '',
+    # Keys for POTA
+    'ConsumerkeyPOTA': '',
+    'ConsumersecretPOTA': '',
+    'AccesstokenPOTA': '',
+    'AccesstokensecretPOTA': '',
 
     'JAFFConsumerkey': '',
     'JAFFConsumersecret': '',

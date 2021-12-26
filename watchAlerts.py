@@ -55,6 +55,7 @@ update_alerts_every = KEYS['UPDATE_ALERTS_EVERY']
 update_spots_every = KEYS['UPDATE_SPOTS_EVERY']
 latestSpot = {}
 tweet_api = None
+pota_tweet_api = None
 tweet_api_debug = None
 target_ssids = ['7','9','5','6','8']
 aprs_filter = ""
@@ -880,6 +881,12 @@ def update_spots():
             mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(op.encode('utf8') + '+' + summit.encode('utf8') , '')
             if re.search(KEYS['JASummits'],summit):
                 tweet(tweet_api,mesg)
+                comment = item['comments'].upper()
+                m = re.search('JA-\d\d\d\d', comment)
+                if m:
+                    mesg = st + ' ' + activator + ' on ' + m.group(0) + ' (' + summit + ') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
+                    tweet(pota_tweet_api, mesg)
+
             #tweet(tweet_api_debug,mesg)
 
     update_params('last_tweetat',int(datetime.utcnow().strftime("%s")))
@@ -1618,12 +1625,21 @@ def setup_db():
     
 def main():
     global tweet_api
+    global pota_tweet_api
     global tweet_api_debug
 
     try:
         auth = tweepy.OAuthHandler(KEYS['ConsumerkeySOTAwatch'], KEYS['ConsumersecretSOTAwatch'])
         auth.set_access_token(KEYS['AccesstokenSOTAwatch'], KEYS['AccesstokensecretSOTAwatch'])
         tweet_api = tweepy.API(auth)
+    except Exception as e:
+        print >>sys.stderr, 'access error: %s' % e
+        sys.exit(1)
+
+    try:
+        auth = tweepy.OAuthHandler(KEYS['ConsumerkeyPOTA'], KEYS['ConsumersecretPOTA'])
+        auth.set_access_token(KEYS['AccesstokenPOTA'], KEYS['AccesstokensecretPOTA'])
+        pota_tweet_api = tweepy.API(auth)
     except Exception as e:
         print >>sys.stderr, 'access error: %s' % e
         sys.exit(1)
