@@ -1,4 +1,4 @@
-JA/NI-001,36.7946,137.754,10,2611,Yukikuradake,Itoigawa-city<JCC#0816>Shimoniikawa-gun<JCG#28003A>,雪倉岳,新潟県糸魚川市<JCC#0816>富山県下新川郡朝日町<JCG#28003A>
+﻿JA/NI-001,36.7946,137.754,10,2611,Yukikuradake,Itoigawa-city<JCC#0816>Shimoniikawa-gun<JCG#28003A>,雪倉岳,新潟県糸魚川市<JCC#0816>富山県下新川郡朝日町<JCG#28003A>
 JA/NI-002,36.9227,138.0681,10,2462,Hiuchiyama,Myoko-city<JCC#0827>Itoigawa-city<JCC#0816>,火打山,新潟県妙高市<JCC#0827>新潟県糸魚川市<JCC#0816>
 JA/NI-003,36.8913,138.1135,10,2454,Myoukousan,Myoko-city<JCC#0827>,妙高山,新潟県妙高市<JCC#0827>
 JA/NI-004,36.921,138.036,10,2400,Yakeyama,Itoigawa-city<JCC#0816>Myoko-city<JCC#0827>,焼山,新潟県糸魚川市<JCC#0816>新潟県妙高市<JCC#0827>
@@ -65,7 +65,7 @@ JA/NI-065,37.7792,139.3289,6,981,Hishigatake,Higashikambara-gun<JCG#08013E>Agano
 JA/NI-066,38.3,139.6926,6,968,Ishiguroyama,Murakami-city<JCC#0812>,石黒山,新潟県村上市<JCC#0812>
 JA/NI-067,38.1491,139.6358,6,966,Kousagisan,Iwafune-gun<JCG#08001C>,光兎山,新潟県岩船郡関川村<JCG#08001C>
 JA/NI-068,38.3156,139.6562,6,954,Sanpeiyama,Murakami-city<JCC#0812>,三平山,新潟県村上市<JCC#0812>
-JA/NI-069,38.2159,138.4518,6,947,Bunagahirayama,Sado-city<JCC#0824>,山毛欅ガ平山,新潟県佐渡市<JCC#0824>
+JA/NI-069,38.2159,138.4518,6,947,Bunagahirayama,Sado-city<JCC#0824>,山毛﨔ガ平山,新潟県佐渡市<JCC#0824>
 JA/NI-070,37.2136,139.1395,6,939,P939,Uonuma-city<JCC#0825>,点939,新潟県魚沼市<JCC#0825>
 JA/NI-071,37.3006,139.0892,6,934,Tsuchikuzureyama,Uonuma-city<JCC#0825>,土崩山,新潟県魚沼市<JCC#0825>
 JA/NI-072,37.9611,139.5142,6,931,Kazekurasan,Tainai-city<JCC#0828>,風倉山,新潟県胎内市<JCC#0828>
@@ -616,7 +616,7 @@ JA/ST-012,35.9886,139.1596,6,960,Maruyama,Chichibu-gun<JCG#13007E>,丸山,埼玉
 JA/ST-013,35.9269,139.1607,6,851,Izugatake,Hanno-city<JCC#1309>,伊豆ヶ岳,埼玉県飯能市<JCC#1309>
 JA/ST-014,36.0345,139.1562,4,767,Oogiriyama,Chichibu-gun<JCG#13007D>Chichibu-gun<JCG#13007I>,大霧山,埼玉県秩父郡東秩父村<JCG#13007D>埼玉県秩父郡皆野町<JCG#13007I>
 JA/ST-015,35.9071,139.1852,4,660,Atagoyama(Nenogongen）,Hanno-city<JCC#1309>,愛宕山(子の権現),埼玉県飯能市<JCC#1309>
-JA/ST-016,35.9761,138.9931,2,644,Near_Shinashu,Chichibu-city<JCC#1307>Chichibu-gun<JCG#13007B>,品しゅう(三角点近傍),埼玉県秩父市<JCC#1307>埼玉県秩父郡小鹿野町<JCG#13007B>
+JA/ST-016,35.9761,138.9931,2,644,Near_Shinashu,Chichibu-city<JCC#1307>Chichibu-gun<JCG#13007B>,品刕(三角点近傍),埼玉県秩父市<JCC#1307>埼玉県秩父郡小鹿野町<JCG#13007B>
 JA/ST-017,36.0578,139.1127,2,590,Minoyama,Chichibu-gun<JCG#13007I>Chichibu-city<JCC#1307>,蓑山,埼玉県秩父郡皆野町<JCG#13007I>埼玉県秩父市<JCC#1307>
 JA/ST-018,36.1378,139.0955,2,549,Fudousan,Honjo-city<JCC#1311>Chichibu-gun<JCG#13007C>,不動山,埼玉県本庄市<JCC#1311>埼玉県秩父郡長瀞町<JCG#13007C>
 JA/ST-019,36.0931,139.0915,1,497,Hodosan,Chichibu-gun<JCG#13007C>Chichibu-gun<JCG#13007I>,宝登山,埼玉県秩父郡長瀞町<JCG#13007C>埼玉県秩父郡皆野町<JCG#13007I>
