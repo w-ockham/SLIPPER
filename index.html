@@ -926,7 +926,7 @@ function showSummit(s) {
 	mesg ='<b>Unkown</b><br>'+s['coord'][0]+','+s['coord'][1]
     else {
 	var s = s['data']
-	mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts' + '<br>GL:' + s['maidenhead'] + '<br>'+ escapeStr(s['desc'])
+	mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+s['name_k']+'&nbsp'+s['elev']+'m,'+s['pts']+'pts (+' + s['bonus'] + ')<br>GL:' + s['maidenhead'] + '<br>'+ escapeStr(s['desc'])
 	mesg += '<br>Activations: ' + s['actcnt']
 	if (s['actcnt']!= 0)
 	    mesg += '<br>Last Activation: ' + s['lastact'] + '(' + s['lastcall'] + ')'
@@ -1024,7 +1024,7 @@ function placeSummitMarkers(nw ,se, z) {
 	    else
 		sname = s['name']
 	    
-	    var mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+sname+'&nbsp'+s['elev']+'m,'+s['pts']+'pts'+'<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])
+	    var mesg = '<b>'+s['code']+' '+s['name']+'</b><br>'+sname+'&nbsp'+s['elev']+'m,'+s['pts']+'pts (+' + s['bonus'] +')<br>GL:' + s['maidenhead'] + '<br>' +escapeStr(s['desc'])
 	    mesg += '<br>Activations: ' + s['actcnt']
 	    if (s['actcnt']!= 0)
 		mesg += '<br>Last Activation: ' + s['lastact'] + '(' + s['lastcall'] + ')'
