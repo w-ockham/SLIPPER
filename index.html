@@ -200,7 +200,7 @@ i.semantic-ui-custom {
           </button>
         </div><!-- /modal-header -->
 	<div class="modal-body">
-	  <iframe class="img-responsive" src="https://mackerel.io/embed/public/embed/yKtkCzMbywMqm4RnbfAxsfpgCz6U0aiZvqQCUrrF0jwNDR6A1nAyjG9lqTVSWcqK?period=1d" height="200" width="350" frameborder="0"></iframe>
+		<iframe src="https://mackerel.io/embed/orgs/SOTAwatchJA/hosts/4qAUdvqeR31?graph=custom.sotawatchlive.%2a&amp;period=1d" height="200" width="400" frameborder="0"></iframe>
 	</div>
       </div>
     </div>
@@ -930,7 +930,6 @@ function showSummit(s) {
 	mesg += '<br>Activations: ' + s['actcnt']
 	if (s['actcnt']!= 0)
 	    mesg += '<br>Last Activation: ' + s['lastact'] + '(' + s['lastcall'] + ')'
-	console.log(mesg)
 	popupfl = false
 	if (draw_all == "true") {
 	    popupSummitMarker(latlng)
@@ -1028,7 +1027,6 @@ function placeSummitMarkers(nw ,se, z) {
 	    mesg += '<br>Activations: ' + s['actcnt']
 	    if (s['actcnt']!= 0)
 		mesg += '<br>Last Activation: ' + s['lastact'] + '(' + s['lastcall'] + ')'
-	    console.log(mesg)
 	    popup = false
 	    if (_popupMarker &&
 		s['lat'] == _popupMarker[0] &&
