@@ -40,7 +40,6 @@ sotawatch_json_url = KEYS['SOTAWATCH_JSON_URL']
 output_json_file = KEYS['OUTPUT_JSON_FILE']
 output_json_jafile = KEYS['OUTPUT_JSON_JAFILE']
 summit_db = KEYS['SUMMIT_DB']
-dxsummit_db = KEYS['DXSUMMIT_DB']
 association_db = KEYS['ASSOC_DB']
 alert_db = KEYS['ALERT_DB']
 aprslog_db = KEYS['APRSLOG_DB']
@@ -194,8 +193,6 @@ def lookup_from_op(call):
 def search_summit(code_dest,lat,lng):
     conn_summit = sqlite3.connect(summit_db)
     cur_summit = conn_summit.cursor()
-    conn_dxsummit = sqlite3.connect(dxsummit_db)
-    cur_dxsummit = conn_dxsummit.cursor()
     
     mag = KEYS['MAGNIFY']
     latu,latl = lat + deltalat*mag, lat - deltalat*mag
@@ -207,64 +204,36 @@ def search_summit(code_dest,lat,lng):
     if re.search(KEYS['JASummits'],code_dest):
         foreign = False
         continent = 'JA'
-        for s in cur_summit.execute('''select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)''',(latu,latl,lngu,lngl,)):
-            (code,lat1,lng1,pt,alt,name,desc,_,_)= s
-            try:
-                az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-            except Exception as e:
-                az,bkw_az,dist = (0, 0, 99999)
-            o = (code,int(dist),int(az),pt,alt,name,desc)
-            result.append(o)
-            if code == code_dest:
-                target = o 
     else:
         foreign = True
         continent = 'WW'
-        for s in cur_dxsummit.execute("select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)",(latu,latl,lngu,lngl,)):
-            (code,lat1,lng1,pt,alt,name,desc)= s
+    
+    for s in cur_summit.execute('''select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)''',(latu,latl,lngu,lngl,)):
+        (code,lat1,lng1,pt,_,alt,name,_,desc,_,_,continent,_,_,_) = s
+        try:
+            az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
+        except Exception as e:
+            az,bkw_az,dist = (0, 0, 99999)
+        o = (code,int(dist),int(az),pt,alt,name,desc)
+        result.append(o)
+        if code == code_dest:
+            target = o 
+    
+    if not target:
+        for s in cur_summit.execute("select * from summits where code = ?",(code_dest,)):
+            (code,lat1,lng1,pt,_,alt,name,_,desc,_,_,continent,_,_,_) = s
             try:
                 az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
             except Exception as e:
                 az,bkw_az,dist = (0, 0, 99999)
-            o = (code,int(dist),int(az),pt,alt,name,desc)
-            result.append(o)
-            if code == code_dest:
-                target = o
+            target = (code,int(dist),int(az),pt,alt,name,desc)
 
     if not target:
-        if re.search(KEYS['JASummits'],code_dest):
-            for s in cur_summit.execute("select * from summits where code = ?",(code_dest,)):
-                (code,lat1,lng1,pt,alt,name,desc,_,_)= s
-                try:
-                    az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-                except Exception as e:
-                    az,bkw_az,dist = (0, 0, 99999)
-                target = (code,int(dist),int(az),pt,alt,name,desc)
-        else:
-            for s in cur_dxsummit.execute("select * from summits where code = ?",(code_dest,)):
-                (code,lat1,lng1,pt,alt,name,desc)= s
-                try:
-                    az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
-                except Exception as e:
-                    az,bkw_az,dist = (0, 0, 99999)
-                target = (code,int(dist),int(az),pt,alt,name,desc)
-
-    if not target:
-        target = (code,999999,0,0,0,"Summit not recognized","")
+        target = (code_dest,999999,0,0,0,"Summit not recognized","")
     
     result.sort(key=lambda x:x[1])
-    if result:
-        if foreign:
-            conn_assoc = sqlite3.connect(association_db)
-            cur_assoc = conn_assoc.cursor()
-            (code,_,_,_,_,_,_) = result[0]
-            for (c,)  in cur_assoc.execute("select continent from associations where code = ?",(code,)):
-                continent = c
-                break
-            conn_assoc.close()
-            
+
     conn_summit.close()
-    conn_dxsummit.close()
     
     return (foreign,continent,target,result[0:3])
 
@@ -414,21 +383,21 @@ def lookup_summit(call,lat,lng):
     return (True,'', -1, 0, "Oops!")
 
 def parse_summit(code):
-    conn_dxsummit = sqlite3.connect(dxsummit_db)
-    cur_dxsummit = conn_dxsummit.cursor()
+    conn_summit = sqlite3.connect(summit_db)
+    cur_summit = conn_summit.cursor()
 
     lat,lng = 0.0,0.0
     name,alt,pts = '',0,0
 
     q = "select * from summits where code = ?"
-    cur_dxsummit.execute(q,(code,))
-    rows = cur_dxsummit.fetchall()
+    cur_summit.execute(q,(code,))
+    rows = cur_summit.fetchall()
     if rows:
-        for (code,lat,lng,pts,alt,name,_) in rows:
+        for (code,lat,lng,pts,_,alt,name,_,_,_,_,_,_,_,_) in rows:
             res = (lat,lng)
     else:
         res =(lat,lng)
-    conn_dxsummit.close()
+    conn_summit.close()
     return res
     
 def parse_alerts(url):
@@ -1600,18 +1569,8 @@ def dump_userdb():
     print >> sys.stderr, "APRS Filter:" + aprs_filter
     
 def setup_db():
-    conn_dxsummit = sqlite3.connect(dxsummit_db)
-    cur_dxsummit = conn_dxsummit.cursor()
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
-
-    
-    q ='create table if not exists summits (code txt,lat real,lng real,point integer,alt integer,name text,desc text)'
-    cur_dxsummit.execute(q)
-    q = 'create index if not exists summit_index on summits(lat,lng)'
-    cur_dxsummit.execute(q)
-    conn_dxsummit.commit()
-    conn_dxsummit.close()
 
     q ='create table if not exists aprslog (time int,operator text,lat text,lng text,lat_dest text,lng_dest text,dist int,az int,state int,summit text)'
     cur_aprslog.execute(q)
@@ -1669,7 +1628,7 @@ def main():
         sleep(30)
 
 def test_db():
-    setup_db()
+    #setup_db()
     op = 'JL1NIE-5'
     tracks =[(35.679488, 139.754062),#54k
              (35.440663, 139.236127),#447m
@@ -1681,11 +1640,10 @@ def test_db():
              (35.440698, 139.234196),#300m
              (35.440663, 139.236127),#447
              (35.679488, 139.754062)]
-    tracks = [(41.409,-122.194901)]
+    #tracks = [(41.409,-122.194901)]
     for (lat, lng) in tracks:
-        print search_summit('JA-KN/006',lat,lng)
-    update_json_data()
+        print search_summit('JA/KN-006',lat,lng)
+    #update_json_data()
     
 if __name__ == '__main__':
     main()
-
