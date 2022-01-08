@@ -30,7 +30,7 @@ KEYS = {
     'SOTAWATCH_JSON_URL': 'https://api2.sota.org.uk',
     'OUTPUT_JSON_FILE': '/usr/share/nginx/html/json/spots',
     'OUTPUT_JSON_JAFILE': '/usr/share/nginx/html/json/spotsJA',
-    'ASSOC_DB': '/home/ubuntu/pi/SOTAspotJA/summit_data/association.db',
+    'ASSOC_DB': '/home/ubuntu/sotaapp/backend/database/association.db',
     'SUMMIT_DB': '/home/ubuntu/pi/SOTAspotJA/summit_data/aprs-summit.db',
     'DXSUMMIT_DB': '/home/ubuntu/pi/SOTAspotJA/summit_data/aprs-dx-summit.db',
     'ALERT_DB': '/home/ubuntu/sotaapp/backend/database/alert.db',

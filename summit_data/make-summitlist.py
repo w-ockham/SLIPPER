@@ -7,6 +7,7 @@ import sys
 import re
 
 dxsummit_db = 'summits.db'
+assoc_db = 'association.db'
 
 def read_dict(file):
     with open(file, newline = "") as f:
@@ -18,16 +19,24 @@ def read_dict(file):
 
     return return_dict
 
-def import_db(summitdb,continent):
+def import_db(summitdb, continent):
     conn_tmp = sqlite3.connect(summitdb)
     cur_tmp = conn_tmp.cursor()
     conn_summit = sqlite3.connect(dxsummit_db)
     cur_summit = conn_summit.cursor()
+    conn_assoc = sqlite3.connect(assoc_db)
+    cur_assoc = conn_assoc.cursor()
+
     cur_summit.execute("CREATE TABLE IF NOT EXISTS summits (code txt,lat real,lng real,point integer,bonus integer,alt integer,name text,name_k text,region text,region_k text,assoc text,continent text,actcount integer,actdate text,actcall text)")
     cur_summit.execute("CREATE INDEX IF NOT EXISTS summit_index on summits(lat,lng)")
     cur_summit.execute("CREATE INDEX IF NOT EXISTS summit_code_idx on summits(code)")
     cur_summit.execute("delete from summits")
     conn_summit.commit()
+
+    cur_assoc.execute("CREATE TABLE IF NOT EXISTS associations(code text,association text,continent text,primary key(code))")
+    cur_assoc.execute("CREATE INDEX IF NOT EXISTS assoc_index on associations(code)")
+    cur_assoc.execute("delete from associations")
+    conn_assoc.commit()
 
     ctable = read_dict(continent)
     i = 0
@@ -41,6 +50,8 @@ def import_db(summitdb,continent):
                 continent = ctable[m.group(1)]
                 q = "insert or replace into summits(code,lat,lng,point,bonus,alt,name,name_k,region,region_k,assoc,continent,actcount,actdate,actcall) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
                 cur_summit.execute(q,(code,lat,lng,pt,bp,altm,sname,sname,region,region,assoc,continent,actcount,actdate,actcall))
+                q = "insert or replace into associations(code, association,continent) values(?, ?, ?)"
+                cur_assoc.execute(q,(code,assoc,continent))
                 i+=1
             except KeyError as e:
                 print("Association: '"+m.group(1)+"' not found")
@@ -57,7 +68,9 @@ def import_db(summitdb,continent):
 
     conn_summit.commit()
     conn_summit.close()
-
+    conn_assoc.commit()
+    conn_assoc.close()
+    
 if __name__ == "__main__":
     if len(sys.argv) == 3:
         import_db(sys.argv[1], sys.argv[2])
