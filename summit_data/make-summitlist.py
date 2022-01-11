@@ -6,9 +6,6 @@ import sqlite3
 import sys
 import re
 
-dxsummit_db = 'summits.db'
-assoc_db = 'association.db'
-
 def read_dict(file):
     with open(file, newline = "") as f:
         read_dict = csv.reader(f, delimiter=",", quotechar='"')
@@ -19,10 +16,10 @@ def read_dict(file):
 
     return return_dict
 
-def import_db(summitdb, continent):
-    conn_tmp = sqlite3.connect(summitdb)
+def import_db(tmpdb, continent, assoc_db, summit_db):
+    conn_tmp = sqlite3.connect(tmpdb)
     cur_tmp = conn_tmp.cursor()
-    conn_summit = sqlite3.connect(dxsummit_db)
+    conn_summit = sqlite3.connect(summit_db)
     cur_summit = conn_summit.cursor()
     conn_assoc = sqlite3.connect(assoc_db)
     cur_assoc = conn_assoc.cursor()
@@ -72,8 +69,8 @@ def import_db(summitdb, continent):
     conn_assoc.close()
     
 if __name__ == "__main__":
-    if len(sys.argv) == 3:
-        import_db(sys.argv[1], sys.argv[2])
+    if len(sys.argv) == 5:
+        import_db(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
     else:
-        print("Usage make_summitlist temp_db contient.csv")
+        print("Usage make_summitlist temp_db contient.csv association_db summit_db")
         
