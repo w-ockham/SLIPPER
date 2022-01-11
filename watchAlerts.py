@@ -1371,29 +1371,37 @@ def do_command(callfrom,mesg):
                 update_user_param(callfrom,'Retry',rc)
                 send_long_message_with_ack(aprs_beacon,callfrom,'Set max. messsage retry = '+str(rc))
             else:
-                (admin,_,_) = parse_callsign(aprs_user)
-                (u,_,_) =  parse_callsign(callfrom)
-                if u == admin:
-                    m1 = re.search('DCALL=(.+)',mesg,re.IGNORECASE)
-                    m2 = re.search('ACALL=(.+)',mesg,re.IGNORECASE)
-                    if m1:
-                        (call,_,_) =parse_callsign(m1.group(1))
-                        update_user_param(call,'Active',False)
-                        send_long_message_with_ack(aprs_beacon,callfrom,'Deactivate = '+call)
-                    elif m2:
-                        (call,_,_) =parse_callsign(m2.group(1))
-                        update_user_param(call,'Active',True)
-                        send_long_message_with_ack(aprs_beacon,callfrom,'Activate = '+call)
-                    elif com in ['DUMP']:
-                        dump_userdb()
-                        send_long_message_with_ack(aprs_beacon,callfrom,"dump user_db done.")
+                m = re.search('(JA-\d+)\s+(\S+)\s+(\S+)\s+(\S+)(.*)', mesg, re.IGNORECASE)
+                if m:
+                    st = datetime.now(pytz.timezone('UTC')).strftime('%H:%M')
+                    ref  = m.group(1).upper()
+                    activator = m.group(4).upper()
+                    freq = m.group(2)
+                    mode = m.group(3).upper()
+                    comment = m.group(5)
+                    mesg = st + ' ' + activator + ' on ' + ref + ' ' + freq + ' ' + mode + comment + ' [' + callfrom.strip() + ']'
+                    tweet(pota_tweet_api, mesg)
+                else:
+                    (admin,_,_) = parse_callsign(aprs_user)
+                    (u,_,_) =  parse_callsign(callfrom)
+                    if u == admin:
+                        m1 = re.search('DCALL=(.+)',mesg,re.IGNORECASE)
+                        m2 = re.search('ACALL=(.+)',mesg,re.IGNORECASE)
+                        if m1:
+                            (call,_,_) =parse_callsign(m1.group(1))
+                            update_user_param(call,'Active',False)
+                            send_long_message_with_ack(aprs_beacon,callfrom,'Deactivate = '+call)
+                        elif m2:
+                            (call,_,_) =parse_callsign(m2.group(1))
+                            update_user_param(call,'Active',True)
+                            send_long_message_with_ack(aprs_beacon,callfrom,'Activate = '+call)
+                        elif com in ['DUMP']:
+                            dump_userdb()
+                            send_long_message_with_ack(aprs_beacon,callfrom,"dump user_db done.")
                     else:
                         res = readlast3('JA')
                         send_long_message_with_ack(aprs_beacon,callfrom,'? ' + res)
-                else:
-                    res = readlast3('JA')
-                    send_long_message_with_ack(aprs_beacon,callfrom,'? ' + res)
-            break
+                break
     del mesg
         
 def callback(packet):
