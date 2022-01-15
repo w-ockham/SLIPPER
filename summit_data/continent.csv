@@ -57,10 +57,10 @@ HR,Honduras,SA
 I,Italy,EU
 IA,"Isole Africane d`Italia",EU
 IS0,Sardinia,EU
-JA,"Japan - Honshu",JA
-JA5,"Japan - Shikoku",JA
-JA6,"Japan - Kyushu_Okinawa",JA
-JA8,"Japan - Hokaido",JA
+JA,"Japan - Honshu",AS
+JA5,"Japan - Shikoku",AS
+JA6,"Japan - Kyushu_Okinawa",AS
+JA8,"Japan - Hokaido",AS
 JW,Svalbard,EU
 JX,"Jan Mayen",EU
 K0M,"USA - Minnesota ",NA

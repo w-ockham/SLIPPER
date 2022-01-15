@@ -210,6 +210,8 @@ def search_summit(code_dest,lat,lng):
     
     for s in cur_summit.execute('''select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)''',(latu,latl,lngu,lngl,)):
         (code,lat1,lng1,pt,_,alt,name,_,desc,_,_,continent,_,_,_) = s
+        if re.search(KEYS['JASummits'],code):
+            continent = 'JA'
         try:
             az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
         except Exception as e:
@@ -222,6 +224,8 @@ def search_summit(code_dest,lat,lng):
     if not target:
         for s in cur_summit.execute("select * from summits where code = ?",(code_dest,)):
             (code,lat1,lng1,pt,_,alt,name,_,desc,_,_,continent,_,_,_) = s
+            if re.search(KEYS['JASummits'],code):
+                continent = 'JA'
             try:
                 az,bkw_az,dist = grs80.inv(lng,lat,lng1,lat1)
             except Exception as e:
@@ -1381,6 +1385,8 @@ def do_command(callfrom,mesg):
                     comment = m.group(5)
                     mesg = st + ' ' + activator + ' on ' + ref + ' ' + freq + ' ' + mode + comment + ' [' + callfrom.strip() + ']'
                     tweet(pota_tweet_api, mesg)
+                    res = freq + ' ' + mode + ' spotted at ' + st 
+                    send_long_message_with_ack(aprs_beacon, callfrom, res)
                 else:
                     (admin,_,_) = parse_callsign(aprs_user)
                     (u,_,_) =  parse_callsign(callfrom)
