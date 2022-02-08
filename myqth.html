@@ -1,0 +1,371 @@
+<html>
+<meta http-equiv='cache-control' content='no-cache'>
+<meta http-equiv='expires' content='0'>
+<meta http-equiv='pragma' content='no-cache'>
+<head>
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-139463065-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-139463065-1');
+</script> 
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" />
+
+<!------------------------------------------------------------------>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+<!-- Google Fonts -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
+<!-- Bootstrap core CSS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet">
+<!-- Material Design Bootstrap -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/css/mdb.min.css" rel="stylesheet">
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/11.0.2/css/bootstrap-slider.min.css" rel="stylesheet">
+<!------------------------------------------------------------------>
+<link rel="shortcut icon" href="favicon.ico">
+<link href="font/css/open-iconic-bootstrap.css" rel="stylesheet">
+<title>MyQTH.ga</title>
+<style>
+.progress { height: 2px;}
+
+@media screen and (max-width: 767px){
+#map {
+ width: auto;
+ height: calc(var(--vh, 1vh)*100 - 30px);
+ border:1px solid #aaa;
+}
+#qrvinfo {
+ width: auto;
+ height: calc(var(--vh, 1vh)*100 - 30px);
+ overflow:auto;
+ border:1px solid #aaa;
+ -webkit-overflow-scrolling:touch;
+ }
+}
+@media screen and (min-width: 768px) {
+#map {
+ width: auto;
+ height:calc(var(--vh, 1vh)*100 - 56px);
+ border:1px solid #aaa;
+ }
+#qrvinfo {
+ width: auto;
+ height: calc(var(--vh, 1vh)*100 - 56px);
+ overflow:auto;
+ border:1px solid #aaa;
+ -webkit-overflow-scrolling:touch;
+ }
+}
+.modal-header {
+    padding-top: 3px;
+    height: 20px;
+    padding-bottom: 3px;
+}
+.modal-body > .img-responsive {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.navbar-dark .navbar-toggler {
+border-color: rgba(0,0,0,0);
+}
+.navbar-toggler-icon {
+font-size: 0.8em;
+}
+.collapse.in {
+ height: auto;
+}
+
+i.semantic-ui-custom {
+  margin-top: 9px;
+}
+@keyframes blink {
+  50% { opacity: 0.3; }
+}
+@-webkit-keyframes blink {
+  50% { opacity: 0.3; }
+}
+.blink-me {
+  animation: blink 1s linear infinite;
+  -webkit-animation: blink 1s linear infinite;
+}
+
+.btn {
+ margin: 0.1rem !important ; padding: 0.4rem 0.5rem !important;
+}
+
+.my-tooltip-label {
+    color: white;	
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    font-size: 8px;
+}
+</style>
+</head>
+<body>
+<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+<script src="https://unpkg.com/leaflet@1.2.0/dist/leaflet.js"></script>
+<!---------------------------------------------------------------------->
+<!-- JQuery -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<!-- Bootstrap tooltips -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.4/umd/popper.min.js"></script>
+<!-- Bootstrap core JavaScript -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.0/js/bootstrap.min.js"></script>
+<!-- MDB core JavaScript -->
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.19.1/js/mdb.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/11.0.2/bootstrap-slider.min.js"></script>
+
+<!------------------------------------------------------------------------>
+<!-- plugin -->
+<link rel="stylesheet" href="css/leaflet.extra-markers.min.css" />
+<script src="js/leaflet.extra-markers.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.3.1/dist/semantic.min.css">
+<link rel="stylesheet" href="css/L.Icon.Pulse.css" />
+<script src="js/L.Icon.Pulse.js"></script>
+<script src="js/leaflet-arc.min.js"></script>
+<link rel="stylesheet" href="js/L.Control.ZoomLabel.css">
+<script src="js/L.Control.ZoomLabel.js"></script>
+<!-- plugin -->
+
+  <nav class="navbar navbar-expand-md navbar-dark bg-dark text-light">
+    <span class="navbar-brand" style="cursor: hand;cursor: pointer;"><h4>MyQTH.ga</h4></span>
+    <button type="button" class="btn btn-amber" onClick="clickQTHButton()"><i class="fas fa-map-marked-alt">QTH</i></button>
+    &nbsp &nbsp <small><span id="clock_time" style="cursor: default;" ></span></small>
+  </nav>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-12">
+	<div id="map"></div>
+      </div>
+    </div>
+  </div>
+</body>
+<!-- Optional JavaScript -->
+<style type="text/css">
+    i.semantic-ui-custom {
+        margin-top: 9px;
+    }
+</style>
+
+ <script>
+var vertical_distance = 25;   
+$('#vertical-dist').slider({
+    formatter: function(value) {
+	vertical_distance = value
+	return 'Vertical Distance: ' + value + 'm';
+    }
+});
+
+var tile_size = 1;
+$('#tile-size').slider({
+    formatter: function(value) {
+	tile_size = value
+	if (value == 1)
+	    size = '8'
+	else if (value == 2)
+	    size = '24'
+	else if (value == 3)
+	    size = '48'
+	else if (value == 4)
+	    size = '80'
+	else if (value == 5)
+	    size = '120'
+	return 'Tile Size: ' + size;
+    }
+});
+
+
+let vh = window.innerHeight * 0.01;
+document.documentElement.style.setProperty('--vh', `${vh}px`);
+window.addEventListener('resize',()=> {
+  let vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+});
+
+var osm = L.tileLayer('https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=767750c193e54ceeb3aee08d880bdb90',{
+    attribution: "<a href='https://www.thunderforest.com/'>Thunderforest</a>"});
+var gsi = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+    attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>"
+});
+
+var basemap = {
+    "GSI": gsi,
+    "OSM": osm
+}
+
+var map = L.map('map',{
+    layers: [ gsi ]
+});
+L.control.scale().addTo(map);
+L.control.zoomLabel().addTo(map);
+var popup = L.popup();
+
+function displayPopup(latlng, popupfl, response) {
+    var lat = Math.round(latlng.lat * 1000000,4)/1000000
+    var lng = Math.round(latlng.lng * 1000000,4)/1000000
+    var gsi= 'https://maps.gsi.go.jp/#15/'
+
+    var resfun = function(res) {
+	if (res['errors'] == 'OUTSIDE_JA') {
+	    popup.setContent(
+		'Pos: ' + lat +','+ lng + '<br>GL: '+res['maidenhead']);
+	    popup.setLatLng(latlng)
+        }
+	else if (res['errors'] != 'OK') {
+ 	    popup.setContent('Parameter out of range.');
+	    popup.setLatLng(latlng)
+	} else {
+	    accu = '<small>[' + res['hsrc'].replace('（','').replace('）','') + ']</small>'
+	    pos = '<br>位置:<a href="'+gsi+latlng.lat+'/'+latlng.lng+'" target="_blank">' + lat + ',' + lng +'</a>';
+	    if (res['type'] == 'JCC') {
+			if (res['ward'] != undefined)
+				popup.setContent('JCC'+res['jcc']+ ' 区番号:' + res['ward'] + '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm '+ accu);
+			else
+				popup.setContent('JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm '+ accu);
+		}
+		else
+		popup.setContent('JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm ' + accu);
+	}
+	if (popupfl) 
+	    popup.setLatLng(latlng).openOn(map)
+    }
+
+    if (!response) {
+	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+latlng.lat+'&lon='+latlng.lng,resfun);
+    }
+    else
+	resfun(response)
+}
+
+map.on('click', function(e) {
+    displayPopup(e.latlng, true, null)
+});
+
+qth_marker = null
+
+function QTHdragend(e) {
+    my_qth = e.target.getLatLng()
+    var lat = String(Math.round(my_qth['lat']*1000000,4)/1000000),
+	lng = String(Math.round(my_qth['lng']*1000000,4)/1000000);
+    
+ 
+    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
+	if (res['errors'] == 'OUTSIDE_JA') {
+	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
+        }
+	if (res['errors'] != 'OK') {
+ 	    mesg = 'Parameter out of range.';
+	} else {
+	    if (res['type'] == 'JCC') {
+		if (res['ward'] != undefined) 
+		    mesg = '<h4>JCC'+ res['jcc']+ ' 区番号:' + res['ward'] + '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+		else
+		    mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+	    }
+	    else
+		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
+	}
+	qth_marker.bindPopup(mesg).openPopup();
+	map.setView(my_qth, 15);
+	})
+}
+
+function callbkQTHOk(arg) {
+
+    var latlng = [arg.coords.latitude, arg.coords.longitude];
+
+    var options = {
+        prefix: 'icon'
+        ,icon: 'user'
+        ,shape: 'circle'
+        ,markerColor: 'yellow'
+        ,extraClasses: 'semantic-ui-custom'
+    };
+    var lat = Math.round(latlng[0]*1000000,4)/1000000
+    var lng = Math.round(latlng[1]*1000000,4)/1000000
+
+    map.setView(latlng, 15);
+    
+    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+arg.coords.latitude+'&lon='+arg.coords.longitude,function(res) {
+	if (res['errors'] == 'OUTSIDE_JA') {
+	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
+        }
+	if (res['errors'] != 'OK') {
+ 	    mesg = 'Parameter out of range.';
+	} else {
+	    if (res['type'] == 'JCC') {
+		if (res['ward'] != undefined) 
+		    mesg = '<h4>JCC'+ res['jcc']+ ' 区番号:' + res['ward'] + '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+		else
+		    mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+	    }
+	    else
+		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
+	    
+	    if (qth_marker != null)
+		map.removeLayer(qth_marker)
+	    
+	    qth_marker = L.marker(latlng,
+				  {draggable:true, icon: L.ExtraMarkers.icon(options)});
+	    qth_marker.addTo(map);
+	    qth_marker.bindPopup(mesg).openPopup();
+	    qth_marker.on('dragend', QTHdragend)
+	}
+    });
+};
+
+function callbkQTHNG(arg) {
+    var emsg = "エラーが発生しました"
+    switch(arg.code) {
+    case 1:
+	emesg = "位置情報の利用が許可されていません";
+	break;
+    case 2:
+	emesg = "端末位置がわかりませんでした";
+	break;
+    case 3:
+	emesg = "タイムアウトしました";
+	break;
+    }
+    window.alert(emesg)
+};
+
+function clickQTHButton () {
+    if (typeof navigator.geolocation === 'undefined') {
+	window . alert('ブラウザが位置情報取得に対応していません');
+	return false;
+    }
+
+    var options = {
+	"enableHighAccuracy": true,
+	"timeout": 10000,
+	"maximumAge": 0
+    }
+    navigator.geolocation.getCurrentPosition(callbkQTHOk, callbkQTHNG, options);
+};
+
+function clock() {
+    var now = new Date();
+    var tm = now.toString();
+    tm  = tm.replace(/GMT\+.+/,'');
+    document.getElementById("clock_time").innerHTML=tm;
+}
+
+map.addLayer(L.layerGroup());
+clickQTHButton();
+clock();
+setInterval(clock,1000);
+
+</script>
+</body>
+</html>
