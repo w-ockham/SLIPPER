@@ -242,7 +242,7 @@ function displayPopup(latlng, isMarker, isGPS) {
 			    mesg = 'JCC'+res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm';
 		}
 		else
-		    mesg = 'JCG'+res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm';
+		    mesg = 'JCG'+res['jcg']+ res['hamlog']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>GL:' + res['maidenhead'] + pos + '<br> 標高:' + res['elevation'] + 'm';
 	}
 
 	if (isMarker) {
