@@ -216,6 +216,11 @@ function displayPopup(latlng, isMarker, isGPS) {
 	lng = Math.round(latlng.lng * 1000000,4)/1000000,
 	gsiuri= 'https://maps.gsi.go.jp/#15/';
 
+    if (isGPS) {
+	Cookies.set('my_qth_lat',lat)
+	Cookies.set('my_qth_lng',lng)
+    }
+    
     var resfun = function(res) {
 	if (res['errors'] == 'OUTSIDE_JA') {
 	    mesg = 'Pos: ' + lat +','+ lng + '<br>GL: '+res['maidenhead'];
@@ -291,7 +296,11 @@ function callbkQTHOk(arg) {
 };
 
 function callbkQTHNG(arg) {
-    var emsg = "エラーが発生しました"
+    var emsg = "エラーが発生しました",
+	lat = Cookies.get('my_qth_lat'),
+	lng = Cookies.get('my_qth_lng'),
+	zoom = 13;
+
     switch(arg.code) {
     case 1:
 	emesg = "位置情報の利用が許可されていません";
@@ -303,13 +312,21 @@ function callbkQTHNG(arg) {
 	emesg = "タイムアウトしました";
 	break;
     }
-    window.alert(emesg)
+    window.alert(emesg);
+
+    if (lat) 
+	latlng = [ parseFloat(lat), parseFloat(lng)];
+    else {
+	latlng = [37.514444, 137.712222];
+	zoom = 6;
+    };
+    map.setView(latlng, zoom);
 };
 
 function clickQTHButton () {
     if (typeof navigator.geolocation === 'undefined') {
 	window . alert('ブラウザが位置情報取得に対応していません');
-	return false;
+	map.setView([37.514444, 137.712222], 6);
     }
 
     var options = {
