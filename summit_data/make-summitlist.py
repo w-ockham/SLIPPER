@@ -57,9 +57,9 @@ def import_db(tmpdb, continent, assoc_db, summit_db):
 
     i = 0
     for s in cur_tmp.execute("select * from ja_summits"):
-        (code,_,_,_,_,name,region,name_k,region_k) = s
-        q = "update summits set name = ?, name_k = ?, region = ?, region_k = ? where code = ?"
-        cur_summit.execute(q,(name,name_k,region,region_k,code))
+        (code,lat,lng,_,_,name,region,name_k,region_k) = s
+        q = "update summits set lat = ?, lng = ?, name = ?, name_k = ?, region = ?, region_k = ? where code = ?"
+        cur_summit.execute(q,(lat,lng,name,name_k,region,region_k,code))
         i+=1
     print(str(i) + " summits has been updated for JA association.")
 
