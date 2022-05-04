@@ -1,4 +1,5 @@
-﻿JA/NI-001,36.7946,137.754,10,2611,Yukikuradake,Itoigawa-city<JCC#0816>Shimoniikawa-gun<JCG#28003A>,雪倉岳,新潟県糸魚川市<JCC#0816>富山県下新川郡朝日町<JCG#28003A>
+code, lat, lng, point, alt, name, region, name_k, region_k
+JA/NI-001,36.7946,137.754,10,2611,Yukikuradake,Itoigawa-city<JCC#0816>Shimoniikawa-gun<JCG#28003A>,雪倉岳,新潟県糸魚川市<JCC#0816>富山県下新川郡朝日町<JCG#28003A>
 JA/NI-002,36.9227,138.0681,10,2462,Hiuchiyama,Myoko-city<JCC#0827>Itoigawa-city<JCC#0816>,火打山,新潟県妙高市<JCC#0827>新潟県糸魚川市<JCC#0816>
 JA/NI-003,36.8913,138.1135,10,2454,Myoukousan,Myoko-city<JCC#0827>,妙高山,新潟県妙高市<JCC#0827>
 JA/NI-004,36.921,138.036,10,2400,Yakeyama,Itoigawa-city<JCC#0816>Myoko-city<JCC#0827>,焼山,新潟県糸魚川市<JCC#0816>新潟県妙高市<JCC#0827>
