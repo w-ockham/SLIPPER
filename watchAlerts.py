@@ -1404,6 +1404,9 @@ def do_command(callfrom,mesg):
                         elif com in ['DUMP']:
                             dump_userdb()
                             send_long_message_with_ack(aprs_beacon,callfrom,"dump user_db done.")
+                        else:
+                            res = readlast3('JA')
+                            send_long_message_with_ack(aprs_beacon,callfrom,'? ' + res)
                     else:
                         res = readlast3('JA')
                         send_long_message_with_ack(aprs_beacon,callfrom,'? ' + res)
