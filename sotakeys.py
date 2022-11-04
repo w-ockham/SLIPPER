@@ -26,7 +26,7 @@ KEYS = {
     'VOAIMG': '/tmp/voaimg.png',
 
     'SOTA_URL': 'http://www.sotawatch.org/alerts.php',
-    'SOTALIVE_URL': 'https://www.sotalive.tk',
+    'SOTALIVE_URL': 'https://www.sotalive.net',
     'SOTAWATCH_JSON_URL': 'https://api2.sota.org.uk',
     'OUTPUT_JSON_FILE': '/usr/share/nginx/html/json/spots',
     'OUTPUT_JSON_JAFILE': '/usr/share/nginx/html/json/spotsJA',

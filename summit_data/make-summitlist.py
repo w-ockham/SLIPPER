@@ -51,51 +51,10 @@ def import_db(tmpdb, continent, assoc_db, summit_db):
                 cur_assoc.execute(q,(code,assoc,continent))
                 i+=1
             except KeyError as e:
-                print("Association: '"+m.group(1)+"' not found")
+                print("Error: Association: '"+m.group(1)+"' not found")
 
     print(str(i) + " summits has been imported from SOTADB.")
 
-    # JA-ARM Cross Check
-    ja,ja5,ja6,ja8 =(0,0,0,0)
-    for s in cur_tmp.execute("select * from jaarm_summits"):
-        (code,name,_,_,_,_,validfrom,validto,_,_,_,_,_) = s
-        if validto == '':
-            validto = '31/12/2099'
-        valid = int(datetime.strptime(validto,'%d/%m/%Y').strftime("%s"))
-        if now < valid:
-            cur_summit.execute(f"select count(*) from summits where code='{code}'")
-            j = cur_summit.fetchall()
-            if j[0][0] == 0:
-                print(f"JA-ARM {code} not found in SOTADB.")
-            if 'JA8/' in code:
-                ja8 +=1
-            elif 'JA6/' in code:
-                ja6 +=1
-            elif 'JA5/' in code:
-                ja5 += 1
-            else:
-                ja += 1
-    print(f"\nJA = {ja} summits, JA5 = {ja5} summits")
-    print(f"JA6 = {ja6} summits, JA8 = {ja8} summits\n")
-
-    ja,ja5,ja6,ja8 =(0,0,0,0)
-    for s in cur_summit.execute("select * from summits where code like 'JA%'"):
-        (code,_,_,_,_,_,_,_,_,_,_,_,_,_,_) = s
-        cur_tmp.execute(f"select count(*) from jaarm_summits where code='{code}'")
-        j = cur_tmp.fetchall()
-        if j[0][0] == 0:
-            print(f"SOTADB {code} not found in JA-ARM.")
-        if 'JA8/' in code:
-            ja8 +=1
-        elif 'JA6/' in code:
-            ja6 +=1
-        elif 'JA5/' in code:
-            ja5 += 1
-        else:
-            ja += 1
-    print(f"\nJA = {ja} summits, JA5 = {ja5} summits")
-    print(f"JA6 = {ja6} summits, JA8 = {ja8} summits\n")
-    
     # Merge CTC's JCC/JCG data 
     i = 0
     ja,ja5,ja6,ja8 =(0,0,0,0)

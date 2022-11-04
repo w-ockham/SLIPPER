@@ -74,9 +74,13 @@ KP4,"USA - Puerto Rico",NA
 LA,Norway,EU
 LUD,"Argentina - Buenos Aires",SA
 LUH,"Argentina - Córdoba",SA
+LUI,"Argentina - Misiones",SA
 LUM,"Argentina - Mendoza",SA
+LUN,"Argentina - Santiago del Estero",SA
 LUP,"Argentina - San Juan",SA
 LUQ,"Argentina - San Luis",SA
+LUU,"Argentina - La Pampa",SA
+LUV,"Argentina - Rio Negro",SA
 LUY,"Argentina - Neuquén",SA
 LX,Luxembourg,EU
 LY,Lithuania,EU
@@ -106,6 +110,7 @@ PY2,"Brazil - Sao Paulo",SA
 PY3,"Brazil - Rio Grande do Sol",SA
 PY4,"Brazil - Minas Gerais",SA
 PY5,"Brazil - Paraná",SA
+PY6,"Brazil - Bahia",SA
 PYF,"Brazil - Fernado de Noronha",SA
 PYT,"Brazil - Trindade & Martim Vaz Is.",SA
 R3,"Russia (European)",EU

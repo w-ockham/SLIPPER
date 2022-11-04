@@ -2,7 +2,8 @@
 PATH=/usr/local/sbin:/usr/bin:/bin
 TARGET=/home/ubuntu/sotaapp/backend/database
 cd $TARGET
-date > import.log
+echo "---------- Summit Crosschecking ----------" >> import.log
+date >> import.log
 rm -f summitslist.csv tmp.csv tmpdb.db
 wget --quiet https://www.sotadata.org.uk/summitslist.csv &>> import.log
 sed -e '1,1d' summitslist.csv > tmp.csv
@@ -15,7 +16,8 @@ cat jaarm.csv ja5arm.csv ja6arm.csv ja8arm.csv| sed -e 's/^[^[:alnum:]]*//' -e '
 sqlite3 tmpdb.db -separator ',' ".import tmp.csv jaarm_summits"  &>> import.log
 
 ./make-summitlist.py tmpdb.db continent.csv association-new.db summits-new.db &>> import.log
-
 mv association-new.db association.db
 mv summits-new.db summits.db
 touch $TARGET/../uwsgi.touch
+
+./cross-check.py summits.db tmpdb.db >> import.log

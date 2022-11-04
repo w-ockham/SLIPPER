@@ -4,14 +4,14 @@
 <meta http-equiv='pragma' content='no-cache'>
 <head>
 <!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-139463065-1"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0RXJ5T3Y9K"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
 
-  gtag('config', 'UA-139463065-1');
-</script> 
+  gtag('config', 'G-0RXJ5T3Y9K');
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.2.0/dist/leaflet.css" />
@@ -206,7 +206,7 @@ i.semantic-ui-custom {
           </button>
         </div><!-- /modal-header -->
 	<div class="modal-body">
-		<iframe src="https://mackerel.io/embed/orgs/SOTAwatchJA/hosts/4qAUdvqeR31?graph=custom.sotawatchlive.%2a&amp;period=1d" height="200" width="400" frameborder="0"></iframe>
+	  <iframe src="https://mackerel.io/embed/public/embed/avBeNgG5x0M5fVNWXMxHW9VuCuzDSfem6tQDiBepriKmoljNkirVESvV8RuXdTM7?period=1d" height="200" width="400" frameborder="0"></iframe>
 	</div>
       </div>
     </div>
@@ -475,7 +475,7 @@ $(function () {
   $('[data-toggle="tooltip"]').tooltip()
 })
 var pf = new  L.imageOverlay(
-    'https://www.sotalive.tk/img/cloud.png',[[22.4,121.1],[47.6,151.1]],
+    'https://www.sotalive.net/img/cloud.png',[[22.4,121.1],[47.6,151.1]],
 	{
 	    attribution: '<a href="">雲量<a>',
 	    opacity:0.5
@@ -520,7 +520,8 @@ var lg = null;
 var first_draw = true;
 var update_timer = null;
 var countdown = 0;
-
+var kp_index_val = '&nbspA:- K:-';
+   
 L.control.scale().addTo(map);
 L.control.zoomLabel().addTo(map);
 var popup = L.popup();
@@ -556,7 +557,7 @@ function displayPopup(latlng, popupfl, response) {
     }
 
     if (!response) {
-	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+latlng.lat+'&lon='+latlng.lng,resfun);
+	$.getJSON('https://www.sotalive.net/api/reverse-geocoder/LonLatToAddressElev?','lat='+latlng.lat+'&lon='+latlng.lng,resfun);
     }
     else
 	resfun(response)
@@ -576,10 +577,13 @@ map.on('contextmenu', function(e) {
 if (location.hash == '#aprs-info') {
     $('#modal-aprs').modal({"show":true});
 }
+
 update();
 clock();
 setInterval(clock,1000);
-
+kp_index();
+setInterval(kp_index,1000*1800);
+   
 function drawPoly(lg,data,ssid,cl,route) {
     po = [];
     tm = [];
@@ -753,7 +757,7 @@ function displayActivationZone(latlng, popupfl, uplmt) {
     _azone_laststate = [ latlng, popupfl, uplmt ]
 
     if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
-	$.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
+	$.getJSON('https://www.sotalive.net/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
 	    if (res['errors'] != 'OK') {
 		console.log('DEM error',res);
 		return;
@@ -1022,7 +1026,7 @@ function placeSummitMarkers(nw ,se, z) {
     else
 	prefix = 'ww?'
     
-    $.getJSON('https://www.sotalive.tk/api/sotasummits/'+prefix,'lat='+nw[0]+'&lon='+nw[1]+'&lat2='+se[0]+'&lon2='+se[1]+'&elevation='+elev+'&flag=0',function(res) {
+    $.getJSON('https://www.sotalive.net/api/sotasummits/'+prefix,'lat='+nw[0]+'&lon='+nw[1]+'&lat2='+se[0]+'&lon2='+se[1]+'&elevation='+elev+'&flag=0',function(res) {
 	if (res['errors'] != 'OK') {
 	    return;
 	}
@@ -1121,7 +1125,7 @@ function QTHdragend(e) {
     Cookies.set('my_qth_lat',lat)
     Cookies.set('my_qth_lng',lng)
 
-    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
+    $.getJSON('https://www.sotalive.net/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
 	if (res['errors'] == 'OUTSIDE_JA') {
 	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
         }
@@ -1160,7 +1164,7 @@ function callbkQTHOk(arg) {
     };
     lat = Math.round(latlng[0]*1000000,4)/1000000
     lng = Math.round(latlng[1]*1000000,4)/1000000
-    $.getJSON('https://www.sotalive.tk/api/reverse-geocoder/LonLatToAddressElev?','lat='+arg.coords.latitude+'&lon='+arg.coords.longitude,function(res) {
+    $.getJSON('https://www.sotalive.net/api/reverse-geocoder/LonLatToAddressElev?','lat='+arg.coords.latitude+'&lon='+arg.coords.longitude,function(res) {
 	if (res['errors'] == 'OUTSIDE_JA') {
 	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
         }
@@ -1291,11 +1295,19 @@ function clock() {
     if (countdown != 0) {
 	pgrs = Math.floor(countdown/60*100);
 	if ((pgrs % 5) == 0) pbar = '<div class="progress"><div class="progress-bar progress-bar" role="progressbar" style="width: '+pgrs+'%" aria-valuemin="0" aria-valuemax="100"></div></div>'
-	now = tm + pbar;  
+	now = tm + kp_index_val + pbar;  
 	countdown -=1;
     } else
-	now = tm;
-    document.getElementById("clock_time").innerHTML=now
+	now = tm + kp_index_val;
+    document.getElementById("clock_time").innerHTML=now;
+}
+
+function kp_index() {
+    $.getJSON("https://www.sotalive.net/api/geomag",function(geomag) {
+	kp = geomag.Kp[0];
+	ap = geomag.Ap;
+	kp_index_val = '&nbsp A:'+ap +' K:' +kp;
+    });
 }
 
 function update(focusQTH = false) {
@@ -1330,7 +1342,6 @@ function update(focusQTH = false) {
 	    Cookies.set('range', range, {expires:14, sameSite:'lax' });
 	}
     }
-
 
     enable_activation_zone = Cookies.get('prefs_act_zone');
     if(enable_activation_zone == null) 
@@ -1417,7 +1428,7 @@ function update(focusQTH = false) {
 	sel_a.selectedIndex = 4;
     }
 
-    $.getJSON("https://www.sotalive.tk/api/sotalive-json/"+fname,function(qrvdata) {
+    $.getJSON("https://www.sotalive.net/api/sotalive-json/"+fname,function(qrvdata) {
 	if (lg != null) {
 	    map.removeLayer(lg);
 	    lg = L.layerGroup();
