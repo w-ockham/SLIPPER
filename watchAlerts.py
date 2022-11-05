@@ -1,5 +1,12 @@
-#!/usr/bin/env python
 # coding: utf-8
+from __future__ import print_function
+from __future__ import division
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
+from past.utils import old_div
+
 import aprslib
 import bz2
 from datetime import datetime, timedelta
@@ -19,17 +26,14 @@ import sys
 import telnetlib
 from threading import Thread, Lock
 from time import sleep
-import tweepy
 
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import json
 import pprint
 
 from sotakeys import *
 
-import sys, codecs
-sys.stderr = codecs.getwriter("utf-8")(sys.stderr)
-sys.stdout = codecs.getwriter("utf-8")(sys.stdout)
+from spottweet import SpotTweet
 
 debug = False
 #debug = True
@@ -75,14 +79,14 @@ STATES = (
     ONSUMMIT,
     ONSUMMIT_SENT,
     DESC
-    ) = range(-1,7)
+    ) = list(range(-1,7))
 
 ERRLEVEL = (
     E_NONE,
     E_INFO,
     E_WARN,
     E_FATAL
-    ) = range(0,4)
+    ) = list(range(0,4))
 
 _sys_stat = {
     }
@@ -94,7 +98,7 @@ def sys_clearstat():
     _sys_stat['TRACKS'] = 0
     _sys_stat['PACKETS'] = 0
     _sys_stat['TWEET'] = 0
-    
+
 def sys_updatestat(facility, val):
     _sys_stat[facility] = val
     with open("/var/tmp/sotalive-stat.json","w") as f:
@@ -107,51 +111,17 @@ def sys_updatestatall(alerts,spots,aprs,packets):
     _sys_stat['PACKETS'] = packets
     with open("/var/tmp/sotalive-stat.json","w") as f:
         json.dump(_sys_stat,f)
-    
-def tweet(api, txt):
-    if debug:
-        print(txt)
-    else:
-        if len(txt) > 255:
-            txt = txt[0:255]
-        try:
-            api.update_status(status=txt)
-        except tweepy.TweepError as e:
-            print >>sys.stderr, 'tweet error: %s ' % e
-            print >>sys.stderr, 'txt = %s ' % txt
-            if e.message[0]['code'] != 187:
-                sys_updatestat('TWEET',E_FATAL)
-            else:
-                sys_updatestat('TWEET',E_INFO)
-            return
-
-def tweet_with_media(api, fname, txt):
-    if debug:
-        print(txt)
-    else:
-        if len(txt) > 110:
-            txt = txt[0:110]
-        try:
-            api.update_with_media(fname, status=txt)
-        except tweepy.TweepError as e:
-            print >>sys.stderr, 'tweet error %s ' % e
-            print >>sys.stderr, 'txt = %s ' % txt
-            if e.message[0]['code'] != 187:
-                sys_updatestat('TWEET',E_FATAL)
-            else:
-                sys_updatestat('TWEET',E_INFO)
-	    return
 
 def parse_callsign(call):
     call = call.upper().replace(" ","")
     r = call.rfind('-')
     if r > 0:
         op = call[0:r]
-        ssidtype = call[r+1:] 
+        ssidtype = call[r+1:]
     else:
         op = call
         ssidtype = '7'
-        
+
     return (op,ssidtype,call)
 
 def lookup_from_op(call):
@@ -160,7 +130,7 @@ def lookup_from_op(call):
     cur_beacon = conn_alert.cursor()
 
     (op,_,_) = parse_callsign(call)
-    
+
     q = 'select * from beacons where operator = ?'
     cur_beacon.execute(q, (op, ))
     r = cur_beacon.fetchall()
@@ -193,21 +163,21 @@ def lookup_from_op(call):
 def search_summit(code_dest,lat,lng):
     conn_summit = sqlite3.connect(summit_db)
     cur_summit = conn_summit.cursor()
-    
+
     mag = KEYS['MAGNIFY']
     latu,latl = lat + deltalat*mag, lat - deltalat*mag
     lngu,lngl = lng + deltalng*mag, lng - deltalng*mag
 
     result = []
     target = None
-    
+
     if re.search(KEYS['JASummits'],code_dest):
         foreign = False
         continent = 'JA'
     else:
         foreign = True
         continent = 'WW'
-    
+
     for s in cur_summit.execute('''select * from summits where (? > lat) and (? < lat) and (? > lng) and (? < lng)''',(latu,latl,lngu,lngl,)):
         (code,lat1,lng1,pt,_,alt,name,_,desc,_,_,continent,_,_,_) = s
         if re.search(KEYS['JASummits'],code):
@@ -219,8 +189,8 @@ def search_summit(code_dest,lat,lng):
         o = (code,int(dist),int(az),pt,alt,name,desc)
         result.append(o)
         if code == code_dest:
-            target = o 
-    
+            target = o
+
     if not target:
         for s in cur_summit.execute("select * from summits where code = ?",(code_dest,)):
             (code,lat1,lng1,pt,_,alt,name,_,desc,_,_,continent,_,_,_) = s
@@ -234,11 +204,11 @@ def search_summit(code_dest,lat,lng):
 
     if not target:
         target = (code_dest,999999,0,0,0,"Summit not recognized","")
-    
+
     result.sort(key=lambda x:x[1])
 
     conn_summit.close()
-    
+
     return (foreign,continent,target,result[0:3])
 
 def get_activator_status(cur,op,ssid,summit):
@@ -250,15 +220,15 @@ def get_activator_status(cur,op,ssid,summit):
         return state
     else:
         return None
-    
-def set_activator_status(cur,now,op,ssid,summit,state,dist):    
+
+def set_activator_status(cur,now,op,ssid,summit,state,dist):
     q = 'insert or replace into message_history(time,operator,ssid,summit,state,distance) values (? ,?, ?, ?, ?, ?)'
     cur.execute(q,(now,op,ssid,summit,state,dist,))
     return state
 
 def lookup_summit(call,lat,lng):
     (op,ssidtype,_) = parse_callsign(call)
-    
+
     if op in KEYS['EXCLUDE_USER']:
         return (True,'',-1, 0, "Oops!")
 
@@ -282,12 +252,12 @@ def lookup_summit(call,lat,lng):
             state = state % 10
 
         prev_state = state
-    
+
         if len(result) > 0:
             (code,dist,_,_,_,_,_) = result[0]
 
             prev_state = get_activator_status(cur_message,op,ssidtype,code)
-                
+
             if dist <=100.0:
                 if prev_state == ONSUMMIT:
                     state = ONSUMMIT_SENT
@@ -298,14 +268,14 @@ def lookup_summit(call,lat,lng):
             elif dist <=300.0:
                 if prev_state == APRCH or prev_state == APRCH_SENT:
                     state = APRCH_SENT
-                elif prev_state == ONSUMMIT or prev_state == ONSUMMIT_SENT: 
+                elif prev_state == ONSUMMIT or prev_state == ONSUMMIT_SENT:
                     state = ONSUMMIT_SENT
                 else:
                     state = APRCH
             elif dist <= 600.0:
                 if prev_state == ONSUMMIT or prev_state == ONSUMMIT_SENT:
                     state = DESC
-                elif prev_state == APRCH or prev_state == APRCH_SENT: 
+                elif prev_state == APRCH or prev_state == APRCH_SENT:
                     state = APRCH_SENT
                 else:
                     state = NEAR
@@ -316,7 +286,7 @@ def lookup_summit(call,lat,lng):
                     state = RCVD
 
             set_activator_status(cur_message,now,op,ssidtype,code,state,dist)
-            
+
             if state == ONSUMMIT or state == ONSUMMIT_SENT:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 if state == ONSUMMIT:
@@ -331,19 +301,19 @@ def lookup_summit(call,lat,lng):
             elif state == APRCH or state == APRCH_SENT:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Approaching " + code + ", " + str(dist) +"m("+str(az)+"deg) to go."
-                mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)." 
+                mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)."
 
             elif state == DESC:
                 (code,dist,az,pt,alt,name,desc) = result[0]
                 mesg = "Descending " + code + ", " + str(dist) +"m("+str(az)+"deg) from summit."
-                mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)." 
+                mesg2 = code + ":" + str(dist) +"m("+str(az)+"deg)."
 
             elif state == RCVD or state == NEAR:
                 mesg = nowstr + " "
                 for (code,dist,az,_,_,_,_) in result:
                     mesg = mesg + code.split('/')[1] + ":"+ str(dist) + "m(" + str(az) + ") "
                 (code,dist,az,pt,alt,name,desc) = result[0]
-                mesg2 = nowstr + " "+ code + ":" + str(dist) + "m(" + str(az) + "deg)." 
+                mesg2 = nowstr + " "+ code + ":" + str(dist) + "m(" + str(az) + "deg)."
         else:
             (code,dist,az,pt,alt,name,desc) = target
             mesg = nowstr + " "+ code + ":" + str(dist) +"m("+str(az)+"deg)."
@@ -357,17 +327,17 @@ def lookup_summit(call,lat,lng):
             state = 10 * 0 + state
 
         q = 'update beacons set lastseen = ?, lat = ?, lng = ?,dist = ?, az = ?,state = ?,message = ?,message2 =?, type = ? where operator = ? and start < ? and end > ?'
-        
+
         if (state % 10) != prev_state:
-            errlog = op +'-'+ ssidtype + ':' + code + ':'+ continent + ':(' + str(prev_state) +'->'+ str(state) + '):' + str(dist) + 'm:' 
-            print >> sys.stderr, 'UPDATE:' + errlog
+            errlog = op +'-'+ ssidtype + ':' + code + ':'+ continent + ':(' + str(prev_state) +'->'+ str(state) + '):' + str(dist) + 'm:'
+            print('UPDATE:' + errlog, file=sys.stderr)
 
         try:
             cur_beacon.execute(q,(now,lat,lng,dist,az,state,mesg,mesg2,'APRS',op,now,now))
             conn_beacon.commit()
         except Exception as err:
-            print >> sys.stderr, 'update beacon.db %s' % err
-            print >> sys.stderr, 'oprator='+op+' summit='+code
+            print('update beacon.db %s' % err, file=sys.stderr)
+            print('oprator='+op+' summit='+code, file=sys.stderr)
             pass
 
         q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
@@ -375,13 +345,13 @@ def lookup_summit(call,lat,lng):
             cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
             conn_aprslog.commit()
         except Exception as err:
-            print >> sys.stderr, 'update aprslog.db %s' % err
+            print('update aprslog.db %s' % err, file=sys.stderr)
             pass
 
         conn_beacon.close()
         conn_aprslog.close()
         return (foreign, continent, state % 10, 0, mesg)
-    
+
     conn_beacon.close()
     conn_aprslog.close()
     return (True,'', -1, 0, "Oops!")
@@ -403,14 +373,14 @@ def parse_summit(code):
         res =(lat,lng)
     conn_summit.close()
     return res
-    
+
 def parse_alerts(url):
     try:
         response = requests.get(url)
     except Exception as e:
-        print >>sys.stderr, 'HTTP GET %s' % e
+        print('HTTP GET %s' % e, file=sys.stderr)
         return []
-    
+
     result = []
     state = 'new'
     parse_error = False
@@ -497,28 +467,28 @@ def parse_alerts(url):
                                'freq':alert_freq,
                                'comment':alert_comment,
                                'poster':alert_poster})
-            parse_error = False    
+            parse_error = False
             state = 'new'
     return result
-        
+
 def parse_json_alerts(url,time_to):
     try:
-        param = urllib.urlencode(
+        param = urllib.parse.urlencode(
         {
         'client': 'sotawatch',
         'user': 'anon'
         })
-        readObj= urllib.urlopen(url+'/api/alerts?'+param)
+        readObj= urllib.request.urlopen(url+'/api/alerts?'+param)
         res = readObj.read()
         alerts = json.loads(res)
     except Exception as e:
-        print >>sys.stderr, 'JSON GET ALERTS %s' % e
+        print('JSON GET ALERTS %s' % e, file=sys.stderr)
         sys_updatestat('SOTAWATCH',E_FATAL)
         return []
 
     sys_updatestat('SOTAWATCH',E_NONE)
     result = []
-    
+
     for item in alerts:
         if item['comments'] is None:
             item['comments'] = ""
@@ -592,7 +562,7 @@ def readlast3(c):
         slist = latestSpot['NA/SA']
     else:
         slist = latestSpot['WW']
-        
+
     if len(slist)>0:
         msg = ""
         slist.reverse()
@@ -601,7 +571,7 @@ def readlast3(c):
         msg = msg.strip(' ')
     else:
         msg ="No spots."
-        
+
     return msg
 
 def update_json_data():
@@ -652,7 +622,7 @@ def update_json_data():
             afreq = ""
             acomment = ""
             acolor = ""
-            
+
         if stime:
             st = datetime.fromtimestamp(int(stime)).strftime("%m/%d %H:%M")
             delta = now - stime
@@ -676,11 +646,11 @@ def update_json_data():
             smode = ""
             scolor= ""
             scomment = ""
-            
+
         if not alatdest:
             alatdest = slat
             alngdest = slng
-            
+
         if atime:
             time = atime
             aprs_start = atime + 3600 * KEYS['WINDOW_FROM']
@@ -691,12 +661,12 @@ def update_json_data():
             time = stime
             aprs_start = stime + 3600 * KEYS['WINDOW_FROM']
             aprs_end = stime + 3600 * KEYS['WINDOW_TO']
-            
+
         if time > (now-60*30):
             spot_type = "after"
         else:
             spot_type = "before"
-        
+
         q = 'select time,lat,lng,dist,state,summit from aprslog where operator = ? and time > ? and time < ?'
         cur_aprslog.execute(q,(op,aprs_start,aprs_end,))
         route = {}
@@ -706,7 +676,7 @@ def update_json_data():
             smoothed['id'+s] = []
 
         for (t,lat,lng,dist,state,aprs_summit) in cur_aprslog.fetchall():
-            ssid = target_ssids[int(state)/10]
+            ssid = target_ssids[old_div(int(state),10)]
             tm = datetime.fromtimestamp(int(t)).strftime("%H:%M")
             o = {'i_time':int(t),'time':tm,
                  'latlng':[float(lat),float(lng)],
@@ -735,7 +705,7 @@ def update_json_data():
                                      #'smoothed':smoothed,
                                      'spot_type':spot_type})
 
-    js = sorted(entry_db.values(),key=lambda x: x[0])
+    js = sorted(list(entry_db.values()),key=lambda x: x[0])
 
     dxl = []
     jal = []
@@ -779,12 +749,12 @@ def update_json_data():
                         latestSpot['EU/AF'].append(d)
                     elif d['continent'] in ['NA','SA']:
                         latestSpot['NA/SA'].append(d)
-                        
-    sys_updatestatall(alert_count, spot_count, aprs_count, beacon_count)        
+
+    sys_updatestatall(alert_count, spot_count, aprs_count, beacon_count)
 
     with open(output_json_file+'.json',"w") as f:
         json.dump(dxl,f)
-        
+
     with open(output_json_jafile+'.json',"w") as f:
         json.dump(jal,f)
 
@@ -793,33 +763,33 @@ def update_json_data():
 
     with open(output_json_file+'-hist.json',"w") as f:
         json.dump(dxll,f)
-        
+
     conn.close()
     conn_aprslog.close()
-    
+
 def update_spots():
     try:
-        param = urllib.urlencode(
+        param = urllib.parse.urlencode(
         {
         'client': 'sotawatch',
         'user': 'anon'
         })
-        readObj= urllib.urlopen(sotawatch_json_url+'/api/spots/20?'+param)
+        readObj= urllib.request.urlopen(sotawatch_json_url+'/api/spots/20?'+param)
         res = readObj.read()
     except Exception as e:
-        print >>sys.stderr, 'JSON GET SPOTS %s' % e
+        print('JSON GET SPOTS %s' % e, file=sys.stderr)
         sys_updatestat('SOTAWATCH',E_FATAL)
         return []
 
     try:
         r = json.loads(res)
     except Exception as e:
-        print >>sys.stderr, 'JSON SPOTS LOAD %s' % e
+        print('JSON SPOTS LOAD %s' % e, file=sys.stderr)
         sys_updatestat('SOTAWATCH',E_WARN)
         return []
-    
+
     sys_updatestat('SOTAWATCH',E_NONE)
-    
+
     conn2 = sqlite3.connect(alert_db)
     cur2 = conn2.cursor()
     r.reverse()
@@ -851,48 +821,46 @@ def update_spots():
         if spot_time >= last_tweetat:
             st = datetime.fromtimestamp(int(spot_time)).strftime("%H:%M")
             mesg = st +' ' + activator + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
-            mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(op.encode('utf8') + '+' + summit.encode('utf8') , '')
+            mesg = mesg + ' ' + sotalive_url + '/#' + urllib.parse.quote(op + '+' + summit , '')
             if re.search(KEYS['JASummits'],summit):
-                tweet(tweet_api,mesg)
+                tweet_api.tweet(mesg)
                 comment = item['comments'].upper()
                 m = re.search('JA-\d\d\d\d', comment)
                 if m:
                     mesg = st + ' ' + activator + ' on ' + m.group(0) + ' (' + summit + ') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
-                    tweet(pota_tweet_api, mesg)
-
-            #tweet(tweet_api_debug,mesg)
+                    pota_tweet_api.tweet(mesg)
 
     update_params('last_tweetat',int(datetime.utcnow().strftime("%s")))
     conn2.commit()
     conn2.close()
     update_json_data()
-    
+
 def update_alerts():
     global aprs_filter
-    
+
     try:
         conn = sqlite3.connect(alert_db)
     except Exception as err:
-        print >> sys.stderr, alert_db
-        print >> sys.stderr, '%s' % err
+        print(alert_db, file=sys.stderr)
+        print('%s' % err, file=sys.stderr)
         return
-    
+
     try:
         aprs = sqlite3.connect(aprslog_db)
     except Exception as err:
-        print >> sys.stderr, aprslog_db
-        print >> sys.stderr, '%s' % err
+        print(aprslog_db, file=sys.stderr)
+        print('%s' % err, file=sys.stderr)
         return
-    
+
     cur = conn.cursor()
     cur2 = conn.cursor()
     aprs_cur = aprs.cursor()
-    
+
     now = int(datetime.utcnow().strftime("%s"))
     keep_in_db = now - 3600 * KEYS['KEEP_IN_DB']
     keepin_aprs = now - 2 * 3600 * KEYS['KEEP_IN_DB']
     keep_in_db_hist = now - 3600 * KEYS['WINDOW_TO'] + 3600 * KEYS['WINDOW_FROM']
-    
+
     aprs_cur.execute("delete from aprslog where time < %s" % str(keepin_aprs))
     aprs.commit()
     aprs.close()
@@ -901,7 +869,7 @@ def update_alerts():
     cur.execute(q)
     q = 'create table current(operator text,summit text)'
     cur.execute(q);
-    
+
     q = 'create table if not exists alerts (time int,start int,end int,operator text,callsign text,summit text,summit_info text,lat_dest text,lng_dest text,alert_freq text,alert_comment text,poster text,primary key(callsign,summit))'
     cur.execute(q)
     q = 'delete from alerts where end < ?'
@@ -913,7 +881,7 @@ def update_alerts():
     q = 'delete from beacons where end < ?'
     cur2.execute(q,(keep_in_db,))
 
-    q ='create table if not exists spots (time int,end int,operator text,callsign text,summit text,summit_info text,lat text,lng text,spot_freq text,spot_mode text,spot_comment text,spot_color text,poster text,primary key(operator))'  
+    q ='create table if not exists spots (time int,end int,operator text,callsign text,summit text,summit_info text,lat text,lng text,spot_freq text,spot_mode text,spot_comment text,spot_color text,poster text,primary key(operator))'
     cur2.execute(q)
     q = 'delete from spots where end < ?'
     cur2.execute(q,(keep_in_db,))
@@ -925,7 +893,7 @@ def update_alerts():
     cur2.execute(q)
     q = 'delete from message_history where time < ?'
     cur2.execute(q,(keep_in_db_hist,))
-    
+
     conn.commit()
 
     res = parse_json_alerts(sotawatch_json_url,now+3600 * KEYS['ALERT_TO'])
@@ -938,7 +906,7 @@ def update_alerts():
              'summit_info':'Test','freq':'433-fm',
              'comment':'Alert Test','poster':'(Posted By JL1NIE)'}
         res.append(d)
-    
+
     for d in res:
         (lat_dest,lng_dest) = parse_summit(d['summit'])
 
@@ -954,7 +922,7 @@ def update_alerts():
 
         q = 'insert into current(operator,summit) values (?,?)'
         cur.execute(q,(op,d['summit']))
-        
+
         q = 'insert or replace into alerts(time,start,end,operator,callsign,summit,summit_info,lat_dest,lng_dest,alert_freq,alert_comment,poster) values (?,?,?,?,?,?,?,?,?,?,?,?)'
         cur.execute(q,(d['time'],d['start'],d['end'],
                        op,d['callsign'],
@@ -987,7 +955,7 @@ def update_alerts():
                                     0,'',
                                     'SW2'))
         conn.commit()
-        
+
     q = 'delete from alerts where (operator,summit) not in (select * from current) and alerts.time > ?'
     cur.execute(q,(now,))
 
@@ -1005,7 +973,7 @@ def update_alerts():
     #print >>sys.stderr, 'APRS Filter:' + aprs_filter
     conn.commit()
     conn.close()
-        
+
 def tweet_alerts():
     today = datetime.now(localtz).strftime("%d %B %Y")
     conn = sqlite3.connect(alert_db)
@@ -1025,14 +993,15 @@ def tweet_alerts():
     else:
         mesg = str(num)+" activations are currently scheduled on "
     mesg = mesg + today + "."
-    tweet(tweet_api,mesg)
-    
+
+    tid = tweet_api.tweet(mesg)
+
     for (tm,_,_,op,call,summit,info,lat,lng,freq,comment,poster) in rows:
         tm = datetime.fromtimestamp(int(tm)).strftime("%H:%M")
         mesg = tm + " " + call + " on\n" + summit + " " + freq + "\n" + info + "\n" + comment + " " + poster
-        mesg = mesg + ' ' + sotalive_url + '/#' + urllib.quote(op.encode('utf8') + '+' + summit.encode('utf8'), '')
+        mesg = mesg + ' ' + sotalive_url + '/#' + urllib.parse.quote(op + '+' + summit, '')
         if summit != 'JA/TT-TEST':
-            tweet(tweet_api,mesg)
+            tid = tweet_api.tweet_as_reply(mesg, tid)
     conn.close()
 
 def get_new_msgno():
@@ -1056,8 +1025,8 @@ def ack_received(mlist):
     global _count
 
     if debug:
-        print _senderpool
-        print _ackpool
+        print(_senderpool)
+        print(_ackpool)
 
     for msgno in mlist:
         if msgno in _ackpool:
@@ -1085,20 +1054,20 @@ def discard_ack(mlist):
     global _ackpool
     global _senderpool
     global _count
-    
-    _thlock.acquire()    
+
+    _thlock.acquire()
     for msgno in mlist:
         _ackpool.discard(msgno)
         _senderpool.discard(msgno)
     _thlock.release()
-    
+
 def aprs_worker():
     global aprs_beacon
     global _thlock
     global _ackpool
     global _senderpool
     global _count
-    
+
     _thlock = Lock()
     _ackpool = {-1}
     _senderpool = {-1}
@@ -1112,22 +1081,22 @@ def send_ack_worker(aprs, msgno):
     sleep(2)
     for i in range(3):
         if debug:
-            print "SendingAck("+ str(i) + "):" + msgno
+            print("SendingAck("+ str(i) + "):" + msgno)
         else:
             aprs.sendall(msgno)
             sleep(30)
-    
+
 def send_ack(aprs, callfrom, msgno):
     ack = aprs_user+">APRS,TCPIP*::"+callfrom+":ack"+str(msgno)
     th = Thread(name="AckWoker",target=send_ack_worker,args =(aprs,ack))
     th.start()
-    
+
 def send_message(aprs, callfrom, message):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
     if len(message)>67:
         message = message[0:67]
     if debug:
-        print "Sending: "+ header + message
+        print("Sending: "+ header + message)
     else:
         aprs.sendall(header+message)
 
@@ -1138,23 +1107,23 @@ def send_message_worker(aprs, callfrom, message):
         mlist.append(msgno)
         m = message + '{' + str(msgno)
         if debug:
-            print "Sending("+ str(i) + "):" + m
+            print("Sending("+ str(i) + "):" + m)
         else:
             aprs.sendall(m)
-        sleep(60+int(i/2)*30)
+        sleep(60+int(old_div(i,2))*30)
         if ack_received(mlist):
             break
     discard_ack(mlist)
     if len(mlist) == 2:
-        print >>sys.stderr, "APRS: Can't send message:" + callfrom + ' ' + message + '\n'
+        print("APRS: Can't send message:" + callfrom + ' ' + message + '\n', file=sys.stderr)
 
-        
+
 def send_message_with_ack(aprs, callfrom, message):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
     if len(message)>67:
         message = message[0:67]
     if debug:
-        print "Sending:" + header + message
+        print("Sending:" + header + message)
     else:
         th = Thread(name="MessageWorker",target=send_message_worker,args=(aprs, callfrom, header+message))
         th.start()
@@ -1174,33 +1143,33 @@ def send_message_worker2(aprs, callfrom, header, messages,retry):
             if len(message)>67:
                 message = message[0:67]
             m = header + message + '{' + str(msgno)
-            print >>sys.stderr, 'APRS raw message(' + str(wait_timer) + ',' + str(i) + '):' + m
-            aprs.sendall(m.encode('utf-8'))
+            print('APRS raw message(' + str(wait_timer) + ',' + str(i) + '):' + m, file=sys.stderr)
+            aprs.sendall(m)
             sleep(wait_timer)
             if ack_received(mlist):
-                print >>sys.stderr, 'APRS recv_ack(' +str(wait_timer) +','+  str(msgno)+ ')'
+                print('APRS recv_ack(' +str(wait_timer) +','+  str(msgno)+ ')', file=sys.stderr)
                 break
             else:
                 wait_timer *= 2
 
         discard_ack(mlist)
         if len(mlist) == retry:
-            print >>sys.stderr, "APRS: Can't send message:" + callfrom + ' ' + message + '\n'
+            print("APRS: Can't send message:" + callfrom + ' ' + message + '\n', file=sys.stderr)
 
 def send_long_message_with_ack(aprs, callfrom, messages,retry = 3):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
     th = Thread(name="MessageWorker",target=send_message_worker2,args=(aprs, callfrom, header, messages,retry))
     th.start()
- 
+
 def send_summit_message(callfrom, lat ,lng):
     foreign,continent,state,tlon,mesg = lookup_summit(callfrom,lat,lng)
     if state == ONSUMMIT: # On Summit
         mesg = mesg + "\n" + readlast3(continent)
-        print >>sys.stderr, 'APRS: Message ' + callfrom + ':On Summit'
+        print('APRS: Message ' + callfrom + ':On Summit', file=sys.stderr)
         if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     elif state == APRCH:# Approaching Summit
-        print >>sys.stderr, 'APRS: Message ' + callfrom + ':Approaching'
+        print('APRS: Message ' + callfrom + ':Approaching', file=sys.stderr)
         if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     del mesg
@@ -1226,7 +1195,7 @@ def set_tweet_location(callfrom,tlon):
         cur_beacon.execute(q,(tlon,op,))
         conn_beacon.commit()
     except Exception as err:
-        print >> sys.stderr, 'update beacon.db %s' % e
+        print('update beacon.db %s' % e, file=sys.stderr)
     conn_beacon.close()
 
 def check_dupe_mesg(callfrom,tw):
@@ -1245,8 +1214,8 @@ def check_dupe_mesg(callfrom,tw):
             cur_beacon.execute(q,(tw,op,))
             conn_beacon.commit()
         except Exception as err:
-            print >> sys.stderr, 'update beacon.db %s' % e
-            
+            print('update beacon.db %s' % e, file=sys.stderr)
+
     conn_beacon.close()
     return result
 
@@ -1272,14 +1241,14 @@ def check_beacon_status():
             descend.append(op)
         elif state == RCVD:
             recv.append(op)
-            
+
     conn_beacon.close()
 
     on_summit = list(set(on_summit))
     approach = list(set(approach))
     descend = list(set(descend))
     recv = list(set(recv))
-    
+
     if on_summit:
         result = "On:"+','.join(on_summit)
     else:
@@ -1306,17 +1275,17 @@ def check_user_status(callfrom):
     if r['Retry']:
         mesg = mesg + "Max.Retry=" + str(r['Retry']) + ": "
     if r['LastActOn']:
-        mesg = mesg +"LatestActivation: " + str(r['LastActAt']) + " " +  str(r['LastActOn']) + ": "  
+        mesg = mesg +"LatestActivation: " + str(r['LastActAt']) + " " +  str(r['LastActOn']) + ": "
     if r['LastSpotOn']:
-        mesg = mesg + "LatestSpot: " + str(r['LastSpotAt']) + " " +  str(r['LastSpotOn']) + ": "  
+        mesg = mesg + "LatestSpot: " + str(r['LastSpotAt']) + " " +  str(r['LastSpotOn']) + ": "
     try:
-	res = unicode(mesg,'utf-8')
+        res = str(mesg,'utf-8')
     except Exception as e:
         return mesg
     return res
 
 def do_command(callfrom,mesg):
-    print >>sys.stderr, 'SLIPPER Command: ' + callfrom + ':' + mesg 
+    print('SLIPPER Command: ' + callfrom + ':' + mesg, file=sys.stderr)
     for com in mesg.split(","):
         com = com.upper().strip()
         if com in ['HELP','?']:
@@ -1384,8 +1353,8 @@ def do_command(callfrom,mesg):
                     mode = m.group(3).upper()
                     comment = m.group(5)
                     mesg = st + ' ' + activator + ' on ' + ref + ' ' + freq + ' ' + mode + comment + ' [' + callfrom.strip() + ']'
-                    tweet(pota_tweet_api, mesg)
-                    res = freq + ' ' + mode + ' spotted at ' + st 
+                    pota_tweet_api.tweet(mesg)
+                    res = freq + ' ' + mode + ' spotted at ' + st
                     send_long_message_with_ack(aprs_beacon, callfrom, res)
                 else:
                     (admin,_,_) = parse_callsign(aprs_user)
@@ -1412,15 +1381,15 @@ def do_command(callfrom,mesg):
                         send_long_message_with_ack(aprs_beacon,callfrom,'? ' + res)
                 break
     del mesg
-        
+
 def callback(packet):
     msg = aprslib.parse(packet)
     callfrom = msg['from'] + "      "
     callfrom = callfrom[0:9]
     ssidtype = callfrom[callfrom.rfind('-')+1:].strip()
-    
+
     if debug:
-        print "Receive:"+callfrom+ ":"+msg['format']+"-"+msg['raw']
+        print("Receive:"+callfrom+ ":"+msg['format']+"-"+msg['raw'])
     if msg['format'] in  ['uncompressed','compressed','mic-e']:
         if ssidtype in target_ssids:
             lat = msg['latitude']
@@ -1474,7 +1443,7 @@ def o2p(obj):
 
 def update_user_param(callfrom, key, value):
     global user_db
-    
+
     (op,_,_) = parse_callsign(callfrom)
     conn = sqlite3.connect(user_db)
     conn.text_factory = str
@@ -1495,11 +1464,11 @@ def update_user_param(callfrom, key, value):
 
 def read_user_param(callfrom, key, init = None):
     global user_db
-    
+
     (op,_,_) = parse_callsign(callfrom)
     conn = sqlite3.connect(user_db)
     conn.text_factory = str
-    
+
     value = init
     for u in conn.execute('select * from user_db where operator = ?',(op,)):
         (o,obj) = u
@@ -1573,7 +1542,7 @@ def update_user_params(callfrom, vals):
             param = {}
             param[key] = value
             conn.execute('insert into user_db (operator, obj) values (?, ?)', (op,p2o(param)))
-    conn.commit()            
+    conn.commit()
     conn.close()
 
 def dump_userdb():
@@ -1581,10 +1550,10 @@ def dump_userdb():
     conn.text_factory = str
     for u in conn.execute('select * from user_db'):
         (op,obj) = u
-        print >> sys.stderr, check_user_status(op)
+        print(check_user_status(op), file=sys.stderr)
     conn.close()
-    print >> sys.stderr, "APRS Filter:" + aprs_filter
-    
+    print("APRS Filter:" + aprs_filter, file=sys.stderr)
+
 def setup_db():
     conn_aprslog = sqlite3.connect(aprslog_db)
     cur_aprslog = conn_aprslog.cursor()
@@ -1595,43 +1564,36 @@ def setup_db():
     conn_aprslog.close()
 
     setup_userdb()
-    
+
     update_alerts()
     update_spots()
-    
+
 def main():
     global tweet_api
     global pota_tweet_api
-    global tweet_api_debug
-
-    try:
-        auth = tweepy.OAuthHandler(KEYS['ConsumerkeySOTAwatch'], KEYS['ConsumersecretSOTAwatch'])
-        auth.set_access_token(KEYS['AccesstokenSOTAwatch'], KEYS['AccesstokensecretSOTAwatch'])
-        tweet_api = tweepy.API(auth)
-    except Exception as e:
-        print >>sys.stderr, 'access error: %s' % e
-        sys.exit(1)
-
-    try:
-        auth = tweepy.OAuthHandler(KEYS['ConsumerkeyPOTA'], KEYS['ConsumersecretPOTA'])
-        auth.set_access_token(KEYS['AccesstokenPOTA'], KEYS['AccesstokensecretPOTA'])
-        pota_tweet_api = tweepy.API(auth)
-    except Exception as e:
-        print >>sys.stderr, 'access error: %s' % e
-        sys.exit(1)
-
-    try:
-        auth = tweepy.OAuthHandler(KEYS['ConsumerkeySOTAwatch2'], KEYS['ConsumersecretSOTAwatch2'])
-        auth.set_access_token(KEYS['AccesstokenSOTAwatch2'], KEYS['AccesstokensecretSOTAwatch2'])
-        tweet_api_debug = tweepy.API(auth)
-    except Exception as e:
-        print >>sys.stderr, 'access error: %s' % e
-        sys.exit(1)
+    print("SLIPPER Started.")
+    
+    tweet_api = SpotTweet(KEYS['ConsumerkeySOTAwatch'],
+                          KEYS['ConsumersecretSOTAwatch'],
+                          KEYS['AccesstokenSOTAwatch'],
+                          KEYS['AccesstokensecretSOTAwatch'])
         
+    if not tweet_api:
+        print("SOTA TweetAPI error")
+        sys.exit(1)
+
+    pota_tweet_api = SpotTweet(KEYS['ConsumerkeyPOTA'],
+                               KEYS['ConsumersecretPOTA'],
+                               KEYS['AccesstokenPOTA'],
+                               KEYS['AccesstokensecretPOTA'])
+    if not pota_tweet_api:
+        print("POTA TweetAPI error")
+        sys.exit(1)
+
     setup_db()
 
     logging.basicConfig()
-    
+
     aprs = Thread(target=aprs_worker, args=())
     aprs.start()
     schedule.every(update_alerts_every).minutes.do(update_alerts)
@@ -1659,8 +1621,8 @@ def test_db():
              (35.679488, 139.754062)]
     #tracks = [(41.409,-122.194901)]
     for (lat, lng) in tracks:
-        print search_summit('JA/KN-006',lat,lng)
+        print(search_summit('JA/KN-006',lat,lng))
     #update_json_data()
-    
+
 if __name__ == '__main__':
     main()

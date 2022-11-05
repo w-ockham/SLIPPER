@@ -35,13 +35,13 @@ if os.environ.get('MACKEREL_AGENT_PLUGIN_META','') == '1':
                     {
                         'name':'Twitter_API',
                         'label':'twitter'
-                    }                    
+                    }
                 ]
             }
         }
     }
     print(json.dumps(meta))
-                    
+
 else:
     with open("/var/tmp/sotalive-stat.json","r") as f:
         jd = json.load(f)
@@ -52,4 +52,3 @@ else:
         print("sotawatchlive.APRS_Stations\t{}\t{}".format(jd.get('TRACKS',0),now))
         print("sotawatchlive.APRS_packets10\t{}\t{}".format(jd.get('PACKETS',0)/10,now))
         print("sotawatchlive.Twitter_API\t{}\t{}".format(jd.get('TWEET',0)/10,now))
-
