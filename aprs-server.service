@@ -2,7 +2,7 @@
 Description = SOTA Twitter Bot Server
 
 [Service]
-ExecStart = /home/ubuntu/pi/SOTAspotJA/watchAlerts.py
+ExecStart = /home/ubuntu/sotaapp/backend/venv/bin/python3 /home/ubuntu/sotaapp/backend/SLIPPER/watchAlerts.py
 Restart = always
 Type = simple
 
