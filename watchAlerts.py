@@ -13,7 +13,8 @@ from datetime import datetime, timedelta
 from dateutil.parser import parse
 import gc
 import shelve
-import logging
+from logging import getLogger, DEBUG, INFO
+from systemd import journal
 import objgraph
 import pickle
 import pyproj
@@ -63,6 +64,8 @@ tweet_api_debug = None
 target_ssids = ['7','9','5','6','8']
 aprs_filter = ""
 aprs_beacon = None
+
+logger = None
 
 localtz = pytz.timezone('Asia/Tokyo')
 grs80 = pyproj.Geod(ellps='GRS80')
@@ -330,14 +333,14 @@ def lookup_summit(call,lat,lng):
 
         if (state % 10) != prev_state:
             errlog = op +'-'+ ssidtype + ':' + code + ':'+ continent + ':(' + str(prev_state) +'->'+ str(state) + '):' + str(dist) + 'm:'
-            print('UPDATE:' + errlog, file=sys.stderr)
+            logger.info('UPDATE:' + errlog)
 
         try:
             cur_beacon.execute(q,(now,lat,lng,dist,az,state,mesg,mesg2,'APRS',op,now,now))
             conn_beacon.commit()
         except Exception as err:
-            print('update beacon.db %s' % err, file=sys.stderr)
-            print('oprator='+op+' summit='+code, file=sys.stderr)
+            logger.warning('update beacon.db %s' % err)
+            logger.warning('oprator='+op+' summit='+code)
             pass
 
         q = 'insert into aprslog (time,operator,lat,lng,lat_dest,lng_dest,dist,az,state,summit) values(?,?,?,?,?,?,?,?,?,?)'
@@ -345,7 +348,7 @@ def lookup_summit(call,lat,lng):
             cur_aprslog.execute(q,(now,op,lat,lng,lat_dest,lng_dest,dist,az,state,code))
             conn_aprslog.commit()
         except Exception as err:
-            print('update aprslog.db %s' % err, file=sys.stderr)
+            logger.warning('update aprslog.db %s' % err)
             pass
 
         conn_beacon.close()
@@ -378,7 +381,7 @@ def parse_alerts(url):
     try:
         response = requests.get(url)
     except Exception as e:
-        print('HTTP GET %s' % e, file=sys.stderr)
+        logger.warning('HTTP GET %s' % e)
         return []
 
     result = []
@@ -482,7 +485,7 @@ def parse_json_alerts(url,time_to):
         res = readObj.read()
         alerts = json.loads(res)
     except Exception as e:
-        print('JSON GET ALERTS %s' % e, file=sys.stderr)
+        logger.warning('JSON GET ALERTS %s' % e)
         sys_updatestat('SOTAWATCH',E_FATAL)
         return []
 
@@ -777,14 +780,14 @@ def update_spots():
         readObj= urllib.request.urlopen(sotawatch_json_url+'/api/spots/20?'+param)
         res = readObj.read()
     except Exception as e:
-        print('JSON GET SPOTS %s' % e, file=sys.stderr)
+        logger.warning('JSON GET SPOTS %s' % e)
         sys_updatestat('SOTAWATCH',E_FATAL)
         return []
 
     try:
         r = json.loads(res)
     except Exception as e:
-        print('JSON SPOTS LOAD %s' % e, file=sys.stderr)
+        logger.warning('JSON SPOTS LOAD %s' % e)
         sys_updatestat('SOTAWATCH',E_WARN)
         return []
 
@@ -823,13 +826,20 @@ def update_spots():
             mesg = st +' ' + activator + ' on ' + summit + ' (' + item['summitDetails'] +') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
             mesg = mesg + ' ' + sotalive_url + '/#' + urllib.parse.quote(op + '+' + summit , '')
             if re.search(KEYS['JASummits'],summit):
-                tweet_api.tweet(mesg)
+                try:
+                    tweet_api.tweet(mesg)
+                except Exception as e:
+                    logger.critical(f"Error: {e}")
+                    
                 comment = item['comments'].upper()
                 m = re.search('JA-\d\d\d\d', comment)
                 if m:
                     mesg = st + ' ' + activator + ' on ' + m.group(0) + ' (' + summit + ') '+ item['frequency'] + ' ' + item['mode'] +' '+item['comments'] + '[' + item['callsign'] + ']'
-                    pota_tweet_api.tweet(mesg)
-
+                    try:
+                        pota_tweet_api.tweet(mesg)
+                    except Exception as e:
+                        logger.critical(f"Error: {e}")
+                        
     update_params('last_tweetat',int(datetime.utcnow().strftime("%s")))
     conn2.commit()
     conn2.close()
@@ -841,15 +851,13 @@ def update_alerts():
     try:
         conn = sqlite3.connect(alert_db)
     except Exception as err:
-        print(alert_db, file=sys.stderr)
-        print('%s' % err, file=sys.stderr)
+        logger.critical(f"{alert_db} {err}")
         return
 
     try:
         aprs = sqlite3.connect(aprslog_db)
     except Exception as err:
-        print(aprslog_db, file=sys.stderr)
-        print('%s' % err, file=sys.stderr)
+        logger.critical(f"{aprslog_db} {err}")
         return
 
     cur = conn.cursor()
@@ -970,7 +978,6 @@ def update_alerts():
     aprs_filter =  "b/"+ "-*/".join(operators) +"-*"
     if aprs_beacon:
         aprs_beacon.set_filter(aprs_filter)
-    #print >>sys.stderr, 'APRS Filter:' + aprs_filter
     conn.commit()
     conn.close()
 
@@ -994,14 +1001,18 @@ def tweet_alerts():
         mesg = str(num)+" activations are currently scheduled on "
     mesg = mesg + today + "."
 
-    tid = tweet_api.tweet(mesg)
+    try:
+        tid = tweet_api.tweet(mesg)
 
-    for (tm,_,_,op,call,summit,info,lat,lng,freq,comment,poster) in rows:
-        tm = datetime.fromtimestamp(int(tm)).strftime("%H:%M")
-        mesg = tm + " " + call + " on\n" + summit + " " + freq + "\n" + info + "\n" + comment + " " + poster
-        mesg = mesg + ' ' + sotalive_url + '/#' + urllib.parse.quote(op + '+' + summit, '')
-        if summit != 'JA/TT-TEST':
-            tid = tweet_api.tweet_as_reply(mesg, tid)
+        for (tm,_,_,op,call,summit,info,lat,lng,freq,comment,poster) in rows:
+            tm = datetime.fromtimestamp(int(tm)).strftime("%H:%M")
+            mesg = tm + " " + call + " on\n" + summit + " " + freq + "\n" + info + "\n" + comment + " " + poster
+            mesg = mesg + ' ' + sotalive_url + '/#' + urllib.parse.quote(op + '+' + summit, '')
+            if summit != 'JA/TT-TEST':
+                tid = tweet_api.tweet_as_reply(mesg, tid)
+    except Exception as e:
+        logger.critical(f"Error : {e}")
+        
     conn.close()
 
 def get_new_msgno():
@@ -1024,9 +1035,8 @@ def ack_received(mlist):
     global _senderpool
     global _count
 
-    if debug:
-        print(_senderpool)
-        print(_ackpool)
+    logger.debug(_senderpool)
+    logger.debug(_ackpool)
 
     for msgno in mlist:
         if msgno in _ackpool:
@@ -1080,11 +1090,9 @@ def aprs_worker():
 def send_ack_worker(aprs, msgno):
     sleep(2)
     for i in range(3):
-        if debug:
-            print("SendingAck("+ str(i) + "):" + msgno)
-        else:
-            aprs.sendall(msgno)
-            sleep(30)
+        logger.debug("SendingAck("+ str(i) + "):" + msgno)
+        aprs.sendall(msgno)
+        sleep(30)
 
 def send_ack(aprs, callfrom, msgno):
     ack = aprs_user+">APRS,TCPIP*::"+callfrom+":ack"+str(msgno)
@@ -1095,10 +1103,8 @@ def send_message(aprs, callfrom, message):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
     if len(message)>67:
         message = message[0:67]
-    if debug:
-        print("Sending: "+ header + message)
-    else:
-        aprs.sendall(header+message)
+    logger.debug("Sending: "+ header + message)
+    aprs.sendall(header+message)
 
 def send_message_worker(aprs, callfrom, message):
     mlist = []
@@ -1106,27 +1112,23 @@ def send_message_worker(aprs, callfrom, message):
         msgno = get_new_msgno()
         mlist.append(msgno)
         m = message + '{' + str(msgno)
-        if debug:
-            print("Sending("+ str(i) + "):" + m)
-        else:
-            aprs.sendall(m)
+        logger.debug("Sending("+ str(i) + "):" + m)
+        aprs.sendall(m)
         sleep(60+int(old_div(i,2))*30)
         if ack_received(mlist):
             break
     discard_ack(mlist)
     if len(mlist) == 2:
-        print("APRS: Can't send message:" + callfrom + ' ' + message + '\n', file=sys.stderr)
+        logger.info("APRS: did not receive ACK:" + callfrom + ' ' + message + '\n')
 
 
 def send_message_with_ack(aprs, callfrom, message):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
     if len(message)>67:
         message = message[0:67]
-    if debug:
-        print("Sending:" + header + message)
-    else:
-        th = Thread(name="MessageWorker",target=send_message_worker,args=(aprs, callfrom, header+message))
-        th.start()
+    logger.debug(f"{callfrom}: {message}")
+    th = Thread(name="MessageWorker",target=send_message_worker,args=(aprs, callfrom, header+message))
+    th.start()
 
 def send_long_message_with_ack2(aprs, callfrom, message):
     for m in message.splitlines():
@@ -1143,18 +1145,18 @@ def send_message_worker2(aprs, callfrom, header, messages,retry):
             if len(message)>67:
                 message = message[0:67]
             m = header + message + '{' + str(msgno)
-            print('APRS raw message(' + str(wait_timer) + ',' + str(i) + '):' + m, file=sys.stderr)
+            logger.info('APRS raw message(' + str(wait_timer) + ',' + str(i) + '):' + m)
             aprs.sendall(m)
             sleep(wait_timer)
             if ack_received(mlist):
-                print('APRS recv_ack(' +str(wait_timer) +','+  str(msgno)+ ')', file=sys.stderr)
+                logger.info('APRS recv_ack(' +str(wait_timer) +','+  str(msgno)+ ')')
                 break
             else:
                 wait_timer *= 2
 
         discard_ack(mlist)
         if len(mlist) == retry:
-            print("APRS: Can't send message:" + callfrom + ' ' + message + '\n', file=sys.stderr)
+            logger.info("APRS: did not receive ACK:" + callfrom + ' ' + message + '\n')
 
 def send_long_message_with_ack(aprs, callfrom, messages,retry = 3):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
@@ -1165,11 +1167,11 @@ def send_summit_message(callfrom, lat ,lng):
     foreign,continent,state,tlon,mesg = lookup_summit(callfrom,lat,lng)
     if state == ONSUMMIT: # On Summit
         mesg = mesg + "\n" + readlast3(continent)
-        print('APRS: Message ' + callfrom + ':On Summit', file=sys.stderr)
+        logger.info('APRS: Message ' + callfrom + ':On Summit')
         if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     elif state == APRCH:# Approaching Summit
-        print('APRS: Message ' + callfrom + ':Approaching', file=sys.stderr)
+        logger.info('APRS: Message ' + callfrom + ':Approaching')
         if read_user_param(callfrom,'Active'):
             send_long_message_with_ack(aprs_beacon,callfrom,mesg,read_user_param(callfrom,'Retry'))
     del mesg
@@ -1195,7 +1197,7 @@ def set_tweet_location(callfrom,tlon):
         cur_beacon.execute(q,(tlon,op,))
         conn_beacon.commit()
     except Exception as err:
-        print('update beacon.db %s' % e, file=sys.stderr)
+        logger.warning('update beacon.db %s' % e)
     conn_beacon.close()
 
 def check_dupe_mesg(callfrom,tw):
@@ -1214,7 +1216,7 @@ def check_dupe_mesg(callfrom,tw):
             cur_beacon.execute(q,(tw,op,))
             conn_beacon.commit()
         except Exception as err:
-            print('update beacon.db %s' % e, file=sys.stderr)
+            logger.warning('update beacon.db %s' % e)
 
     conn_beacon.close()
     return result
@@ -1285,7 +1287,7 @@ def check_user_status(callfrom):
     return res
 
 def do_command(callfrom,mesg):
-    print('SLIPPER Command: ' + callfrom + ':' + mesg, file=sys.stderr)
+    logger.info('SLIPPER Command: ' + callfrom + ':' + mesg)
     for com in mesg.split(","):
         com = com.upper().strip()
         if com in ['HELP','?']:
@@ -1388,8 +1390,7 @@ def callback(packet):
     callfrom = callfrom[0:9]
     ssidtype = callfrom[callfrom.rfind('-')+1:].strip()
 
-    if debug:
-        print("Receive:"+callfrom+ ":"+msg['format']+"-"+msg['raw'])
+    logger.debug("Receive:"+callfrom+ ":"+msg['format']+"-"+msg['raw'])
     if msg['format'] in  ['uncompressed','compressed','mic-e']:
         if ssidtype in target_ssids:
             lat = msg['latitude']
@@ -1550,9 +1551,9 @@ def dump_userdb():
     conn.text_factory = str
     for u in conn.execute('select * from user_db'):
         (op,obj) = u
-        print(check_user_status(op), file=sys.stderr)
+        logger.info(check_user_status(op))
     conn.close()
-    print("APRS Filter:" + aprs_filter, file=sys.stderr)
+    logger.info("APRS Filter:" + aprs_filter)
 
 def setup_db():
     conn_aprslog = sqlite3.connect(aprslog_db)
@@ -1569,9 +1570,19 @@ def setup_db():
     update_spots()
 
 def main():
+    global logger
     global tweet_api
     global pota_tweet_api
-    print("SLIPPER Started.")
+
+    logger = getLogger(__name__)
+    logger.addHandler(journal.JournalHandler())
+    
+    if debug:
+        logger.setLevel(DEBUG)
+    else:
+        logger.setLevel(INFO)
+    
+    logger.info("SLIPPER Started.")
     
     tweet_api = SpotTweet(KEYS['ConsumerkeySOTAwatch'],
                           KEYS['ConsumersecretSOTAwatch'],
@@ -1579,7 +1590,7 @@ def main():
                           KEYS['AccesstokensecretSOTAwatch'])
         
     if not tweet_api:
-        print("SOTA TweetAPI error")
+        logger.critical("SOTA TweetAPI error")
         sys.exit(1)
 
     pota_tweet_api = SpotTweet(KEYS['ConsumerkeyPOTA'],
@@ -1587,12 +1598,10 @@ def main():
                                KEYS['AccesstokenPOTA'],
                                KEYS['AccesstokensecretPOTA'])
     if not pota_tweet_api:
-        print("POTA TweetAPI error")
+        logger.critical("POTA TweetAPI error")
         sys.exit(1)
 
     setup_db()
-
-    logging.basicConfig()
 
     aprs = Thread(target=aprs_worker, args=())
     aprs.start()
