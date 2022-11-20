@@ -829,7 +829,7 @@ def update_spots():
                 try:
                     tweet_api.tweet(mesg)
                 except Exception as e:
-                    logger.critical(f"Error: {e}")
+                    logger.critical(f"SOTA spot error: {e}")
                     
                 comment = item['comments'].upper()
                 m = re.search('JA-\d\d\d\d', comment)
@@ -838,7 +838,7 @@ def update_spots():
                     try:
                         pota_tweet_api.tweet(mesg)
                     except Exception as e:
-                        logger.critical(f"Error: {e}")
+                        logger.critical(f"POTA spot error: {e}")
                         
     update_params('last_tweetat',int(datetime.utcnow().strftime("%s")))
     conn2.commit()
