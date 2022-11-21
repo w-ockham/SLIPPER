@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from dateutil.parser import parse
 import gc
 import shelve
-from logging import getLogger, DEBUG, INFO
+from logging import getLogger, DEBUG, INFO, WARNING, ERROR, CRITICAL
 from systemd import journal
 import objgraph
 import pickle
@@ -829,7 +829,7 @@ def update_spots():
                 try:
                     tweet_api.tweet(mesg)
                 except Exception as e:
-                    logger.critical(f"SOTA spot error: {e}")
+                    logger.warning(f"SOTA spot error: {e}")
                     
                 comment = item['comments'].upper()
                 m = re.search('JA-\d\d\d\d', comment)
@@ -838,7 +838,7 @@ def update_spots():
                     try:
                         pota_tweet_api.tweet(mesg)
                     except Exception as e:
-                        logger.critical(f"POTA spot error: {e}")
+                        logger.warning(f"POTA spot error: {e}")
                         
     update_params('last_tweetat',int(datetime.utcnow().strftime("%s")))
     conn2.commit()
@@ -1011,7 +1011,7 @@ def tweet_alerts():
             if summit != 'JA/TT-TEST':
                 tid = tweet_api.tweet_as_reply(mesg, tid)
     except Exception as e:
-        logger.critical(f"Error : {e}")
+        logger.warning(f"Error : {e}")
         
     conn.close()
 
@@ -1119,7 +1119,7 @@ def send_message_worker(aprs, callfrom, message):
             break
     discard_ack(mlist)
     if len(mlist) == 2:
-        logger.info("APRS: did not receive ACK:" + callfrom + ' ' + message + '\n')
+        logger.warning("APRS: did not receive ACK:" + callfrom + ' ' + message + '\n')
 
 
 def send_message_with_ack(aprs, callfrom, message):
@@ -1156,7 +1156,7 @@ def send_message_worker2(aprs, callfrom, header, messages,retry):
 
         discard_ack(mlist)
         if len(mlist) == retry:
-            logger.info("APRS: did not receive ACK:" + callfrom + ' ' + message + '\n')
+            logger.warning("APRS: did not receive ACK:" + callfrom + ' ' + message + '\n')
 
 def send_long_message_with_ack(aprs, callfrom, messages,retry = 3):
     header = aprs_user+">APRS,TCPIP*::"+callfrom+":"
@@ -1580,7 +1580,7 @@ def main():
     if debug:
         logger.setLevel(DEBUG)
     else:
-        logger.setLevel(INFO)
+        logger.setLevel(WARNING)
     
     logger.info("SLIPPER Started.")
     
