@@ -144,6 +144,7 @@ i.semantic-ui-custom {
 <script src="js/regionfill.js"></script>
 <script src="js/getDEM.js"></script>
 <script src="js/search-summit.js"></script>
+<script src="js/revgeocoder.js"></script>
 <!-- plugin -->
 
   <nav class="navbar navbar-expand-md navbar-dark bg-dark text-light">
@@ -557,7 +558,8 @@ function displayPopup(latlng, popupfl, response) {
     }
 
     if (!response) {
-	$.getJSON('https://www.sotalive.net/api/reverse-geocoder/LonLatToAddressElev?','lat='+latlng.lat+'&lon='+latlng.lng,resfun);
+	local_reverse_geocoder(latlng.lat, latlng.lng, true)
+	    .then(res => resfun(res))
     }
     else
 	resfun(response)
@@ -757,33 +759,34 @@ function displayActivationZone(latlng, popupfl, uplmt) {
     _azone_laststate = [ latlng, popupfl, uplmt ]
 
     if (enable_activation_zone=="true" &&(Cookies.get('area') =='JA')) {
-	$.getJSON('https://www.sotalive.net/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
-	    if (res['errors'] != 'OK') {
-		console.log('DEM error',res);
-		return;
-	    }
-	    else {
-		L.contourLayer(lat, lng, zoom, res['elevation'], uplmt, vdist, hdist,{
-		    attribution: "<a href='https://little-ctc.com/sota_hp/' target='_blank'>JCC/JCGデータ</a>",
-		    minZoom: 12,
-		    maxZoom: 18,
-		    maxNativeZoom: 14
-		},function (l,latlon,moved) {
-		    if (map && activation_zone) 
-			map.removeLayer(activation_zone);
-		    activation_zone = l
-		    l.addTo(map)
-		    if (popupfl) {
-			var lat = latlon['lat'],
-			    lng = latlon['lon']
-			if (moved) 
-			    displayPopup({lat:lat, lng:lng}, popupfl, null)
-			else 
-			    displayPopup({lat:lat, lng:lng}, popupfl, res)
-		    }
-		})
-	    }
-	})
+	local_reverse_geocoder(lat, lng, true)
+	    .then(res => {
+		if (res['errors'] != 'OK') {
+		    console.log('DEM error',res);
+		    return;
+		}
+		else {
+		    L.contourLayer(lat, lng, zoom, res['elevation'], uplmt, vdist, hdist,{
+			attribution: "<a href='https://little-ctc.com/sota_hp/' target='_blank'>JCC/JCGデータ</a>",
+			minZoom: 12,
+			maxZoom: 18,
+			maxNativeZoom: 14
+		    },function (l,latlon,moved) {
+			if (map && activation_zone) 
+			    map.removeLayer(activation_zone);
+			activation_zone = l
+			l.addTo(map)
+			if (popupfl) {
+			    var lat = latlon['lat'],
+				lng = latlon['lon']
+			    if (moved) 
+				displayPopup({lat:lat, lng:lng}, popupfl, null)
+			    else 
+				displayPopup({lat:lat, lng:lng}, popupfl, res)
+			}
+		    })
+		}
+	    });
     }
 }
 
@@ -1125,24 +1128,25 @@ function QTHdragend(e) {
     Cookies.set('my_qth_lat',lat)
     Cookies.set('my_qth_lng',lng)
 
-    $.getJSON('https://www.sotalive.net/api/reverse-geocoder/LonLatToAddressElev?','lat='+lat+'&lon='+lng,function(res) {
-	if (res['errors'] == 'OUTSIDE_JA') {
-	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
-        }
-	if (res['errors'] != 'OK') {
- 	    mesg = 'Parameter out of range.';
-	} else {
-	    if (res['type'] == 'JCC') {
-		if (res['ward'] != undefined) 
-		    mesg = '<h4>JCC'+ res['jcc']+ ' 区番号:' + res['ward'] + '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+    local_reverse_geocoder(lat, lng, true)
+	.then(res => {
+	    if (res['errors'] == 'OUTSIDE_JA') {
+		mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
+            }
+	    if (res['errors'] != 'OK') {
+ 		mesg = 'Parameter out of range.';
+	    } else {
+		if (res['type'] == 'JCC') {
+		    if (res['ward'] != undefined) 
+			mesg = '<h4>JCC'+ res['jcc']+ ' 区番号:' + res['ward'] + '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+		    else
+			mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+		}
 		else
-		    mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
-	    }
-	    else
-		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
+		    mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
 	}
-	qth_marker.bindPopup(mesg).openPopup();
-	update(true)})
+	    qth_marker.bindPopup(mesg).openPopup();
+	    update(true)})
 }
 
 function callbkQTHOk(arg) {
@@ -1164,35 +1168,36 @@ function callbkQTHOk(arg) {
     };
     lat = Math.round(latlng[0]*1000000,4)/1000000
     lng = Math.round(latlng[1]*1000000,4)/1000000
-    $.getJSON('https://www.sotalive.net/api/reverse-geocoder/LonLatToAddressElev?','lat='+arg.coords.latitude+'&lon='+arg.coords.longitude,function(res) {
-	if (res['errors'] == 'OUTSIDE_JA') {
-	    mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
-        }
-	if (res['errors'] != 'OK') {
- 	    mesg = 'Parameter out of range.';
-	} else {
-	    if (res['type'] == 'JCC') {
-		if (res['ward'] != undefined) 
-		    mesg = '<h4>JCC'+ res['jcc']+ ' 区番号:' + res['ward'] + '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+    local_reverse_geocoder(arg.coords.latitude, arg.coords.longitude, true)
+	.then(res => {
+	    if (res['errors'] == 'OUTSIDE_JA') {
+		mesg = 'Position: ' + lat + ',' + lng + '<br>GL: '+res['maidenhead'];
+            }
+	    if (res['errors'] != 'OK') {
+ 		mesg = 'Parameter out of range.';
+	    } else {
+		if (res['type'] == 'JCC') {
+		    if (res['ward'] != undefined) 
+			mesg = '<h4>JCC'+ res['jcc']+ ' 区番号:' + res['ward'] + '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+		    else
+			mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+		}
 		else
-		    mesg = '<h4>JCC'+ res['jcc']+ '<br>' + res['pref'] + res['addr2'] + res['addr1'] + '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4> ';
+		    mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
+	    
+		if (qth_marker != null)
+		    map.removeLayer(qth_marker)
+		
+		qth_marker = L.marker(latlng,
+				      {draggable:true, icon: L.ExtraMarkers.icon(options)});
+		qth_marker.addTo(map);
+		my_qth = latlng;
+		qth_marker.bindPopup(mesg).openPopup();
+		update(true);
+		qth_marker.on('dragend', QTHdragend)
 	    }
-	    else
-		mesg = '<h4>JCG'+ res['jcg']+ '<br>' + res['pref'] + res['addr2'] + res['addr1']+ '<br>位置: ' + lat + ',' + lng + '<br>GL: ' + res['maidenhead'] + '<br> 標高: ' + res['elevation'] + 'm</h4>';
-	    
-	    if (qth_marker != null)
-		map.removeLayer(qth_marker)
-	    
-	    qth_marker = L.marker(latlng,
-				  {draggable:true, icon: L.ExtraMarkers.icon(options)});
-	    qth_marker.addTo(map);
-	    my_qth = latlng;
-	    qth_marker.bindPopup(mesg).openPopup();
-	    update(true);
-	    qth_marker.on('dragend', QTHdragend)
-	}
-    });
-};
+	});
+}
 
 function callbkQTHNG(arg) {
     var emsg = "エラーが発生しました"
